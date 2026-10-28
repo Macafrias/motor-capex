@@ -418,7 +418,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 15:36</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 15:39</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1409,7 +1409,7 @@ const ItOg = {
 
 /* ============ CUADRO 03 · IT Proyectos ============ */
 const PR_PAGES = [
-  { kind: 'resumen', label: 'Resumen' },
+  { kind: 'resumen', label: 'Resumen on going' },
   { kind: 'curso', label: 'Proyectos on going' },
   { kind: 'extra', label: 'Aprobación extra' },
   { kind: 'sin', label: 'Sin aprobación' },
@@ -1421,7 +1421,7 @@ const ItPr = {
   views(page){
     const k = this.kind(page);
     const V = {
-      resumen: { completo: { label: 'Composición PPTO 2027', cols: ['SL','P27','PCT','CUB','AAP'] }, con26: { label: 'Con referencia 2026', cols: ['SL','P26','FC','P27','PCT','AAP'] } },
+      resumen: { completo: { label: 'Composición PPTO 2027', cols: ['SL','P27','PCT','CUB','AAP'] }, con26: { label: 'Con referencia 2026', cols: ['SL','P26','FC','P27','PCT','APR'] } },
       curso: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR'] }, aprob: { label: 'Saldo aprobado', cols: ['SL','APR','CONS','SALDO','P27','SAL27'] }, ppto: { label: 'Presupuesto', cols: ['SL','P26','REAL','FC','P27','DPCT'] } },
       extra: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR','EXC'] }, aprob: { label: 'Saldo aprobado', cols: ['SL','APR','CONS','SALDO','P27','EXC'] } },
       sin: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR'] }, vent: { label: 'Con ventana 2027', cols: ['SL','P26','FC','P27','VENT'] } },
@@ -1440,7 +1440,7 @@ const ItPr = {
       { k: 'VENT', label: 'Ventana 2027', grp: '2027', kind: 'text', tone: 'aux' },
       { k: 'PCT', label: '% del PPTO 2027', grp: '2027', kind: 'share', tone: 'var' },
       { k: 'CUB', label: 'Con aprobación vigente', grp: 'Aprobación PPTO 2027', kind: 'amt', tone: 'var' },
-      { k: 'AAP', label: 'A aprobar', grp: 'Aprobación PPTO 2027', kind: 'aap', tone: 'var', strong: true },
+      { k: 'AAP', label: 'A aprobar (extra)', grp: 'Aprobación PPTO 2027', kind: 'aap', tone: 'var', strong: true },
       { k: 'APR', label: 'Aprobado total', grp: 'Aprobación', kind: 'amt', tone: 'var', strong: true },
       { k: 'CONS', label: 'Consumido total', grp: 'Aprobación', kind: 'amt', tone: 'var' },
       { k: 'SALDO', label: 'Saldo aprobado', grp: 'Aprobación', kind: 'delta', tone: 'var' },
@@ -1500,9 +1500,9 @@ const ItPr = {
     const cells = (v, sl, it) => { const out = {}; cols.forEach(c => out[c.k] = this.fmtCell(c, v, sl, it)); return out; };
     const p = state.ds.params || {}, rows = [];
     const empty = x => ['P26','REAL','FC','P27','APR','CONS'].every(q => !x.v[q] || Math.abs(x.v[q]) < 0.005);
-    const titleBy = { resumen: 'IT Proyectos · PPTO 2027', curso: 'IT Proyectos · On going', extra: 'IT Proyectos · Aprobación extra', sin: 'IT Proyectos · Sin aprobación', fin: 'IT Proyectos · Finalizados' };
+    const titleBy = { resumen: 'IT Proyectos on going · PPTO 2027', curso: 'IT Proyectos · On going', extra: 'IT Proyectos · Aprobación extra', sin: 'IT Proyectos · Sin aprobación', fin: 'IT Proyectos · Finalizados' };
     const subBy = {
-      resumen: 'Composición del PPTO 2027 de proyectos de IT según su situación de aprobación',
+      resumen: 'Proyectos aprobados por subcategoría · los proyectos futuros (sin aprobación) se presentan aparte',
       curso: 'Proyectos aprobados en ejecución (on going) · saldo aprobado frente al PPTO 2027',
       extra: 'Proyectos aprobados que requieren aprobación adicional por mayor alcance o valor',
       sin: 'Proyectos que deben pasar por el proceso de aprobación',
@@ -1511,13 +1511,15 @@ const ItPr = {
     let tot;
     this._tot = D.items.reduce((a, x) => a + x.v.P27, 0);
     if (k === 'resumen'){
-      const all = D.items;
+      // proyectos aprobados (on going + aprobación extra + finalizados) por subcategoría; los futuros (sin aprobación) van en su slide
+      const all = D.items.filter(x => x.cat !== 'sin');
+      this._tot = all.reduce((a, x) => a + x.v.P27, 0);
       tot = this.sumV(all); tot.EXC = this.sumV(all.filter(x => x.cat === 'extra')).EXC;
-      rows.push({ label: 'IT Proyectos', style: 'total', cells: cells(tot, all.length + ' SL'), drill: { title: 'IT Proyectos', sls: all.map(x => x.r) } });
-      E.PR_CATS.forEach(cat => {
-        const L = all.filter(x => x.cat === cat.id), v = this.sumV(L);
-        if (cat.id !== 'extra') v.EXC = 0;
-        rows.push({ label: cat.label, style: 'jer', cells: cells(v, L.length + ' SL'), drill: { title: cat.label, sls: L.map(x => x.r) }, goto: 'itpr|' + cat.id });
+      rows.push({ label: 'IT Proyectos on going', style: 'total', cells: cells(tot, all.length + ' SL'), drill: { title: 'IT Proyectos on going', sls: all.map(x => x.r) } });
+      IT_PARTS.filter(pp => o.parts.includes(pp)).forEach(pp => {
+        const L = all.filter(x => E.norm(x.r.part) === E.norm(pp)); if (!L.length) return;
+        const v = this.sumV(L); v.EXC = this.sumV(L.filter(x => x.cat === 'extra')).EXC;
+        rows.push({ label: pp, style: 'jer', cells: cells(v, L.length + ' SL'), drill: { title: pp + ' · proyectos on going', sls: L.map(x => x.r) } });
       });
     } else {
       const L = D.items.filter(x => x.cat === k && !(o.hideEmpty && empty(x)));
@@ -1552,8 +1554,8 @@ const ItPr = {
     }
     const d = fVar(vr(tot.P27, tot.FC));
     const kp = {
-      resumen: [{ k: 'PPTO 2027 · IT Proyectos', v: '$' + fAmt(tot.P27).t + unitShort(), d: 'con aprobación vigente $' + fAmt(tot.CUB).t + unitShort(), plain: true, hero: true, tone: 'ppto' },
-                { k: 'A aprobar en PPTO 2027', tone: 'ater', plain: true, v: '$' + fAmt(tot.AAP).t + unitShort(), d: tot.P27 ? nf(0).format(tot.AAP / tot.P27 * 100) + '% del PPTO 2027' : '' }],
+      resumen: [{ k: 'PPTO 2027 · proyectos on going', v: '$' + fAmt(tot.P27).t + unitShort(), d: 'con aprobación vigente $' + fAmt(tot.CUB).t + unitShort(), plain: true, hero: true, tone: 'ppto' },
+                { k: 'Aprobación extra', tone: 'ater', plain: true, v: '$' + fAmt(tot.AAP).t + unitShort(), d: tot.P27 ? nf(0).format(tot.AAP / tot.P27 * 100) + '% del PPTO 2027' : '' }],
       curso: [{ k: 'PPTO 2027 · on going', v: '$' + fAmt(tot.P27).t + unitShort(), d: 'saldo aprobado ' + (tot.SALDO < 0 ? '−$' : '$') + fAmt(Math.abs(tot.SALDO)).t + unitShort(), plain: true, hero: true, tone: 'ppto' }],
       extra: [{ k: 'Exceso a aprobar', v: '$' + fAmt(tot.EXC).t + unitShort(), d: 'PPTO 2027 $' + fAmt(tot.P27).t + unitShort(), plain: true, hero: true, tone: 'ater' }],
       sin: [{ k: 'PPTO 2027 a aprobar', v: '$' + fAmt(tot.P27).t + unitShort(), d: D.items.filter(x => x.cat === 'sin').length + ' proyectos', plain: true, hero: true, tone: 'ppto' }],
@@ -1562,12 +1564,12 @@ const ItPr = {
     return {
       eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · IT Proyectos`, title: titleBy[k],
       sub: `En ${unitLbl()} · ${subBy[k]}`,
-      note: k === 'resumen' ? 'On going: proyectos aprobados, su PPTO 2027 está cubierto por la aprobación vigente. Aprobación extra y Sin aprobación: su PPTO 2027 se presenta para aprobar. Estado según PPTO27; aprobación extra según 08_PROYECTOS.'
+      note: k === 'resumen' ? 'Incluye proyectos on going, con aprobación extra y finalizados (estado según PPTO27); cruza con Proy. on going PPTO 2027 del Cuadro General. A aprobar = PPTO 2027 de los proyectos con aprobación extra (08_PROYECTOS).'
         : !cols.some(c => c.k === 'EXC' || c.k === 'SAL27') ? 'Composición por jerarquización de exposición presupuestaria (Matriz de Subledgers). Estado según PPTO27; "Aprobación extra" según 08_PROYECTOS. Aprobado total desde 08_PROYECTOS.'
         : k === 'extra' ? 'Exceso a aprobar = Consumido total + PPTO 2027 − Aprobado total. Consumido total incluye real histórico, real 2026 y FCTS oct–dic (08_PROYECTOS).'
         : k === 'curso' ? 'Saldo luego de PPTO 27 = Saldo aprobado − PPTO 2027. En rojo: el PPTO 2027 supera el saldo aprobado.'
         : 'Estado según PPTO27 (tipo PROYECTOS); "Aprobación extra" según la columna D de 08_PROYECTOS. Montos 2026 desde 06_FCTS26 y PPTO 2027 desde PPTO27.',
-      labelHead: k === 'resumen' ? 'Estado' : 'Jerarquización · SL', cols, rows: rows.length ? rows : [{ label: 'Sin proyectos en esta categoría', style: 'cfnc', cells: {} }], kpis: kp
+      labelHead: k === 'resumen' ? 'Subcategoría' : 'Jerarquización · SL', cols, rows: rows.length ? rows : [{ label: 'Sin proyectos en esta categoría', style: 'cfnc', cells: {} }], kpis: kp
     };
   },
   checks(page, o){
