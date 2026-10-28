@@ -409,7 +409,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 12:30</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 12:38</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -689,10 +689,10 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         const iQ = GH.findIndex(x => x.startsWith('cantidades totales')), iImp = GH.findIndex(x => x.startsWith('total ano'));
         const iDet = GH.findIndex(x => x.startsWith('detalle de articulo'));
         const iQm = MES_L.map(m => GH.findIndex(x => x === 'cantidad en ' + m));
-        // horas por propuesta en columnas fijas de la hoja: AN = PPTO 2026 · AO = FCTS 2026 (9+3) · AP = PPTO 2027
+        // horas por propuesta en columnas fijas de la hoja: AN = PPTO 2026 · AP = FCTS 9+3 (cantidad proyectadas 2026) · T = PPTO 2027 (cantidades totales)
         const ws07 = wb.Sheets[ogName], off = ws07 && ws07['!ref'] ? XLSX.utils.decode_range(ws07['!ref']).s.c : 0;
         const colIdx = L => XLSX.utils.decode_col(L) - off;
-        const iH26 = colIdx('AN'), iHfc = colIdx('AO'), iH27 = colIdx('AP');
+        const iH26 = colIdx('AN'), iHfc = colIdx('AP'), iH27 = colIdx('T');
         for (let i = gh + 1; i < G.length; i++) {
           const r = G[i]; if (!r || r[iSl] == null || r[iSl] === '') continue;
           const k = slKey(r[iSl]);
@@ -707,7 +707,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         }
         Object.values(og).forEach(o => { o.price = o.qty ? o.val / o.qty : 0; o.mon = [...o.mon].join('/') || ''; if (o.h27 == null) o.h27 = o.qty; });
         const raw = G[gh] || [];
-        og.__cols = { h26: 'AN ' + (raw[iH26] || '(sin título)'), hfc: 'AO ' + (raw[iHfc] || '(sin título)'), h27: 'AP ' + (raw[iH27] || '(sin título)') };
+        og.__cols = { h26: 'AN ' + (raw[iH26] || '(sin título)'), hfc: 'AP ' + (raw[iHfc] || '(sin título)'), h27: 'T ' + (raw[iH27] || '(sin título)') };
       }
     }
     let mzInside = null;
