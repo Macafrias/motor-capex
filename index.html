@@ -441,9 +441,10 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         <label class="tg" for="optKpi"><input type="checkbox" id="optKpi" checked>Destacados en el encabezado</label>
         <label class="tg" for="optSem"><input type="checkbox" id="optSem" checked>Variaciones con color</label>
       </div>
+      <div class="field"><label for="optUnit">Unidad</label><select id="optUnit"><option value="M">$ millones</option><option value="MM">$ miles de millones</option></select></div>
       <div class="field row2">
-        <div class="field"><label for="optUnit">Unidad</label><select id="optUnit"><option value="M">$ millones</option><option value="MM">$ miles de millones</option></select></div>
-        <div class="field" style="margin-top:0"><label for="optPct">Variación</label><select id="optPct"><option value="0">Sin decimales</option><option value="1">1 decimal</option></select></div>
+        <div class="field"><label for="optDec">Decimales montos</label><select id="optDec"><option value="2">2 decimales</option><option value="1">1 decimal</option><option value="0">Sin decimales</option></select></div>
+        <div class="field" style="margin-top:0"><label for="optPct">Decimales %</label><select id="optPct"><option value="0">Sin decimales</option><option value="1">1 decimal</option><option value="2">2 decimales</option></select></div>
       </div>
     </section>
     <section class="panel">
@@ -905,24 +906,24 @@ const state = {
   mz: savedMz ? savedMz.mz : DEMO_MZ, mzSrc: savedMz ? 'live' : (DEMO_MZ ? 'demo' : 'none'), mzName: savedMz ? savedMz.name : (DEMO_MZ ? 'Subledger_matriz.xlsx' : 'Sin cargar'),
   dir: null, dirName: null, dirPerm: null,
   page: saved.page || 'general',
-  unit: saved.unit || 'M', pctDec: +(saved.pctDec || 0), kpis: saved.kpis !== false, sem: saved.sem !== false,
+  unit: saved.unit || 'M', pctDec: +(saved.pctDec || 0), dec: saved.dec == null ? 2 : +saved.dec, kpis: saved.kpis !== false, sem: saved.sem !== false,
   texts: saved.texts || {}, opts: saved.opts || {}, drill: null, res: null, zoom: new Set()
 };
 function persist(){
   const opts = {};
   for (const k in state.opts){ const o = Object.assign({}, state.opts[k]); if (o.cols instanceof Set) o.cols = [...o.cols]; opts[k] = o; }
-  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts });
+  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts });
 }
 
 /* ============ formato ============ */
 const nf = d => new Intl.NumberFormat('es-AR', { minimumFractionDigits: d, maximumFractionDigits: d });
-const uDiv = () => state.unit === 'MM' ? 1000 : 1, uDec = () => state.unit === 'MM' ? 1 : 0;
+const uDiv = () => state.unit === 'MM' ? 1000 : 1, uDec = () => state.dec;
 const unitLbl = () => state.unit === 'MM' ? 'miles de millones de ARS' : 'millones de ARS';
 const unitShort = () => state.unit === 'MM' ? ' mil M' : ' M';
 function fAmt(v){
   if (v == null) return { t: '', cls: 'na' };
   const x = v / uDiv(), d = uDec();
-  if (Math.abs(x) < (d ? 0.05 : 0.5)) return { t: '–', cls: 'na' };
+  if (Math.abs(x) < 0.5 / Math.pow(10, d)) return { t: '–', cls: 'na' };
   return { t: (x < 0 ? '−' : '') + nf(d).format(Math.abs(x)), cls: '' };
 }
 function fDelta(v){
@@ -933,13 +934,13 @@ function fVar(o){
   if (!o) return { t: '', cls: 'na' };
   if (o.pct == null) return Math.abs(o.num) < 0.5 ? { t: '–', cls: 'na' } : { t: '+100%', cls: 'vp', up: true, arrow: true };
   const p = o.pct * 100;
-  if (Math.abs(p) < (state.pctDec ? 0.05 : 0.5)) return { t: '0%', cls: '' };
+  if (Math.abs(p) < 0.5 / Math.pow(10, state.pctDec)) return { t: '0%', cls: '' };
   if (p >= 999.5) return { t: '>999%', cls: 'vp', up: true, arrow: true };
   return { t: (p < 0 ? '−' : '+') + nf(state.pctDec).format(Math.abs(p)) + '%', cls: p < 0 ? 'vn' : 'vp', up: p > 0, arrow: true };
 }
 function fRatio(a, b){
   if (!b || Math.abs(b) < 0.5) return { t: '–', cls: 'na' };
-  return { t: nf(0).format(a / b * 100) + '%', cls: '' };
+  return { t: nf(state.pctDec).format(a / b * 100) + '%', cls: '' };
 }
 const vr = (num, den) => ({ num, den, pct: den ? num / den - 1 : null });
 const anio = () => (state.ds.params && state.ds.params.anioBase) || 2026;
@@ -1274,7 +1275,7 @@ function renderAll(full){
   renderSlidesList(); renderViews(); renderColGrid(); renderCuadroOpts(); renderFiles(); renderChecks(); renderSlide();
   if (state.drill) renderDrill();
   $('#optKpi').checked = state.kpis; $('#optSem').checked = state.sem;
-  $('#optUnit').value = state.unit; $('#optPct').value = String(state.pctDec);
+  $('#optUnit').value = state.unit; $('#optPct').value = String(state.pctDec); $('#optDec').value = String(state.dec);
 }
 
 /* ============ detalle por SL ============ */
@@ -1369,6 +1370,7 @@ $('#optKpi').onchange = e => { state.kpis = e.target.checked; persist(); renderS
 $('#optSem').onchange = e => { state.sem = e.target.checked; persist(); renderSlide(); };
 $('#optUnit').onchange = e => { state.unit = e.target.value; persist(); renderSlide(); renderDrill(); };
 $('#optPct').onchange = e => { state.pctDec = +e.target.value; persist(); renderSlide(); };
+$('#optDec').onchange = e => { state.dec = +e.target.value; persist(); renderSlide(); if (state.drill) renderDrill(); };
 [['#sTitle','title'],['#sSub','sub'],['#sNote','note']].forEach(([s, k]) => {
   const el = $(s);
   el.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); el.blur(); } });
