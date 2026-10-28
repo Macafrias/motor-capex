@@ -400,6 +400,10 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .ct tr.meline td .sub,.ct tr.mecont td .sub{font-style:italic}
 .ct tr.grand td .sub{font-family:var(--f-light);font-weight:400;font-size:11px;color:var(--ink-2)}
 .ct tr.meline td.vp,.ct tr.mecont td.vp{color:var(--pos)} .ct tr.meline td.vn,.ct tr.mecont td.vn{color:var(--neg)} .ct tr.meline td.na,.ct tr.mecont td.na{color:#B6BCCB}
+/* renovación de oficinas: renglón por oficina con obras en texto */
+.ct tr.ofi td{border-top:1px solid #E3E6EE;padding-top:7px;padding-bottom:7px}
+.ct tr.ofi td.lbl{font-family:var(--f-display);font-weight:600;color:var(--navy);background:#F6F7FA;white-space:nowrap}
+.ct tbody tr td.note{text-align:left;font-family:var(--f-light);font-weight:400;font-size:11.5px;color:#5E6680;white-space:normal;min-width:380px;max-width:470px;line-height:1.3}
 </style>
 
 <header class="top">
@@ -429,7 +433,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 16:44</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 16:57</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -985,11 +989,16 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       if (qh >= 0) {
         const QH = Array.from(Q[qh], norm), f = (...ks) => { for (const k of ks) { const i = QH.findIndex(x => x === k || x.startsWith(k)); if (i >= 0) return i; } return -1; };
         const c = { sl: QH.indexOf('sl'), nom: f('nombre del proyecto', 'nombre'), est: f('estado del sl', 'estado'), apr: f('aprobado total'), cons: f('consumido total'),
-          saldo: f('saldo aprobado'), pej: f('% ejecutado'), desde: f('mes desde'), hasta: f('mes hasta'), tot27: f('total 2027'), com: f('comentario') };
+          saldo: f('saldo aprobado'), pej: f('% ejecutado'), desde: f('mes desde'), hasta: f('mes hasta'), tot27: f('total 2027'), com: f('comentario'),
+          mpr: f('monto a proyectar') };
+        const MI = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'].map(m => QH.indexOf('importe ' + m));
         for (let i = qh + 1; i < Q.length; i++) {
           const r = Q[i]; if (!r || r[c.sl] == null || r[c.sl] === '') continue;
           const k = slKey(r[c.sl]);
-          const o = pr[k] || (pr[k] = { estado: '', nom: null, apr: 0, cons: 0, saldo: 0, tot27: 0, desde: null, hasta: null, com: null, n: 0 });
+          const o = pr[k] || (pr[k] = { estado: '', nom: null, apr: 0, cons: 0, saldo: 0, tot27: 0, desde: null, hasta: null, com: null, n: 0, det: [] });
+          // detalle por renglón (p. ej. un SL con varias obras / oficinas)
+          o.det.push({ nom: c.nom >= 0 ? r[c.nom] : null, est: c.est >= 0 ? r[c.est] : null, tot27: c.tot27 >= 0 ? num(r[c.tot27]) : 0, mpr: c.mpr >= 0 ? num(r[c.mpr]) : 0,
+            desde: c.desde >= 0 ? r[c.desde] : null, hasta: c.hasta >= 0 ? r[c.hasta] : null, com: c.com >= 0 ? r[c.com] : null, m: MI.map(i => i >= 0 ? num(r[i]) : 0) });
           if (!o.estado && c.est >= 0 && r[c.est]) o.estado = String(r[c.est]).trim();
           if (!o.nom && c.nom >= 0) o.nom = r[c.nom];
           ['apr','cons','saldo','tot27'].forEach(x => { if (c[x] >= 0) o[x] += num(r[c[x]]); });
@@ -1672,14 +1681,37 @@ const ME_LINES = [
   { block: 2, det: 'Capex varios', fmt: 'The food Market', jer: ['Capex varios TFM', 'Capex varios The food Market', 'Reformas & mejoras', 'Reformas y mejoras'], tfm: true },
   { block: 2, det: 'Capex varios oficina', fmt: 'Cross', jer: ['Capex varios oficinas', 'Capex varios oficina'] }
 ];
+/* proyecto de renovación de oficinas: detalle por renglón de 08_PROYECTOS */
+const OFI_SL = '990001';
+const ofiName = n => String(n || '').replace(/^\s*reformas?\s+(de\s+)?oficinas?\s*[-–:·]\s*/i, '').trim() || String(n || '');
+const ofiObras = c => String(c || '').split(/\s+-\s*|\s*-\s+/).map(x => x.trim()).filter(Boolean)
+  .map(x => x.replace(/^(\d+(?:[.,]\d+)?)\s*M?\s+(?:en\s+)?(.+)$/i, (m, n, w) => w.charAt(0).toUpperCase() + w.slice(1) + ' ' + n + 'M'))
+  .map(x => x.charAt(0).toUpperCase() + x.slice(1)).join(' · ');
 const Me = {
-  id: 'me', name: 'Mejoras Edilicias', blurb: 'Reformas y mejoras · capex varios · control sin TFM',
-  views: {
-    completo: { label: 'Completo', cols: ['FMT','FC','P27','DABS','DPCT'] },
-    ref26: { label: 'Con PPTO 2026', cols: ['FMT','P26','FC','P27','DABS','DPCT'] },
-    ejec: { label: 'Ejecución 2026', cols: ['FMT','P26','REAL','FC','EJ'] }
+  id: 'me', name: 'Mejoras Edilicias', blurb: 'Reformas y mejoras · capex varios · renovación de oficinas',
+  kind(page){ return page === 'me|ofi' ? 'ofi' : 'comp'; },
+  views(page){
+    return this.kind(page) === 'ofi' ? {
+      completo: { label: 'Obras por oficina', cols: ['OBRAS','P27','PCT'] },
+      vent: { label: 'Con ventana', cols: ['OBRAS','VENT','P27','PCT'] },
+      trim: { label: 'Calendario 2027', cols: ['T1','T2','T3','T4','P27','PCT'] }
+    } : {
+      completo: { label: 'Completo', cols: ['FMT','FC','P27','DABS','DPCT'] },
+      ref26: { label: 'Con PPTO 2026', cols: ['FMT','P26','FC','P27','DABS','DPCT'] },
+      ejec: { label: 'Ejecución 2026', cols: ['FMT','P26','REAL','FC','EJ'] }
+    };
   },
-  colDefs(){
+  colDefs(page){
+    if (page && this.kind(page) === 'ofi') return [
+      { k: 'OBRAS', label: 'Obras previstas', grp: null, kind: 'note', tone: 'aux' },
+      { k: 'VENT', label: 'Ventana 2027', grp: null, kind: 'text', tone: 'aux' },
+      { k: 'T1', label: '1° trim.', grp: 'Calendario 2027', kind: 'amt', tone: 'ppto' },
+      { k: 'T2', label: '2° trim.', grp: 'Calendario 2027', kind: 'amt', tone: 'ppto' },
+      { k: 'T3', label: '3° trim.', grp: 'Calendario 2027', kind: 'amt', tone: 'ppto' },
+      { k: 'T4', label: '4° trim.', grp: 'Calendario 2027', kind: 'amt', tone: 'ppto' },
+      { k: 'P27', label: 'PPTO 2027', grp: '2027', kind: 'amt', hero: true, tone: 'ppto' },
+      { k: 'PCT', label: '% del total', grp: '2027', kind: 'share', tone: 'var' }
+    ];
     return [
       { k: 'FMT', label: 'Formato', grp: null, kind: 'text', tone: 'aux' },
       { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
@@ -1692,9 +1724,68 @@ const Me = {
       { k: 'EJ', label: '% Ejec. Real / Aterrizaje', grp: 'Incremento vs aterrizaje', kind: 'ratio', tone: 'var' }
     ];
   },
-  defaults(){ return { view: 'completo', cols: this.views.completo.cols.slice() }; },
-  pages(){ return [{ key: 'me', label: null }]; },
-  optsHtml(){ return `<p class="empty" style="font-size:11.5px;padding:0">Cada línea suma los SL cuya jerarquización de exposición presupuestaria (PPTO27, col. E) coincide con la línea. En TFM, \"Reformas & mejoras\" se expone como Capex varios TFM.</p>`; },
+  defaults(){ return { byPage: {}, ofiSort: 'monto' }; },
+  colState(page, o){
+    const k = this.kind(page), bp = o.byPage || (o.byPage = {}), V = this.views(page);
+    const st = bp[k] || (bp[k] = { view: 'completo', cols: V.completo.cols.slice() });
+    if (st.view !== 'custom' && V[st.view]) st.cols = V[st.view].cols.slice();
+    if (!(st.cols instanceof Set)) st.cols = new Set(st.cols);
+    return st;
+  },
+  pages(){ return [{ key: 'me', label: 'Composición' }, { key: 'me|ofi', label: 'Renovación de oficinas' }]; },
+  optsHtml(o){
+    return `<div class="field"><span class="lab">Renovación de oficinas · orden</span><div class="seg" data-opt="ofiSort"><button type="button" data-v="monto" aria-pressed="${o.ofiSort !== 'archivo'}">Por monto</button><button type="button" data-v="archivo" aria-pressed="${o.ofiSort === 'archivo'}">Como en el archivo</button></div></div>
+      <p class="empty" style="font-size:11.5px;padding:0">Composición: cada línea suma los SL cuya jerarquización de exposición presupuestaria (PPTO27, col. E) coincide con la línea. En TFM, "Reformas &amp; mejoras" se expone como Capex varios TFM. Renovación de oficinas: SL ${OFI_SL}, un renglón por oficina de 08_PROYECTOS.</p>`;
+  },
+  ofi(o){
+    const U = 1e6, row = state.ds.rows.find(r => E.slKey(r.sl) === OFI_SL) || null;
+    const pr = (state.ds.pr || {})[OFI_SL] || null;
+    let det = (pr && pr.det && pr.det.length) ? pr.det.slice() : [];
+    const items = det.map((d, i) => {
+      const m = d.m || [], q = n => m.slice(n * 3, n * 3 + 3).reduce((a, b) => a + (+b || 0), 0) / U;
+      const de = +d.desde || 1, ha = +d.hasta || 12;
+      return { i, name: ofiName(d.nom), obras: ofiObras(d.com), P27: (d.tot27 || 0) / U, T1: q(0), T2: q(1), T3: q(2), T4: q(3),
+        vent: de === 1 && ha === 12 ? 'Ene – Dic' : `${E.MES[de - 1] || '?'} – ${E.MES[ha - 1] || '?'}`, est: d.est };
+    });
+    if (o.ofiSort !== 'archivo') items.sort((a, b) => b.P27 - a.P27);
+    const tot = items.reduce((a, x) => { ['P27','T1','T2','T3','T4'].forEach(k => a[k] += x[k]); return a; }, { P27: 0, T1: 0, T2: 0, T3: 0, T4: 0 });
+    return { row, pr, items, tot };
+  },
+  build(page, o){
+    const st = this.colState(page, o);
+    return this.kind(page) === 'ofi' ? this.buildOfi(page, o, st) : this.buildComp(page, o, st);
+  },
+  buildOfi(page, o, st){
+    const D = this.ofi(o), cols = this.colDefs(page).filter(c => st.cols.has(c.k)), pct = v => D.tot.P27 ? { t: nf(state.pctDec).format(v / D.tot.P27 * 100) + '%', cls: Math.abs(v) < 0.005 ? 'na' : '' } : { t: '–', cls: 'na' };
+    const cellsOf = (x, isTot) => {
+      const cells = {};
+      cols.forEach(c => {
+        if (c.k === 'OBRAS') cells[c.k] = { t: isTot ? '' : x.obras, cls: 'note' };
+        else if (c.k === 'VENT') cells[c.k] = { t: isTot ? '' : x.vent, cls: 'resp' };
+        else if (c.k === 'PCT') cells[c.k] = pct(x.P27);
+        else cells[c.k] = fAmt(x[c.k]);
+      });
+      return cells;
+    };
+    const rows = D.items.map(x => ({ label: x.name, style: 'ofi', cells: cellsOf(x) }));
+    if (!rows.length && D.row) rows.push({ label: D.row.nom, style: 'ofi', cells: cellsOf({ obras: 'Sin detalle en 08_PROYECTOS', vent: '', P27: D.row.p27 / 1e6, T1: 0, T2: 0, T3: 0, T4: 0 }) });
+    const totP = D.items.length ? D.tot.P27 : (D.row ? D.row.p27 / 1e6 : 0);
+    rows.push({ spacer: true }, { label: 'Total renovación de oficinas', sub: 'SL ' + OFI_SL, style: 'grand', cells: cellsOf(Object.assign({}, D.tot, { P27: totP }), true) });
+    const top = D.items.slice().sort((a, b) => b.P27 - a.P27)[0];
+    const est = (D.pr && D.pr.estado) || (D.row && D.row.estado) || '';
+    const where = D.row ? [D.row.gral, D.row.part].filter(Boolean).join(' · ') : '';
+    return {
+      eyebrow: `Presupuesto CAPEX ${(state.ds.params || {}).anioPpto || 2027} · Mejoras Edilicias · Proyecto ${est ? est.toLowerCase() : 'futuro'}`,
+      title: 'Renovación de oficinas',
+      sub: `En ${unitLbl()} · SL ${OFI_SL}${D.row ? ' · ' + D.row.nom : ''} · ${D.items.length || 1} ${D.items.length === 1 ? 'oficina' : 'oficinas'} · detalle de 08_PROYECTOS`,
+      note: `Proyecto a aprobar: el monto PPTO 2027 se distribuye por oficina según 08_PROYECTOS.${where ? ' En el Cuadro General se expone en ' + where + '; no suma a Mejoras Edilicias.' : ''}`,
+      labelHead: 'Oficina', cols, rows, wide: 'OBRAS',
+      kpis: [
+        { k: 'PPTO 2027 · a aprobar', v: '$' + fAmt(totP).t + unitShort(), d: (D.items.length || 1) + ' oficinas · ' + (est ? est.toLowerCase() : 'proyecto futuro'), plain: true, hero: true, tone: 'ppto' },
+        top ? { k: 'Mayor inversión', tone: 'ater', plain: true, v: top.name, d: '$' + fAmt(top.P27).t + unitShort() + ' · ' + pct(top.P27).t + ' del total' } : null
+      ].filter(Boolean)
+    };
+  },
   calc(){
     const U = 1e6, mz = curMz(), used = new Set();
     const val = r => ({ P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U });
@@ -1714,8 +1805,8 @@ const Me = {
     const huerf = uni.filter(r => !used.has(r));
     return { lines, huerf, sum, uni };
   },
-  build(page, o){
-    const C = this.calc(), cols = this.colDefs().filter(c => o.cols.has(c.k));
+  buildComp(page, o, st){
+    const C = this.calc(), cols = this.colDefs('me').filter(c => st.cols.has(c.k));
     const cellsOf = (v, fmt, slTxt) => {
       const cells = {};
       cols.forEach(c => {
@@ -1761,7 +1852,8 @@ const Me = {
       ]
     };
   },
-  checks(){
+  checks(page, o){
+    if (page && this.kind(page) === 'ofi') return this.checksOfi(o);
     const C = this.calc(), f2 = v => nf(2).format(v), out = [];
     const nonT = C.uni.filter(r => E.norm(r.gral) !== 'tfm'), tot = C.sum(nonT);
     const g = state.res.rows.find(r => r.id === 'ME'); const lines = [];
@@ -1778,6 +1870,16 @@ const Me = {
   }
 };
 
+Me.checksOfi = function(o){
+  const D = this.ofi(o || optsOf(this)), f2 = v => nf(2).format(v), out = [];
+  out.push({ label: `SL ${OFI_SL} en PPTO27`, ok: !!D.row, count: D.row ? 0 : 1, detail: D.row ? [] : [`No se encontró el SL ${OFI_SL} en la hoja de presupuesto`], okTxt: D.row ? D.row.nom : '' });
+  out.push({ label: 'Detalle por oficina en 08_PROYECTOS', ok: D.items.length > 0, warn: true, count: D.items.length ? 0 : 1, detail: D.items.length ? [] : ['No hay renglones del SL en 08_PROYECTOS (o falta "Actualizar" para releerla)'], okTxt: D.items.length + ' renglones' });
+  if (D.row && D.items.length){
+    const dif = D.tot.P27 - D.row.p27 / 1e6;
+    out.push({ label: 'Suma por oficina vs PPTO 2027 del SL', ok: Math.abs(dif) < 0.005, count: Math.abs(dif) < 0.005 ? 0 : 1, detail: [`Oficinas ${f2(D.tot.P27)} vs PPTO27 ${f2(D.row.p27 / 1e6)} · diferencia ${f2(dif)}`], okTxt: 'cruza' });
+  }
+  return out;
+};
 const CUADROS = [General, ItOg, ItPr, Me];
 const cuadroOf = key => CUADROS.find(c => key === c.id || key.startsWith(c.id + '|'));
 function optsOf(c){
@@ -2070,6 +2172,7 @@ $('#cuadroOpts').onclick = e => {
   }
   if (opt === 'split'){ o.split = b.dataset.v === '1'; }
   if (opt === 'topN') o.topN = +b.dataset.v;
+  if (opt === 'ofiSort') o.ofiSort = b.dataset.v;
   if (opt === 'prParts'){
     const p = b.dataset.p, has = o.parts.includes(p);
     if (has && o.parts.length === 1){ toast('Dejá al menos una subcategoría.'); return; }
@@ -2152,7 +2255,8 @@ const ROWSTYLE = {
   blockhead: { bold: true, color: TN.ppto.ht, bottom: 'B9A6E3' },
   aparte: { bold: false, color: PX.INK, top: 'B9A6E3', labFill: 'F6F7FA' },
   meline: { bold: true, color: PX.SLATE, labFill: 'F6F7FA', top: 'DDE1EA' },
-  mecont: { bold: true, color: PX.SLATE, labFill: 'F6F7FA' }
+  mecont: { bold: true, color: PX.SLATE, labFill: 'F6F7FA' },
+  ofi: { bold: true, color: PX.SLATE, labFill: 'F6F7FA', tall: true }
 };
 function addSlide(pptx, tm, tx){
   const s = pptx.addSlide(); s.background = { color: 'FFFFFF' };
@@ -2172,8 +2276,10 @@ function addSlide(pptx, tm, tx){
   parts.forEach((rows, pi) => {
   const cols = tm.cols;
   // tamaño de letra: el menor entre lo que permite el alto (filas) y el ancho (texto más largo por columna), sin cortes de línea
-  const avail = 7.5 - 1.4 - 0.55 - 0.3, rh = Math.min(0.26, avail / (maxLen + 2));
-  const totW = partW, hasSl = cols.some(c => c.kind === 'sl'), numCols = cols.filter(c => c.kind !== 'sl');
+  const hasNote = cols.some(c => c.kind === 'note');
+  const avail = 7.5 - 1.4 - 0.55 - 0.3, rh = Math.min(hasNote ? 0.5 : 0.26, avail / (maxLen + 2));
+  let noteW = hasNote ? partW * 0.42 : 0;
+  const totW = partW - noteW, hasSl = cols.some(c => c.kind === 'sl'), numCols = cols.filter(c => c.kind !== 'sl' && c.kind !== 'note');
   const numLen = Math.max(4, ...rows.flatMap(r => numCols.map(c => ((r.cells[c.k] || {}).t || '').length + ((r.cells[c.k] || {}).arrow ? 1 : 0))));
   const labLen = Math.max(8, ...rows.map(r => ((ROWSTYLE[r.style] || {}).indent ? 4 : 0) + r.label.length + (r.sub ? r.sub.length + 3 : 0)));
   const CH = 0.5 / 72, PAD = 0.1;   // ancho medio de un carácter Calibri (pulgadas por punto) y márgenes de celda
@@ -2183,6 +2289,10 @@ function addSlide(pptx, tm, tx){
     slW = hasSl ? Math.max(0.85, 9.5 * fs * CH + PAD + 0.1) : 0;
     cw = (totW - labW - slW) / Math.max(1, numCols.length);
     fs = Math.max(5.5, Math.min(10, rh * 40, (cw - PAD) / (numLen * CH)));
+  }
+  if (hasNote){ // columnas numéricas acotadas; el sobrante va al texto de obras y a la etiqueta
+    labW = Math.max(labW, 2.6); const rest = totW - labW - slW, ncw = Math.min(1.25, rest / Math.max(1, numCols.length));
+    noteW += rest - ncw * numCols.length; cw = ncw;
   }
   const head1 = [{ text: '', options: { fill: { color: 'FFFFFF' } } }];
   let i = 0;
@@ -2204,8 +2314,9 @@ function addSlide(pptx, tm, tx){
     return [lab].concat(cols.map(c => {
       const f = r.cells[c.k] || { t: '', cls: '' }, tn = TN[c.tone || 'var'];
       const fill = r.style === 'blockhead' ? 'FFFFFF' : (st.strong || r.style === 'sub') ? tn.t : tn.c;
-      const o = { fill: { color: fill }, bold: st.bold, color: st.color, border, align: (c.kind === 'sl' || c.kind === 'text') ? 'left' : 'right', fontFace: face, fontSize: size };
+      const o = { fill: { color: fill }, bold: st.bold, color: st.color, border, align: (c.kind === 'sl' || c.kind === 'text' || c.kind === 'note') ? 'left' : 'right', fontFace: face, fontSize: size };
       if (c.kind === 'sl' || c.tone === 'aux') { o.color = c.tone === 'aux' ? '8A91A6' : PX.INK2; o.bold = false; o.fontFace = 'Calibri Light'; }
+      if (c.kind === 'note') { o.color = '5E6680'; o.fontSize = Math.max(7, size - 1.5); o.valign = 'middle'; }
       if (state.sem && /vp/.test(f.cls)) o.color = '3E9B6A';
       if (state.sem && /vn/.test(f.cls)) o.color = 'C9584A';
       if (/\baap\b/.test(f.cls)) { o.color = '8A4B12'; o.bold = true; o.fontFace = 'Calibri'; }
@@ -2213,8 +2324,8 @@ function addSlide(pptx, tm, tx){
       return { text: f.t || '', options: o };
     }));
   });
-  const colW = [labW].concat(cols.map(c => c.kind === 'sl' ? slW : cw));
-  s.addTable([head1, head2].concat(body), { x: 0.4 + pi * (partW + GAP), y: 1.4, w: totW, colW, rowH: rh, fontSize: fs, fontFace: 'Calibri Light', valign: 'middle', margin: [0.01, 0.05, 0.01, 0.05], autoPage: false });
+  const colW = [labW].concat(cols.map(c => c.kind === 'sl' ? slW : c.kind === 'note' ? noteW : cw));
+  s.addTable([head1, head2].concat(body), { x: 0.4 + pi * (partW + GAP), y: 1.4, w: partW, colW, rowH: rh, fontSize: fs, fontFace: 'Calibri Light', valign: 'middle', margin: [0.01, 0.05, 0.01, 0.05], autoPage: false });
   });
   s.addText(tx.note, { x: 0.45, y: 7.02, w: 10.5, h: 0.32, fontSize: 8, color: PX.INK2, fontFace: 'Calibri Light' });
   s.addText('FARMACITY · PCG', { x: 11, y: 7.02, w: 1.9, h: 0.32, fontSize: 8, bold: true, color: PX.SLATE, align: 'right', fontFace: 'Calibri' });
