@@ -387,6 +387,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .ct thead tr.g th.t-real{color:#174A86} .ct thead tr.g th.t-ppto{color:#46338A} .ct thead tr.g th.t-ater{color:#8A4B12}
 .ct thead tr:not(.g) th{text-align:center !important;vertical-align:middle}
 .ct thead tr:not(.g) th:first-child{text-align:left !important}
+.ct tbody tr td.vn.strong-neg{font-family:var(--f-reg);font-weight:700}
 </style>
 
 <header class="top">
@@ -416,7 +417,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 13:07</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 15:17</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -486,6 +487,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="lib/xlsx.full.min.js"></script>
+<script src="lib/jszip.min.js"></script>
 <script src="lib/pptxgen.bundle.js"></script>
 <script src="lib/html2canvas.min.js"></script>
 <script>
@@ -563,9 +565,10 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     const cuadroCands = names.filter(n => /^cuadro_capex/i.test(n.trim()));
     const fctsName = names.find(n => /fcts\s*26/i.test(n)) || names.find(n => /fcts/i.test(n));
     const jerCands = names.filter(n => /subledger|matriz|03_sl|jerarq/i.test(norm(n)));
+    const prName = names.find(n => /^08/.test(n.trim()) && /proyecto/i.test(n)) || names.find(n => /base.*proyecto|proyectos/i.test(n) && !/ppto/i.test(n));
     const ogName = names.find(n => /^07/.test(n.trim()) && /on\s*going/i.test(n)) || names.find(n => /on\s*going/i.test(n));
     if (!pptoName) throw new Error('No encontré la hoja PPTO27 en el archivo.');
-    const wb = XLSX.read(data, { type: 'array', sheets: [pptoName, parName, fctsName, ogName, ...jerCands, ...cuadroCands].filter(Boolean), dense: false });
+    const wb = XLSX.read(data, { type: 'array', sheets: [pptoName, parName, fctsName, ogName, ...jerCands, ...cuadroCands].filter(Boolean), dense: false, sheetRows: 6000 });
     const aoa = n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null, blankrows: true });
 
     /* PPTO27 */
@@ -717,9 +720,10 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         og.__cols = { h26: 'AN ' + (raw[iH26] || '(sin título)'), hfc: 'AP ' + (raw[iHfc] || '(sin título)'), h27: 'T ' + (raw[iH27] || '(sin título)') };
       }
     }
+    const pr = {}; // 08_PROYECTOS se lee aparte, en streaming (readProyectos)
     let mzInside = null;
     for (const n of jerCands) { mzInside = jerFromAoA(aoa(n), n); if (mzInside) break; }
-    return { rows, params, snap, cached, snapName, pptoName, fcName: fcLabel, mzInside, og, ogName, lastReal, loadedAt: new Date().toISOString() };
+    return { rows, params, snap, cached, snapName, pptoName, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
   }
 
   /* ---------- Cálculo ---------- */
@@ -936,7 +940,133 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     return { blocks, total, noJer, noFc };
   }
 
-  root.CapexEngine = { STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, norm, slKey };
+  /* ---------- 08_PROYECTOS en streaming: la hoja puede traer ~1M filas vacías con formato ---------- */
+  function parsePr(Q) {
+    const pr = {};
+            const qh = Q.findIndex(r => r && r.some(x => norm(x) === 'sl') && r.some(x => norm(x).startsWith('estado')));
+      if (qh >= 0) {
+        const QH = Array.from(Q[qh], norm), f = (...ks) => { for (const k of ks) { const i = QH.findIndex(x => x === k || x.startsWith(k)); if (i >= 0) return i; } return -1; };
+        const c = { sl: QH.indexOf('sl'), nom: f('nombre del proyecto', 'nombre'), est: f('estado del sl', 'estado'), apr: f('aprobado total'), cons: f('consumido total'),
+          saldo: f('saldo aprobado'), pej: f('% ejecutado'), desde: f('mes desde'), hasta: f('mes hasta'), tot27: f('total 2027'), com: f('comentario') };
+        for (let i = qh + 1; i < Q.length; i++) {
+          const r = Q[i]; if (!r || r[c.sl] == null || r[c.sl] === '') continue;
+          const k = slKey(r[c.sl]);
+          const o = pr[k] || (pr[k] = { estado: '', nom: null, apr: 0, cons: 0, saldo: 0, tot27: 0, desde: null, hasta: null, com: null, n: 0 });
+          if (!o.estado && c.est >= 0 && r[c.est]) o.estado = String(r[c.est]).trim();
+          if (!o.nom && c.nom >= 0) o.nom = r[c.nom];
+          ['apr','cons','saldo','tot27'].forEach(x => { if (c[x] >= 0) o[x] += num(r[c[x]]); });
+          if (c.desde >= 0 && o.desde == null) o.desde = r[c.desde]; if (c.hasta >= 0 && o.hasta == null) o.hasta = r[c.hasta];
+          if (c.com >= 0 && r[c.com]) o.com = r[c.com];
+          o.n++;
+        }
+      }
+    return pr;
+  }
+  const xmlDec = t => String(t).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCharCode(parseInt(h, 16))).replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/&amp;/g, '&');
+  const colNum = L => { let n = 0; for (const ch of L) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
+  async function readSheetStream(JSZip, data, sheetName, maxRows) {
+    const zip = await JSZip.loadAsync(data);
+    const wbx = await zip.file('xl/workbook.xml').async('string');
+    const rels = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+    let rid = null;
+    (wbx.match(/<sheet\b[^>]*>/g) || []).forEach(tag => { const nm = (tag.match(/\bname="([^"]*)"/) || [])[1]; if (nm != null && xmlDec(nm) === sheetName) rid = (tag.match(/\br:id="([^"]*)"/) || [])[1]; });
+    if (!rid) return null;
+    let target = null;
+    (rels.match(/<Relationship\b[^>]*>/g) || []).forEach(tag => { if ((tag.match(/\bId="([^"]*)"/) || [])[1] === rid) target = (tag.match(/\bTarget="([^"]*)"/) || [])[1]; });
+    if (!target) return null;
+    const path = target.startsWith('/') ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '');
+    const sst = [];
+    const ssf = zip.file('xl/sharedStrings.xml');
+    if (ssf) { const sx = await ssf.async('string'); (sx.match(/<si>[\s\S]*?<\/si>/g) || []).forEach(si => sst.push(xmlDec((si.match(/<t[^>]*>([\s\S]*?)<\/t>/g) || []).map(t => t.replace(/<[^>]+>/g, '')).join('')))); }
+    const parseRow = xml => {
+      const at = xml.lastIndexOf('<row'); if (at < 0) return null;
+      const head = xml.slice(at, xml.indexOf('>', at) + 1), n = +((head.match(/\br="(\d+)"/) || [])[1] || 0);
+      const cells = []; let hasV = false;
+      const re = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g; let m;
+      const body = xml.slice(at);
+      while ((m = re.exec(body))) {
+        const a = m[1], inner = m[2] || '';
+        const ref = (a.match(/\br="([A-Z]+)\d+"/) || [])[1]; if (!ref) continue;
+        const t = (a.match(/\bt="(\w+)"/) || [])[1];
+        const vv = (inner.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+        let val = null;
+        if (t === 's') val = vv != null ? sst[+vv] : null;
+        else if (t === 'inlineStr') val = xmlDec((inner.match(/<t[^>]*>([\s\S]*?)<\/t>/) || [])[1] || '');
+        else if (t === 'str') val = vv != null ? xmlDec(vv) : null;
+        else if (t === 'b') val = vv === '1';
+        else if (t === 'e') val = null;
+        else val = vv != null && vv !== '' ? Number(vv) : null;
+        if (val != null && val !== '') { hasV = true; cells[colNum(ref)] = val; }
+      }
+      return { n, cells, hasV };
+    };
+    return await new Promise((resolve, reject) => {
+      const rows = []; let buf = '', started = false, emptyRun = 0, done = false;
+      const h = zip.file(path).internalStream('string');
+      const finish = () => { if (!done) { done = true; try { h.pause(); } catch (e) {} resolve(rows); } };
+      h.on('data', chunk => {
+        if (done) return;
+        buf += chunk; let idx;
+        while ((idx = buf.indexOf('</row>')) >= 0) {
+          const r = parseRow(buf.slice(0, idx + 6)); buf = buf.slice(idx + 6);
+          if (!r) continue;
+          if (r.hasV) { rows[r.n - 1] = r.cells; started = true; emptyRun = 0; } else if (started) emptyRun++;
+          if (r.n >= maxRows || (started && emptyRun > 300)) return finish();
+        }
+      }).on('end', finish).on('error', reject).resume();
+    });
+  }
+  async function readProyectos(JSZip, data, sheetName) {
+    const Q = await readSheetStream(JSZip, data, sheetName, 8000);
+    return Q ? parsePr(Q) : {};
+  }
+  async function readAnyAsync(XLSX, JSZip, data) {
+    const out = readAny(XLSX, data);
+    if (out.kind === 'ppto' && out.ds.prName && JSZip) out.ds.pr = await readProyectos(JSZip, data, out.ds.prName);
+    return out;
+  }
+
+  /* ---------- Cuadro particular: IT Proyectos ---------- */
+  const PR_CATS = [
+    { id: 'curso', label: 'En curso · aprobados' },
+    { id: 'extra', label: 'Aprobación extra' },
+    { id: 'sin', label: 'Sin aprobación' },
+    { id: 'fin', label: 'Finalizados' }
+  ];
+  function prCat(estado08, estadoPpto) {
+    const e = norm(estado08);
+    if (e.startsWith('finaliz')) return 'fin';
+    if (e.includes('extra')) return 'extra';
+    if (e.startsWith('sin aprob') || e === 'no aprobado') return 'sin';
+    if (e.startsWith('en curso') || e === 'aprobado') return 'curso';
+    const p = norm(estadoPpto);
+    if (p.startsWith('finaliz')) return 'fin';
+    if (p === 'en curso') return 'curso';
+    return 'sin';
+  }
+  function computeITProyectos(ds, parts) {
+    const U = 1e6, prm = ds.pr || {};
+    const items = [], no08 = [], mism = [];
+    ds.rows.forEach(r => {
+      if (norm(r.tipo) !== 'proyectos' || !parts.some(p => norm(p) === norm(r.part))) return;
+      const k = slKey(r.sl), p = prm[k];
+      if (!p) no08.push(r);
+      const cat = prCat(p && p.estado, r.estado);
+      const pptoBucket = ['en curso', 'finalizado'].includes(norm(r.estado)) ? 'apr' : 'fut';
+      const myBucket = cat === 'sin' ? 'fut' : 'apr';
+      if (pptoBucket !== myBucket) mism.push({ r, cat, estado08: p ? p.estado : '(sin dato)' });
+      const v = { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U,
+        APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null };
+      v.PEJ = v.APR ? v.CONS / v.APR : null;
+      v.SAL27 = v.SALDO != null ? v.SALDO - v.P27 : null;
+      v.EXC = Math.max(0, (v.CONS || 0) + v.P27 - (v.APR || 0));
+      items.push({ r, p, cat, v, desde: p ? p.desde : null, hasta: p ? p.hasta : null });
+    });
+    return { items, no08, mism };
+  }
+
+  root.CapexEngine = { STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, computeITProyectos, readAnyAsync, readProyectos, PR_CATS, norm, slKey };
   if (typeof module !== 'undefined') module.exports = root.CapexEngine;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -967,7 +1097,11 @@ const state = {
 };
 function persist(){
   const opts = {};
-  for (const k in state.opts){ const o = Object.assign({}, state.opts[k]); if (o.cols instanceof Set) o.cols = [...o.cols]; opts[k] = o; }
+  for (const k in state.opts){
+    const o = Object.assign({}, state.opts[k]); if (o.cols instanceof Set) o.cols = [...o.cols];
+    if (o.byPage){ const bp = {}; for (const p in o.byPage){ const x = Object.assign({}, o.byPage[p]); if (x.cols instanceof Set) x.cols = [...x.cols]; bp[p] = x; } o.byPage = bp; }
+    opts[k] = o;
+  }
   ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts });
 }
 
@@ -1269,7 +1403,153 @@ const ItOg = {
   }
 };
 
-const CUADROS = [General, ItOg];
+/* ============ CUADRO 03 · IT Proyectos ============ */
+const PR_PAGES = [
+  { kind: 'resumen', label: 'Resumen' },
+  { kind: 'curso', label: 'En curso · aprobados' },
+  { kind: 'extra', label: 'Aprobación extra' },
+  { kind: 'sin', label: 'Sin aprobación' },
+  { kind: 'fin', label: 'Finalizados' }
+];
+const ItPr = {
+  id: 'itpr', name: 'IT Proyectos', blurb: 'En curso · aprobación extra · sin aprobación · finalizados',
+  kind(page){ return page.split('|')[1] || 'resumen'; },
+  views(page){
+    const k = this.kind(page);
+    const V = {
+      resumen: { completo: { label: 'Completo', cols: ['SL','P26','REAL','FC','P27','EXC'] }, ppto: { label: 'Solo 2027', cols: ['SL','FC','P27','EXC'] } },
+      curso: { completo: { label: 'Completo', cols: ['SL','APR','CONS','SALDO','FC','P27','SAL27'] }, aprob: { label: 'Aprobación', cols: ['SL','APR','CONS','SALDO','PEJ','SAL27'] }, ppto: { label: 'Presupuesto', cols: ['SL','P26','REAL','FC','P27','DPCT'] } },
+      extra: { completo: { label: 'Completo', cols: ['SL','APR','CONS','SALDO','P27','EXC'] }, ppto: { label: 'Presupuesto', cols: ['SL','P26','REAL','FC','P27','EXC'] } },
+      sin: { completo: { label: 'Completo', cols: ['SL','P26','FC','P27','VENT'] }, ppto: { label: 'Solo PPTO 2027', cols: ['SL','P27','VENT'] } },
+      fin: { completo: { label: 'Completo', cols: ['SL','APR','CONS','SALDO','PEJ','REAL','FC'] }, control: { label: 'Control PPTO 27', cols: ['SL','APR','CONS','REAL','FC','P27'] } }
+    };
+    return V[k];
+  },
+  colDefs(page){
+    return [
+      { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
+      { k: 'APR', label: 'Aprobado total', grp: 'Aprobación', kind: 'amt', tone: 'var', strong: true },
+      { k: 'CONS', label: 'Consumido total', grp: 'Aprobación', kind: 'amt', tone: 'var' },
+      { k: 'SALDO', label: 'Saldo aprobado', grp: 'Aprobación', kind: 'delta', tone: 'var' },
+      { k: 'PEJ', label: '% ejecutado', grp: 'Aprobación', kind: 'ratio', tone: 'var' },
+      { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto' },
+      { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: '2026', kind: 'amt', tone: 'real' },
+      { k: 'FC', label: 'FCTS 9+3', grp: '2026', kind: 'amt', tone: 'ater', strong: true },
+      { k: 'P27', label: 'PPTO 2027', grp: '2027', kind: 'amt', tone: 'ppto', hero: true },
+      { k: 'DPCT', label: 'vs FCTS', grp: '2027', kind: 'var', tone: 'var' },
+      { k: 'SAL27', label: 'Saldo luego de PPTO 27', grp: '2027', kind: 'delta', tone: 'var' },
+      { k: 'EXC', label: 'Exceso a aprobar', grp: '2027', kind: 'exc', tone: 'var' },
+      { k: 'VENT', label: 'Ventana 2027', grp: '2027', kind: 'text', tone: 'aux' }
+    ];
+  },
+  defaults(){ return { parts: ['IT - Hard', 'IT - Soft', 'ECOM'], hideEmpty: true, topN: 12, byPage: {} }; },
+  colState(page, o){
+    const k = this.kind(page), bp = o.byPage || (o.byPage = {});
+    const st = bp[k] || (bp[k] = { view: 'completo', cols: this.views(page).completo.cols.slice() });
+    const V = this.views(page);
+    if (st.view !== 'custom' && V[st.view]) st.cols = V[st.view].cols.slice();
+    if (!(st.cols instanceof Set)) st.cols = new Set(st.cols);
+    return st;
+  },
+  pages(){ return PR_PAGES.map(p => ({ key: 'itpr|' + p.kind, label: p.label })); },
+  optsHtml(o){
+    return `<div class="field"><span class="lab">Subcategorías</span><div class="chips" data-opt="prParts">${IT_PARTS.map(p => `<button type="button" data-p="${p}" aria-pressed="${o.parts.includes(p)}">${p}</button>`).join('')}</div></div>
+      <div class="field"><span class="lab">Proyectos por subcategoría</span><div class="seg" data-opt="topN">${[[8,'8'],[12,'12'],[20,'20'],[0,'Todos']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${o.topN === v}">${l}</button>`).join('')}</div>
+        <span class="empty" style="font-size:11.5px;padding:0">Los de mayor monto se muestran uno por uno; el resto se agrupa en "Otros".</span></div>
+      <div class="field"><label class="tg" for="prEmpty"><input type="checkbox" id="prEmpty" data-opt="hideEmpty" ${o.hideEmpty ? 'checked' : ''}>Ocultar proyectos sin montos</label></div>`;
+  },
+  data(o){ return E.computeITProyectos(state.ds, o.parts); },
+  fmtCell(c, v, slTxt, it){
+    if (c.kind === 'sl') return { t: slTxt || '', cls: 'slc' };
+    if (c.k === 'PEJ') return v.APR ? { t: nf(0).format(v.CONS / v.APR * 100) + '%', cls: v.CONS > v.APR ? 'vn' : '' } : { t: '–', cls: 'na' };
+    if (c.k === 'SALDO' || c.k === 'SAL27'){ const x = v[c.k]; if (x == null) return { t: '–', cls: 'na' }; const f = fAmt(x); if (f.cls === 'na') return f; return { t: f.t, cls: x < 0 ? 'vn' : '' }; }
+    if (c.k === 'EXC'){ const f = fAmt(v.EXC); return f.cls === 'na' ? f : { t: f.t, cls: 'vn strong-neg' }; }
+    if (c.k === 'DPCT') return fVar(vr(v.P27, v.FC));
+    if (c.k === 'VENT') return { t: it ? this.ventana(it) : '', cls: 'aux' };
+    return fAmt(v[c.k]);
+  },
+  ventana(it){
+    const m = x => { const n = typeof x === 'number' ? x : parseInt(x, 10); return n >= 1 && n <= 12 ? E.MES[n - 1].charAt(0) + E.MES[n - 1].slice(1).toLowerCase() : null; };
+    const a = m(it.desde), z = m(it.hasta);
+    return a && z ? (a === z ? a : a + ' – ' + z) : '';
+  },
+  sumV(list){
+    const s = { P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, EXC: 0 };
+    list.forEach(x => { for (const k in s) s[k] += x.v[k] || 0; });
+    s.SAL27 = s.SALDO - s.P27; s.PEJ = s.APR ? s.CONS / s.APR : null; return s;
+  },
+  build(page, o){
+    const k = this.kind(page), st = this.colState(page, o);
+    const cols = this.colDefs(page).filter(c => st.cols.has(c.k));
+    const D = this.data(o);
+    const cells = (v, sl, it) => { const out = {}; cols.forEach(c => out[c.k] = this.fmtCell(c, v, sl, it)); return out; };
+    const p = state.ds.params || {}, rows = [];
+    const empty = x => ['P26','REAL','FC','P27','APR','CONS'].every(q => !x.v[q] || Math.abs(x.v[q]) < 0.005);
+    const titleBy = { resumen: 'IT Proyectos · Resumen', curso: 'IT Proyectos · En curso', extra: 'IT Proyectos · Aprobación extra', sin: 'IT Proyectos · Sin aprobación', fin: 'IT Proyectos · Finalizados' };
+    const subBy = {
+      resumen: 'Proyectos de IT según su estado de aprobación (08_PROYECTOS)',
+      curso: 'Proyectos aprobados en ejecución · saldo aprobado frente al PPTO 2027',
+      extra: 'Proyectos aprobados que requieren aprobación adicional por mayor alcance o valor',
+      sin: 'Proyectos que deben pasar por el proceso de aprobación',
+      fin: 'Proyectos cerrados · no deberían tener PPTO 2027'
+    };
+    let tot;
+    if (k === 'resumen'){
+      const all = D.items;
+      tot = this.sumV(all); tot.EXC = this.sumV(all.filter(x => x.cat === 'extra')).EXC;
+      rows.push({ label: 'IT Proyectos', style: 'total', cells: cells(tot, all.length + ' SL'), drill: { title: 'IT Proyectos', sls: all.map(x => x.r) } });
+      E.PR_CATS.forEach(cat => {
+        const L = all.filter(x => x.cat === cat.id), v = this.sumV(L);
+        if (cat.id !== 'extra') v.EXC = 0;
+        rows.push({ label: cat.label, style: 'jer', cells: cells(v, L.length + ' SL'), drill: { title: cat.label, sls: L.map(x => x.r) }, goto: 'itpr|' + cat.id });
+      });
+    } else {
+      const L = D.items.filter(x => x.cat === k && !(o.hideEmpty && empty(x)));
+      const parts = IT_PARTS.filter(pp => o.parts.includes(pp) && L.some(x => E.norm(x.r.part) === E.norm(pp)));
+      const multi = parts.length > 1;
+      parts.forEach((pp, bi) => {
+        const B = L.filter(x => E.norm(x.r.part) === E.norm(pp)).sort((a, b2) => (k === 'fin' ? (b2.v.APR || 0) - (a.v.APR || 0) : k === 'extra' ? b2.v.EXC - a.v.EXC : b2.v.P27 - a.v.P27));
+        if (multi){ if (bi) rows.push({ spacer: true }); rows.push({ label: pp, style: 'blockhead', cells: {} }); }
+        const N = o.topN > 0 && B.length > o.topN + 1 ? o.topN : B.length;
+        B.slice(0, N).forEach(x => rows.push({ label: x.r.nom || (x.p && x.p.nom) || String(x.r.sl), style: 'jer', cells: cells(x.v, String(x.r.sl), x), drill: { title: x.r.nom, sls: [x.r] } }));
+        if (N < B.length){ const rest = B.slice(N), v = this.sumV(rest); rows.push({ label: `Otros ${rest.length} proyectos`, style: 'sl', cells: cells(v, rest.length + ' SL'), drill: { title: `Otros ${rest.length} proyectos · ${pp}`, sls: rest.map(x => x.r) } }); }
+        if (multi){ const v = this.sumV(B); rows.push({ label: 'Total ' + pp, style: 'sub', cells: cells(v, B.length + ' SL'), drill: null }); }
+      });
+      tot = this.sumV(L);
+      rows.push({ spacer: true }, { label: 'Total ' + titleBy[k].replace('IT Proyectos · ', '').toLowerCase().replace(/^./, ch => ch.toUpperCase()), style: 'total', cells: cells(tot, L.length + ' SL'), drill: { title: titleBy[k], sls: L.map(x => x.r) } });
+      if (!L.length) rows.length = 0;
+    }
+    const d = fVar(vr(tot.P27, tot.FC));
+    const kp = {
+      resumen: [{ k: 'PPTO 2027 · IT Proyectos', v: '$' + fAmt(tot.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 9+3', up: d.up, hero: true, tone: 'ppto' },
+                { k: 'Exceso a aprobar', tone: 'ater', plain: true, v: '$' + fAmt(tot.EXC).t + unitShort(), d: 'proyectos con aprobación extra' }],
+      curso: [{ k: 'PPTO 2027 · en curso', v: '$' + fAmt(tot.P27).t + unitShort(), d: 'saldo aprobado ' + (tot.SALDO < 0 ? '−$' : '$') + fAmt(Math.abs(tot.SALDO)).t + unitShort(), plain: true, hero: true, tone: 'ppto' }],
+      extra: [{ k: 'Exceso a aprobar', v: '$' + fAmt(tot.EXC).t + unitShort(), d: 'PPTO 2027 $' + fAmt(tot.P27).t + unitShort(), plain: true, hero: true, tone: 'ater' }],
+      sin: [{ k: 'PPTO 2027 a aprobar', v: '$' + fAmt(tot.P27).t + unitShort(), d: D.items.filter(x => x.cat === 'sin').length + ' proyectos', plain: true, hero: true, tone: 'ppto' }],
+      fin: [{ k: 'Aprobado total', v: '$' + fAmt(tot.APR).t + unitShort(), d: 'consumido ' + (tot.APR ? nf(0).format(tot.CONS / tot.APR * 100) + '%' : '–'), plain: true, hero: true, tone: 'var' }]
+    }[k];
+    return {
+      eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · IT Proyectos`, title: titleBy[k],
+      sub: `En ${unitLbl()} · ${subBy[k]}`,
+      note: k === 'extra' ? 'Exceso a aprobar = Consumido total + PPTO 2027 − Aprobado total. Consumido total incluye real histórico, real 2026 y FCTS oct–dic (08_PROYECTOS).'
+        : k === 'curso' ? 'Saldo luego de PPTO 27 = Saldo aprobado − PPTO 2027. En rojo: el PPTO 2027 supera el saldo aprobado.'
+        : 'Estado según la columna D de 08_PROYECTOS. Montos 2026 desde 06_FCTS26 y PPTO 2027 desde PPTO27.',
+      labelHead: k === 'resumen' ? 'Estado' : 'Proyecto', cols, rows: rows.length ? rows : [{ label: 'Sin proyectos en esta categoría', style: 'cfnc', cells: {} }], kpis: kp
+    };
+  },
+  checks(page, o){
+    const k = this.kind(page), D = this.data(o), f2 = v => nf(2).format(v), out = [];
+    out.push({ label: 'SL sin dato en 08_PROYECTOS', ok: !D.no08.length, warn: true, count: D.no08.length, detail: D.no08.map(r => `${r.sl} · ${r.nom} (estado tomado de PPTO27: ${r.estado})`) });
+    out.push({ label: 'Estado distinto entre 08_PROYECTOS y PPTO27', ok: !D.mism.length, warn: true, count: D.mism.length,
+      detail: D.mism.map(m => `${m.r.sl} · ${m.r.nom}: 08 "${m.estado08}" vs PPTO27 "${m.r.estado}"`), okTxt: 'cruza con el Cuadro General' });
+    if (k === 'fin'){ const bad = D.items.filter(x => x.cat === 'fin' && Math.abs(x.v.P27) >= 0.005); out.push({ label: 'Finalizados con PPTO 2027', ok: !bad.length, count: bad.length, detail: bad.map(x => `${x.r.sl} · ${x.r.nom}: ${f2(x.v.P27)}`) }); }
+    if (k === 'curso'){ const bad = D.items.filter(x => x.cat === 'curso' && x.v.SAL27 != null && x.v.SAL27 < -0.005); out.push({ label: 'En curso con PPTO 2027 mayor al saldo', ok: !bad.length, warn: true, count: bad.length, detail: bad.map(x => `${x.r.sl} · ${x.r.nom}: excede ${f2(-x.v.SAL27)} (¿aprobación extra?)`) }); }
+    if (k === 'extra'){ const bad = D.items.filter(x => x.cat === 'extra' && x.v.EXC < 0.005); out.push({ label: 'Aprobación extra sin exceso calculado', ok: !bad.length, warn: true, count: bad.length, detail: bad.map(x => `${x.r.sl} · ${x.r.nom}`) }); }
+    return out;
+  }
+};
+
+const CUADROS = [General, ItOg, ItPr];
 const cuadroOf = key => CUADROS.find(c => key === c.id || key.startsWith(c.id + '|'));
 function optsOf(c){
   let o = state.opts[c.id];
@@ -1381,15 +1661,17 @@ function renderSlidesList(){
     return html;
   }).join('') + '<div class="sl-next">El próximo cuadro se suma acá, sobre los mismos archivos.</div>';
 }
+function colOpts(pg){ const o = optsOf(pg.cuadro); return pg.cuadro.colState ? pg.cuadro.colState(pg.key, o) : o; }
+function viewsOf(pg){ return typeof pg.cuadro.views === 'function' ? pg.cuadro.views(pg.key) : pg.cuadro.views; }
 function renderViews(){
-  const c = currentPage().cuadro, o = optsOf(c);
-  $('#views').innerHTML = Object.entries(c.views).map(([k, v]) => `<button type="button" data-v="${k}" aria-pressed="${o.view === k}">${esc(v.label)}</button>`).join('')
+  const pg = currentPage(), o = colOpts(pg);
+  $('#views').innerHTML = Object.entries(viewsOf(pg)).map(([k, v]) => `<button type="button" data-v="${k}" aria-pressed="${o.view === k}">${esc(v.label)}</button>`).join('')
     + `<button type="button" data-v="custom" aria-pressed="${o.view === 'custom'}">Personalizada</button>`;
 }
 function renderColGrid(){
-  const c = currentPage().cuadro, o = optsOf(c);
+  const pg = currentPage(), o = colOpts(pg);
   let html = '', last = undefined;
-  c.colDefs().forEach(d => {
+  pg.cuadro.colDefs(pg.key).forEach(d => {
     const g = d.grp || 'Identificación';
     if (g !== last){ html += `<div class="gl">${esc(g)}</div>`; last = g; }
     html += `<label class="tg" for="c_${d.k}"><input type="checkbox" id="c_${d.k}" data-k="${d.k}" ${o.cols.has(d.k) ? 'checked' : ''}>${esc(d.label)}</label>`;
@@ -1479,11 +1761,12 @@ async function loadFiles(list, from){
   if (!files.length){ toast('Elegí un archivo Excel (.xlsx).'); return; }
   const msgs = [];
   if (!(await ensureLib('XLSX', LIBS.XLSX))){ toast('No se pudo cargar la librería para leer Excel. Revisá la conexión.'); return; }
+  await ensureLib('JSZip', LIBS.JSZip);
   for (const f of files){
     busy(true, 'Leyendo ' + f.name + '…');
     await new Promise(r => setTimeout(r, 40));
     try{
-      const out = E.readAny(XLSX, new Uint8Array(await f.arrayBuffer()));
+      const out = await E.readAnyAsync(XLSX, window.JSZip, new Uint8Array(await f.arrayBuffer()));
       if (out.kind === 'ppto'){ state.ds = out.ds; state.dsSrc = 'file'; state.dsName = f.name; msgs.push('presupuesto'); }
       else { state.mz = out.mz; state.mzSrc = 'live'; state.mzName = f.name; ls.set(LSMZ, { mz: out.mz, name: f.name }); msgs.push('matriz (' + out.mz.count + ' SL)'); }
     }catch(e){ console.error(e); toast(f.name + ': ' + (e.message || e)); busy(false); return; }
@@ -1510,13 +1793,13 @@ $('#slides').onclick = e => {
 };
 $('#views').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
-  const c = currentPage().cuadro, o = optsOf(c);
-  o.view = b.dataset.v; if (o.view !== 'custom') o.cols = new Set(c.views[o.view].cols);
+  const pg = currentPage(), o = colOpts(pg);
+  o.view = b.dataset.v; if (o.view !== 'custom') o.cols = new Set(viewsOf(pg)[o.view].cols);
   rerender();
 };
 $('#colgrid').onchange = e => {
   const k = e.target.dataset.k; if (!k) return;
-  const o = optsOf(currentPage().cuadro);
+  const o = colOpts(currentPage());
   e.target.checked ? o.cols.add(k) : o.cols.delete(k);
   o.view = 'custom'; persist(); renderViews(); renderSlide();
 };
@@ -1537,6 +1820,12 @@ $('#cuadroOpts').onclick = e => {
     o.parts = has ? o.parts.filter(x => x !== p) : IT_PARTS.filter(x => o.parts.includes(x) || x === p);
   }
   if (opt === 'split'){ o.split = b.dataset.v === '1'; }
+  if (opt === 'topN') o.topN = +b.dataset.v;
+  if (opt === 'prParts'){
+    const p = b.dataset.p, has = o.parts.includes(p);
+    if (has && o.parts.length === 1){ toast('Dejá al menos una subcategoría.'); return; }
+    o.parts = has ? o.parts.filter(x => x !== p) : IT_PARTS.filter(x => o.parts.includes(x) || x === p);
+  }
   if (opt === 'zoomAll'){ o.zoomAll = b.dataset.v === '1'; state.zoom.clear(); }
   if (opt === 'split' || opt === 'parts'){ const pages = c.pages(o); if (!pages.some(p => p.key === state.page)) state.page = pages[0].key; }
   rerender();
@@ -1684,6 +1973,7 @@ async function ensureLib(globalName, urls){
 const LIBS = {
   PptxGenJS: ['lib/pptxgen.bundle.js', 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js', 'https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundle.js'],
   html2canvas: ['lib/html2canvas.min.js', 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js', 'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'],
+  JSZip: ['lib/jszip.min.js', 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', 'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js'],
   XLSX: ['lib/xlsx.full.min.js', 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js']
 };
 async function exportPptx(all){
