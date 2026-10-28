@@ -380,6 +380,11 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .ct tbody tr td.t-aux{color:#8A91A6;font-family:var(--f-light);font-weight:400;font-size:12px}
 .ct tbody tr:not(.total):not(.grand):not(.sub) td.t-aux{background:transparent}
 .kpi.k-aux{background:#fff;border-color:var(--rule)} .kpi.k-aux .k{color:#8A91A6} .kpi.k-aux .v{color:var(--ink-2);font-family:var(--f-light);font-weight:400}
+/* encabezados más visibles */
+.ct thead th{font-size:12.5px;color:var(--slate);line-height:1.2;padding-bottom:6px;border-bottom:1.5px solid #8F98B0}
+.ct thead th.h-real{color:#174A86} .ct thead th.h-ppto{color:#46338A} .ct thead th.h-ater{color:#8A4B12}
+.ct thead tr.g th{font-size:11.5px;letter-spacing:.06em;padding:6px 6px;color:var(--slate)}
+.ct thead tr.g th.t-real{color:#174A86} .ct thead tr.g th.t-ppto{color:#46338A} .ct thead tr.g th.t-ater{color:#8A4B12}
 </style>
 
 <header class="top">
@@ -409,7 +414,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 12:59</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 13:03</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -517,20 +522,20 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     { k:'P26O', label:'On going', grp:'PPTO 2026', src:'snap' },
     { k:'P26P', label:'Proy. on going', grp:'PPTO 2026', src:'snap' },
     { k:'P26F', label:'Proy. futuros', grp:'PPTO 2026', src:'snap' },
-    { k:'P26',  label:'PPTO 2026', grp:'PPTO 2026', src:'snap', strong:true },
+    { k:'P26',  label:'Total', grp:'PPTO 2026', src:'snap', strong:true },
     { k:'A84',  label:'Aterrizaje 8+4', grp:'Aterrizaje 2026', src:'snap' },
-    { k:'A93O', label:'On going 9+3', grp:'On going', src:'snap' },
-    { k:'P27O', label:'On going PPTO 27', grp:'On going', src:'calc' },
-    { k:'VO',   label:'Var.', grp:'On going', src:'var', num:'P27O', den:'A93O' },
-    { k:'A93P', label:'Proy. on going 9+3', grp:'Proy. on going', src:'snap' },
-    { k:'P27P', label:'Proy. on going PPTO 27', grp:'Proy. on going', src:'calc' },
-    { k:'P27F', label:'Proy. futuros PPTO 27', grp:'Proy. futuros', src:'calc' },
+    { k:'A93O', label:'Aterrizaje 9+3', grp:'On going', src:'snap' },
+    { k:'P27O', label:'PPTO 2027', grp:'On going', src:'calc' },
+    { k:'VO',   label:'Var. %', grp:'On going', src:'var', num:'P27O', den:'A93O' },
+    { k:'A93P', label:'Aterrizaje 9+3', grp:'Proy. on going', src:'snap' },
+    { k:'P27P', label:'PPTO 2027', grp:'Proy. on going', src:'calc' },
+    { k:'P27F', label:'PPTO 2027', grp:'Proy. futuros', src:'calc' },
     { k:'RACU', label:'Real acum.', grp:'Ejecución 2026', src:'calc' },
     { k:'A93',  label:'Aterrizaje 9+3', grp:'Ejecución 2026', src:'snap', strong:true },
     { k:'V26',  label:'PPTO 26 vs Real 25', grp:'Variaciones', src:'var', num:'P26', den:'R25' },
     { k:'VAT',  label:'Aterrizaje vs PPTO 26', grp:'Variaciones', src:'var', num:'A93', den:'P26' },
-    { k:'P27',  label:'PPTO 2027', grp:'PPTO 2027', src:'calc', strong:true, hero:true },
-    { k:'V27',  label:'PPTO 27 vs Aterrizaje', grp:'PPTO 2027', src:'var', num:'P27', den:'A93' }
+    { k:'P27',  label:'Total', grp:'PPTO 2027', src:'calc', strong:true, hero:true },
+    { k:'V27',  label:'vs Aterrizaje', grp:'PPTO 2027', src:'var', num:'P27', den:'A93' }
   ];
 
   const VIEWS = {
@@ -1638,12 +1643,12 @@ function addSlide(pptx, tm, tx){
   let i = 0;
   while (i < cols.length){ let j = i; while (j + 1 < cols.length && cols[j + 1].grp === cols[i].grp) j++;
     const g = cols[i].grp, tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var')), tn = TN[tones.size === 1 ? [...tones][0] : 'mix'];
-    head1.push(g ? { text: g.toUpperCase(), options: { colspan: j - i + 1, fill: { color: tn.h }, color: tn.ht, bold: true, align: 'center', fontSize: fs - 1, fontFace: 'Calibri', border: [null, { pt: 1.5, color: 'FFFFFF' }, null, { pt: 1.5, color: 'FFFFFF' }] } }
+    head1.push(g ? { text: g.toUpperCase(), options: { colspan: j - i + 1, fill: { color: tn.h }, color: tn.ht, bold: true, align: 'center', fontSize: Math.min(10.5, fs + 0.5), fontFace: 'Calibri', border: [null, { pt: 1.5, color: 'FFFFFF' }, null, { pt: 1.5, color: 'FFFFFF' }] } }
                : { text: '', options: { colspan: j - i + 1, fill: { color: 'FFFFFF' } } });
     i = j + 1; }
   const bHead = [null, null, { pt: 1.25, color: '9AA3BA' }, null];
   const head2 = [{ text: tm.labelHead, options: { bold: true, color: PX.INK2, align: 'left', border: bHead, fontFace: 'Calibri' } }]
-    .concat(cols.map(c => ({ text: c.label, options: { bold: true, color: c.tone && TN[c.tone] && c.tone !== 'var' ? TN[c.tone].ht : PX.INK2, align: c.kind === 'sl' ? 'left' : 'right', border: bHead, fontFace: 'Calibri' } })));
+    .concat(cols.map(c => ({ text: c.label, options: { bold: true, fontSize: Math.min(11, fs + 1), color: c.tone && TN[c.tone] && c.tone !== 'var' && c.tone !== 'aux' ? TN[c.tone].ht : (c.tone === 'aux' ? TN.aux.ht : PX.SLATE), align: c.kind === 'sl' ? 'left' : 'right', border: bHead, fontFace: 'Calibri' } })));
   const body = rows.map(r => {
     const st = ROWSTYLE[r.style] || ROWSTYLE.child;
     const border = [st.top ? { pt: st.strong ? 1.75 : 1, color: st.top } : null, null, { pt: st.bottom ? 1.75 : 0.5, color: st.bottom || PX.LINE }, null];
