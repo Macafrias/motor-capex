@@ -367,6 +367,13 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .es-btns .btn.primary{background:#7A62C2;border-color:#7A62C2}
 .ct td .goto{font-family:var(--f-light);font-weight:400;font-size:11px;color:var(--ppto-ht);margin-left:10px;opacity:0;transition:opacity .15s}
 .ct tr:hover td .goto{opacity:1}
+.ct tr.aparte td{font-family:var(--f-light);color:var(--ink);border-top:1px dashed #B9A6E3;background:transparent}
+.ct tr.aparte td.lbl{background:var(--tint-2);font-family:var(--f-reg);font-weight:700;color:var(--slate)}
+.ct tr.aparte td.t-real{background:var(--real-c)} .ct tr.aparte td.t-ppto{background:var(--ppto-c)} .ct tr.aparte td.t-ater{background:var(--ater-c)}
+.ct tr.aparte td .sub{font-style:italic}
+.ct tr.total td .sub{font-family:var(--f-light);font-weight:400;color:var(--ink-2)}
+.ct tr td.vp{color:var(--pos)} .ct tr td.vn{color:var(--neg)} .ct tr td.na{color:#B6BCCB}
+.ct tr.sub td.slc,.ct tr.aparte td.slc{font-family:var(--f-light);font-weight:400;color:var(--ink-2)}
 </style>
 
 <header class="top">
@@ -396,7 +403,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 11:48</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 11:57</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -543,8 +550,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     const cuadroCands = names.filter(n => /^cuadro_capex/i.test(n.trim()));
     const fctsName = names.find(n => /fcts\s*26/i.test(n)) || names.find(n => /fcts/i.test(n));
     const jerCands = names.filter(n => /subledger|matriz|03_sl|jerarq/i.test(norm(n)));
+    const ogName = names.find(n => /^07/.test(n.trim()) && /on\s*going/i.test(n)) || names.find(n => /on\s*going/i.test(n));
     if (!pptoName) throw new Error('No encontré la hoja PPTO27 en el archivo.');
-    const wb = XLSX.read(data, { type: 'array', sheets: [pptoName, parName, fctsName, ...jerCands, ...cuadroCands].filter(Boolean), dense: false });
+    const wb = XLSX.read(data, { type: 'array', sheets: [pptoName, parName, fctsName, ogName, ...jerCands, ...cuadroCands].filter(Boolean), dense: false });
     const aoa = n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null, blankrows: true });
 
     /* PPTO27 */
@@ -664,9 +672,33 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       r.fc26 = f ? f.fc : r.fc26b; r.fcSrc = f ? '06' : 'ppto27';
     });
     if (!fcLabel) rows.forEach(r => { r.fcSrc = 'ppto27'; });
+    /* 07_ON GOING: cantidades (horas) × precio unitario por SL */
+    const og = {};
+    if (ogName) {
+      const G = aoa(ogName);
+      const gh = G.findIndex(r => r && r.some(x => norm(x) === 'sl') && r.some(x => norm(x).startsWith('precio unitario')));
+      if (gh >= 0) {
+        const GH = G[gh].map(norm);
+        const iSl = GH.indexOf('sl'), iPr = GH.findIndex(x => x.startsWith('precio unitario')), iMon = GH.indexOf('moneda');
+        const iQ = GH.findIndex(x => x.startsWith('cantidades totales')), iImp = GH.findIndex(x => x.startsWith('total ano'));
+        const iDet = GH.findIndex(x => x.startsWith('detalle de articulo'));
+        const iQm = MES_L.map(m => GH.findIndex(x => x === 'cantidad en ' + m));
+        for (let i = gh + 1; i < G.length; i++) {
+          const r = G[i]; if (!r || r[iSl] == null || r[iSl] === '') continue;
+          const k = slKey(r[iSl]);
+          const q = iQ >= 0 && typeof r[iQ] === 'number' ? r[iQ] : iQm.reduce((a, j) => a + (j >= 0 ? num(r[j]) : 0), 0);
+          const pr = num(r[iPr]);
+          const o = og[k] || (og[k] = { qty: 0, val: 0, imp: 0, mon: new Set(), lines: 0, det: [] });
+          o.qty += q; o.val += q * pr; o.imp += iImp >= 0 ? num(r[iImp]) : 0; o.lines++;
+          if (iMon >= 0 && r[iMon]) o.mon.add(String(r[iMon]).trim().toUpperCase());
+          if (iDet >= 0 && r[iDet]) o.det.push(String(r[iDet]));
+        }
+        Object.values(og).forEach(o => { o.price = o.qty ? o.val / o.qty : 0; o.mon = [...o.mon].join('/') || ''; });
+      }
+    }
     let mzInside = null;
     for (const n of jerCands) { mzInside = jerFromAoA(aoa(n), n); if (mzInside) break; }
-    return { rows, params, snap, cached, snapName, pptoName, fcName: fcLabel, mzInside, lastReal, loadedAt: new Date().toISOString() };
+    return { rows, params, snap, cached, snapName, pptoName, fcName: fcLabel, mzInside, og, ogName, lastReal, loadedAt: new Date().toISOString() };
   }
 
   /* ---------- Cálculo ---------- */
@@ -1022,7 +1054,7 @@ const ItOg = {
       { k: 'VS26', label: 'FCTS vs PPTO 26', grp: 'Análisis 2026', kind: 'var', tone: 'var' }
     ];
   },
-  defaults(){ return { view: 'completo', cols: this.views.completo.cols.slice(), parts: ['IT - Hard', 'IT - Soft'], split: true, zoomAll: false, slName: false }; },
+  defaults(){ return { view: 'completo', cols: this.views.completo.cols.slice(), parts: ['IT - Hard', 'IT - Soft', 'ECOM'], split: true, zoomAll: false, slName: false, ecomHoras: true, ecomTotal: true, ecomV: 1 }; },
   pages(o){
     const parts = IT_PARTS.filter(p => o.parts.includes(p));
     if (!parts.length) return [];
@@ -1034,6 +1066,9 @@ const ItOg = {
       <div class="field"><span class="lab">Armado</span><div class="seg" data-opt="split"><button type="button" data-v="1" aria-pressed="${o.split}">Una slide por subcategoría</button><button type="button" data-v="0" aria-pressed="${!o.split}">Todo en una</button></div></div>
       <div class="field"><span class="lab">Zoom por SL</span><div class="seg" data-opt="zoomAll"><button type="button" data-v="0" aria-pressed="${!o.zoomAll}">Solo jerarquías</button><button type="button" data-v="1" aria-pressed="${!!o.zoomAll}">Abrir todos</button></div>
         <span class="empty" style="font-size:11.5px;padding:0">También podés abrir una jerarquía puntual con un clic en la slide.</span></div>
+      ${o.parts.includes('ECOM') ? `<div class="field"><span class="lab">ECOM</span>
+        <label class="tg" for="ecH"><input type="checkbox" id="ecH" data-opt="ecomHoras" ${o.ecomHoras ? 'checked' : ''}>Horas × precio por hora (07_ON GOING)</label>
+        <label class="tg" for="ecT"><input type="checkbox" id="ecT" data-opt="ecomTotal" ${o.ecomTotal ? 'checked' : ''}>Total del equipo incluyendo lo expuesto en TFM</label></div>` : ''}
       <div class="field"><label class="tg" for="itSlName"><input type="checkbox" id="itSlName" data-opt="slName" ${o.slName ? 'checked' : ''}>Mostrar el nombre del SL al lado de la jerarquía (si es distinto)</label></div>`;
   },
   calc(page, o){
@@ -1057,6 +1092,7 @@ const ItOg = {
       return cells;
     };
     if (page.endsWith('|resumen')) return this.buildResumen(page, o, it, cols, cellsOf);
+    if (page === 'itog|ECOM' && o.split) return this.buildEcom(page, o, cols, cellsOf);
     const multi = parts.length > 1, rows = [];
     it.blocks.forEach((b, bi) => {
       if (multi){ if (bi) rows.push({ spacer: true }); rows.push({ label: b.part, style: 'blockhead', cells: {} }); }
@@ -1086,6 +1122,59 @@ const ItOg = {
       kpis: [
         { k: 'PPTO 2027', v: '$' + fAmt(T.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 2026', up: d.up, hero: true, tone: 'ppto' },
         { k: 'Incremento vs FCTS', tone: 'ater', v: (dAbs.cls === 'na' ? '–' : (T.P27 - T.FC < 0 ? '−$' : '+$') + fAmt(Math.abs(T.P27 - T.FC)).t + unitShort()), d: 'FCTS 2026 $' + fAmt(T.FC).t + unitShort(), plain: true }
+      ]
+    };
+  },
+  ecomData(){
+    const U = 1e6, mz = curMz(), map = (mz && mz.map) || {}, og = state.ds.og || {};
+    const isOn = r => E.norm(r.tipo) === 'on going';
+    const val = r => { const g = og[E.slKey(r.sl)]; return { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U, HS: g ? g.qty : 0, USD: g ? g.val : 0, mon: g ? g.mon : '', hasOg: !!g, imp: g ? g.imp / U : 0 }; };
+    const own = state.ds.rows.filter(r => E.norm(r.part) === 'ecom' && isOn(r)).map(r => ({ r, v: val(r) })).sort((a, b) => b.v.P27 - a.v.P27);
+    const aparte = state.ds.rows.filter(r => E.norm(r.part) !== 'ecom' && isOn(r) && map[E.slKey(r.sl)] && E.norm(map[E.slKey(r.sl)].jer) === 'ecom').map(r => ({ r, v: val(r) }));
+    const sum = arr => arr.reduce((a, x) => { ['P26','REAL','FC','P27','HS','USD'].forEach(k => a[k] += x.v[k]); return a; }, { P26: 0, REAL: 0, FC: 0, P27: 0, HS: 0, USD: 0 });
+    return { own, aparte, sum };
+  },
+  buildEcom(page, o, cols0, cellsOf0){
+    const { own, aparte, sum } = this.ecomData();
+    const cols = cols0.slice();
+    if (o.ecomHoras){
+      const extra = [
+        { k: 'HS', label: 'Horas 2027', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'ppto' },
+        { k: 'PH', label: 'Precio por hora', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'ppto' },
+        { k: 'USD', label: 'Costo 2027 (moneda origen)', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'ppto' }
+      ];
+      const at = cols.findIndex(c => c.k === 'P27');
+      cols.splice(at >= 0 ? at : cols.length, 0, ...extra);
+    }
+    const nfi = nf(0), nf2 = nf(2);
+    const cellsOf = (v, slTxt) => {
+      const c = cellsOf0(v, slTxt);
+      const mon = v.mon || 'USD';
+      c.HS = v.HS ? { t: nfi.format(v.HS), cls: '' } : { t: '–', cls: 'na' };
+      c.PH = v.HS ? { t: mon + ' ' + nf2.format(v.USD / v.HS), cls: '' } : { t: '–', cls: 'na' };
+      c.USD = v.USD ? { t: mon + ' ' + nfi.format(v.USD), cls: '' } : { t: '–', cls: 'na' };
+      return c;
+    };
+    const rows = own.map(({ r, v }) => ({ label: r.nom, style: 'jer', cells: cellsOf(v, String(r.sl)), drill: { title: r.nom, sls: [r] } }));
+    const tOwn = sum(own); tOwn.mon = own[0] ? own[0].v.mon : 'USD';
+    rows.push({ label: 'Total ECOM', sub: 'cruza con IT', style: 'total', cells: cellsOf(tOwn, own.length + ' SL'), drill: { title: 'ECOM', sls: own.map(x => x.r) } });
+    if (aparte.length){
+      rows.push({ spacer: true }, { label: 'Equipo ECOM · se expone en ' + [...new Set(aparte.map(x => x.r.part))].join(' / '), style: 'blockhead', cells: {} });
+      aparte.forEach(({ r, v }) => rows.push({ label: r.nom, sub: 'no suma al total de IT', style: 'aparte', cells: cellsOf(v, String(r.sl)), drill: { title: r.nom, sls: [r] } }));
+      if (o.ecomTotal){
+        const all = sum(own.concat(aparte)); all.mon = tOwn.mon;
+        rows.push({ label: 'Total equipo ECOM (incluye TFM)', style: 'sub', cells: cellsOf(all, (own.length + aparte.length) + ' SL'), drill: { title: 'Equipo ECOM', sls: own.concat(aparte).map(x => x.r) } });
+      }
+    }
+    const d = fVar(vr(tOwn.P27, tOwn.FC));
+    return {
+      eyebrow: `Presupuesto CAPEX ${(state.ds.params || {}).anioPpto || 2027} · IT`, title: 'ECOM · On going',
+      sub: `En ${unitLbl()} · Horas y precio por hora según 07_ON GOING · Real acumulado a ${mesTxt()}`,
+      note: 'Total ECOM cruza con el resumen de IT. El SL del equipo ECOM expuesto en TFM se muestra aparte y no suma al total de IT. Costo 2027 = horas × precio por hora, en la moneda de origen.',
+      labelHead: 'Subledger', cols, rows,
+      kpis: [
+        { k: 'PPTO 2027 · ECOM', v: '$' + fAmt(tOwn.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 2026', up: d.up, hero: true, tone: 'ppto' },
+        { k: 'Horas 2027', tone: 'ppto', plain: true, v: nfi.format(tOwn.HS) + ' hs', d: tOwn.HS ? (tOwn.mon + ' ' + nf2.format(tOwn.USD / tOwn.HS) + ' por hora') : '' }
       ]
     };
   },
@@ -1122,6 +1211,13 @@ const ItOg = {
       });
     });
     out.push({ label: 'Conciliación con el Cuadro General', ok: !lines.length, warn: true, count: lines.length, detail: lines, okTxt: 'PPTO 26, FCTS y PPTO 27 coinciden' });
+    if (page === 'itog|ECOM'){
+      const { own, aparte } = this.ecomData(), all = own.concat(aparte);
+      const sinH = all.filter(x => !x.v.hasOg);
+      out.push({ label: 'SL de ECOM sin horas en 07_ON GOING', ok: !sinH.length, warn: true, count: sinH.length, detail: sinH.map(x => `${x.r.sl} · ${x.r.nom}`) });
+      const dif = all.filter(x => x.v.hasOg && Math.abs(x.v.imp - x.v.P27) > 0.01);
+      out.push({ label: 'PPTO 2027 = importe de 07_ON GOING', ok: !dif.length, warn: true, count: dif.length, detail: dif.map(x => `${x.r.sl} · PPTO27 ${nf(2).format(x.v.P27)} vs 07 ${nf(2).format(x.v.imp)}`), okTxt: 'coincide en todos los SL' });
+    }
     return out;
   }
 };
@@ -1132,6 +1228,7 @@ function optsOf(c){
   let o = state.opts[c.id];
   const d = c.defaults();
   if (!o){ o = d; state.opts[c.id] = o; }
+  if (c.id === 'itog' && !o.ecomV){ if (o.parts && !o.parts.includes('ECOM')) o.parts.push('ECOM'); o.ecomV = 1; }
   for (const k in d) if (o[k] == null) o[k] = d[k];
   if (!(o.cols instanceof Set)) o.cols = new Set(o.cols);
   return o;
@@ -1456,7 +1553,8 @@ const ROWSTYLE = {
   grand: { bold: true, color: PX.SLATE, top: PX.SLATE, bottom: PX.SLATE, labFill: PX.GRAND, strong: true, big: true },
   masterplan: { bold: true, color: '8A4B12', labFill: 'FFF8EE', top: 'E7B987' },
   'masterplan-child': { bold: false, color: PX.INK2, indent: true, light: true },
-  blockhead: { bold: true, color: TN.ppto.ht, bottom: 'B9A6E3' }
+  blockhead: { bold: true, color: TN.ppto.ht, bottom: 'B9A6E3' },
+  aparte: { bold: false, color: PX.INK, top: 'B9A6E3', labFill: 'F6F7FA' }
 };
 function addSlide(pptx, tm, tx){
   const s = pptx.addSlide(); s.background = { color: 'FFFFFF' };
