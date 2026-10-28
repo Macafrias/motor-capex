@@ -374,6 +374,12 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .ct tr.total td .sub{font-family:var(--f-light);font-weight:400;color:var(--ink-2)}
 .ct tr td.vp{color:var(--pos)} .ct tr td.vn{color:var(--neg)} .ct tr td.na{color:#B6BCCB}
 .ct tr.sub td.slc,.ct tr.aparte td.slc{font-family:var(--f-light);font-weight:400;color:var(--ink-2)}
+/* columnas auxiliares (horas × precio): información secundaria en gris */
+.ct thead tr.g th.t-aux{background:#F1F2F6;color:#8A91A6}
+.ct thead th.h-aux{color:#8A91A6;font-weight:400;font-family:var(--f-light)}
+.ct tbody tr td.t-aux{color:#8A91A6;font-family:var(--f-light);font-weight:400;font-size:12px}
+.ct tbody tr:not(.total):not(.grand):not(.sub) td.t-aux{background:transparent}
+.kpi.k-aux{background:#fff;border-color:var(--rule)} .kpi.k-aux .k{color:#8A91A6} .kpi.k-aux .v{color:var(--ink-2);font-family:var(--f-light);font-weight:400}
 </style>
 
 <header class="top">
@@ -403,7 +409,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 11:57</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 12:07</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1139,9 +1145,9 @@ const ItOg = {
     const cols = cols0.slice();
     if (o.ecomHoras){
       const extra = [
-        { k: 'HS', label: 'Horas 2027', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'ppto' },
-        { k: 'PH', label: 'Precio por hora', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'ppto' },
-        { k: 'USD', label: 'Costo 2027 (moneda origen)', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'ppto' }
+        { k: 'HS', label: 'Horas 2027', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'aux' },
+        { k: 'PH', label: 'Precio por hora', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'aux' },
+        { k: 'USD', label: 'Costo 2027 (moneda origen)', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'aux' }
       ];
       const at = cols.findIndex(c => c.k === 'P27');
       cols.splice(at >= 0 ? at : cols.length, 0, ...extra);
@@ -1174,7 +1180,7 @@ const ItOg = {
       labelHead: 'Subledger', cols, rows,
       kpis: [
         { k: 'PPTO 2027 · ECOM', v: '$' + fAmt(tOwn.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 2026', up: d.up, hero: true, tone: 'ppto' },
-        { k: 'Horas 2027', tone: 'ppto', plain: true, v: nfi.format(tOwn.HS) + ' hs', d: tOwn.HS ? (tOwn.mon + ' ' + nf2.format(tOwn.USD / tOwn.HS) + ' por hora') : '' }
+        { k: 'Horas 2027', tone: 'aux', plain: true, v: nfi.format(tOwn.HS) + ' hs', d: tOwn.HS ? (tOwn.mon + ' ' + nf2.format(tOwn.USD / tOwn.HS) + ' por hora') : '' }
       ]
     };
   },
@@ -1539,6 +1545,7 @@ const TN = {
   ppto: { h: 'DED3F3', ht: '4B3A86', c: 'F7F3FD', t: 'EAE1F8' },
   ater: { h: 'F9D9B8', ht: '8A4B12', c: 'FEF6EE', t: 'FCE6CF' },
   var:  { h: 'E6E9F0', ht: '47506A', c: 'FFFFFF', t: 'EEF0F5' },
+  aux:  { h: 'F1F2F6', ht: '8A91A6', c: 'FFFFFF', t: 'F3F4F7' },
   mix:  { h: 'E6E9F0', ht: '47506A', c: 'FFFFFF', t: 'EEF0F5' }
 };
 const ROWSTYLE = {
@@ -1597,7 +1604,7 @@ function addSlide(pptx, tm, tx){
       const f = r.cells[c.k] || { t: '', cls: '' }, tn = TN[c.tone || 'var'];
       const fill = r.style === 'blockhead' ? 'FFFFFF' : (st.strong || r.style === 'sub') ? tn.t : tn.c;
       const o = { fill: { color: fill }, bold: st.bold, color: st.color, border, align: c.kind === 'sl' ? 'left' : 'right', fontFace: face, fontSize: size };
-      if (c.kind === 'sl') { o.color = PX.INK2; o.bold = false; o.fontFace = 'Calibri Light'; }
+      if (c.kind === 'sl' || c.tone === 'aux') { o.color = c.tone === 'aux' ? '8A91A6' : PX.INK2; o.bold = false; o.fontFace = 'Calibri Light'; }
       if (state.sem && /vp/.test(f.cls)) o.color = '3E9B6A';
       if (state.sem && /vn/.test(f.cls)) o.color = 'C9584A';
       if (/na/.test(f.cls)) o.color = 'B6BCCB';
