@@ -365,6 +365,8 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .emptyslide h3{font-family:var(--f-light);font-weight:400;font-size:30px;color:var(--slate)}
 .emptyslide p{font-family:var(--f-light)}
 .es-btns .btn.primary{background:#7A62C2;border-color:#7A62C2}
+.ct td .goto{font-family:var(--f-light);font-weight:400;font-size:11px;color:var(--ppto-ht);margin-left:10px;opacity:0;transition:opacity .15s}
+.ct tr:hover td .goto{opacity:1}
 </style>
 
 <header class="top">
@@ -394,7 +396,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 11:43</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 11:48</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1024,7 +1026,8 @@ const ItOg = {
   pages(o){
     const parts = IT_PARTS.filter(p => o.parts.includes(p));
     if (!parts.length) return [];
-    return o.split ? parts.map(p => ({ key: 'itog|' + p, label: p.replace('IT - ', 'IT ') })) : [{ key: 'itog|all', label: parts.map(p => p.replace('IT - ', '')).join(' + ') }];
+    const res = { key: 'itog|resumen', label: 'Resumen IT' };
+    return [res].concat(o.split ? parts.map(p => ({ key: 'itog|' + p, label: p.replace('IT - ', 'IT ') })) : [{ key: 'itog|all', label: parts.map(p => p.replace('IT - ', '')).join(' + ') }]);
   },
   optsHtml(o){
     return `<div class="field"><span class="lab">Subcategorías</span><div class="chips" data-opt="parts">${IT_PARTS.map(p => `<button type="button" data-p="${p}" aria-pressed="${o.parts.includes(p)}">${p}</button>`).join('')}</div></div>
@@ -1034,7 +1037,7 @@ const ItOg = {
       <div class="field"><label class="tg" for="itSlName"><input type="checkbox" id="itSlName" data-opt="slName" ${o.slName ? 'checked' : ''}>Mostrar el nombre del SL al lado de la jerarquía (si es distinto)</label></div>`;
   },
   calc(page, o){
-    const parts = page.endsWith('|all') ? IT_PARTS.filter(p => o.parts.includes(p)) : [page.split('|')[1]];
+    const parts = page.endsWith('|resumen') ? IT_PARTS.slice() : page.endsWith('|all') ? IT_PARTS.filter(p => o.parts.includes(p)) : [page.split('|')[1]];
     return { parts, it: E.computeITOngoing(state.ds, curMz(), parts) };
   },
   build(page, o){
@@ -1053,6 +1056,7 @@ const ItOg = {
       });
       return cells;
     };
+    if (page.endsWith('|resumen')) return this.buildResumen(page, o, it, cols, cellsOf);
     const multi = parts.length > 1, rows = [];
     it.blocks.forEach((b, bi) => {
       if (multi){ if (bi) rows.push({ spacer: true }); rows.push({ label: b.part, style: 'blockhead', cells: {} }); }
@@ -1081,6 +1085,25 @@ const ItOg = {
       labelHead: 'Jerarquización · SL', cols, rows,
       kpis: [
         { k: 'PPTO 2027', v: '$' + fAmt(T.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 2026', up: d.up, hero: true, tone: 'ppto' },
+        { k: 'Incremento vs FCTS', tone: 'ater', v: (dAbs.cls === 'na' ? '–' : (T.P27 - T.FC < 0 ? '−$' : '+$') + fAmt(Math.abs(T.P27 - T.FC)).t + unitShort()), d: 'FCTS 2026 $' + fAmt(T.FC).t + unitShort(), plain: true }
+      ]
+    };
+  },
+  buildResumen(page, o, it, cols, cellsOf){
+    const n = it.blocks.reduce((a, b) => a + b.n, 0);
+    const rows = [{ label: 'IT', style: 'total', cells: cellsOf(it.total, n + ' SL'), drill: { title: 'IT On going', sls: it.blocks.flatMap(b => b.groups.flatMap(g => g.sls)) } }];
+    it.blocks.forEach(b => {
+      const pageKey = 'itog|' + b.part, has = (o.split && o.parts.includes(b.part));
+      rows.push({ label: b.part, style: 'jer', cells: cellsOf(b.v, b.n + ' SL'), drill: { title: b.part, sls: b.groups.flatMap(g => g.sls) }, goto: has ? pageKey : null });
+    });
+    const T = it.total, d = fVar(vr(T.P27, T.FC)), dAbs = fDelta(T.P27 - T.FC);
+    return {
+      eyebrow: `Presupuesto CAPEX ${(state.ds.params || {}).anioPpto || 2027} · IT`, title: 'IT · Resumen On going',
+      sub: `En ${unitLbl()} · Cada línea cruza con el total de su cuadro de detalle · Real acumulado a ${mesTxt()}`,
+      note: 'Resumen de la porción On going de IT. IT = IT - Hard + IT - Soft + ECOM. Incremento = PPTO 2027 − FCTS 2026.',
+      labelHead: 'Concepto', cols, rows,
+      kpis: [
+        { k: 'PPTO 2027 · IT On going', v: '$' + fAmt(T.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 2026', up: d.up, hero: true, tone: 'ppto' },
         { k: 'Incremento vs FCTS', tone: 'ater', v: (dAbs.cls === 'na' ? '–' : (T.P27 - T.FC < 0 ? '−$' : '+$') + fAmt(Math.abs(T.P27 - T.FC)).t + unitShort()), d: 'FCTS 2026 $' + fAmt(T.FC).t + unitShort(), plain: true }
       ]
     };
@@ -1135,7 +1158,7 @@ function tableHtml(tm){
   let b = '';
   tm.rows.forEach((r, ri) => {
     if (r.spacer){ b += `<tr class="spacer"><td colspan="${cols.length + 1}"></td></tr>`; return; }
-    b += `<tr class="${r.style}${r.zoom ? ' zoomable' : ''}"${r.drill || r.zoom ? ` data-i="${ri}"` : ''}><td class="lbl">${r.zoom ? `<span class="chev">${r.open ? '▾' : '▸'}</span>` : ''}${esc(r.label)}${r.sub ? `<span class="sub">${esc(r.sub)}</span>` : ''}</td>`;
+    b += `<tr class="${r.style}${r.zoom ? ' zoomable' : ''}"${r.drill || r.zoom || r.goto ? ` data-i="${ri}"` : ''}><td class="lbl">${r.zoom ? `<span class="chev">${r.open ? '▾' : '▸'}</span>` : ''}${esc(r.label)}${r.goto ? '<span class="goto">ver detalle →</span>' : ''}${r.sub ? `<span class="sub">${esc(r.sub)}</span>` : ''}</td>`;
     cols.forEach(c => {
       const f = r.cells[c.k] || { t: '', cls: '' };
       let cls = f.cls || '';
@@ -1387,6 +1410,7 @@ $('#sFit').onclick = e => {
   const tr = e.target.closest('tr[data-i]'); if (!tr || !TM) return;
   const r = TM.rows[+tr.dataset.i]; if (!r) return;
   if (r.zoom){ state.zoom.has(r.zoom) ? state.zoom.delete(r.zoom) : state.zoom.add(r.zoom); renderSlide(); return; }
+  if (r.goto){ state.page = r.goto; state.drill = null; $('#drawer').hidden = true; rerender(); return; }
   if (!r.drill) return;
   state.drill = r.drill; renderDrill();
   $('#drawer').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
