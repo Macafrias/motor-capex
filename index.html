@@ -5,7 +5,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&display=swap">
 <style>
 /* Layout: consola de trabajo — rail izquierdo (cuadros + datos), escenario 16:9 al centro, panel de ajustes a la derecha.
    La slide es papel fijo (lo que se exporta); el chrome sigue el tema del viewer. */
@@ -17,9 +17,10 @@
   /* chrome (tema claro) */
   --bg:#E9EDF4; --surface:#FFFFFF; --surface-2:#F4F6FA; --fg:#17203A; --muted:#5D6984; --line:#D5DCE7; --accent:#0F8A8A; --accent-fg:#FFFFFF; --focus:#0F8A8A;
   --ok:#2E9A5A; --warn:#B9810F; --bad:#C9503B;
-  --f-display:"Space Grotesk", "Segoe UI", system-ui, sans-serif;
-  --f-body:"Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --f-num:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  /* Calibri Light para texto y números; Calibri para títulos de fila y totales. Carlito = clon libre si no está Calibri */
+  --f-light:"Calibri Light", "Calibri", "Carlito", "Segoe UI Light", "Segoe UI", system-ui, sans-serif;
+  --f-reg:"Calibri", "Carlito", "Segoe UI", system-ui, sans-serif;
+  --f-display:var(--f-light); --f-body:var(--f-reg); --f-num:var(--f-light);
   --r:10px;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
@@ -267,6 +268,104 @@ table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
 .es-btns .btn{height:40px;padding:0 18px;font-size:14px;background:#fff;color:var(--ink);border-color:var(--rule)}
 .es-btns .btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}
 </style>
+<style>
+/* ===== Tema pastel por concepto (v3) =====
+   Real = azul · Presupuesto = lila · Aterrizaje / FCTS = naranja · variaciones = gris. Totales con tinta más intensa y filetes. */
+:root{
+  --slate:#2B3452; --ink:#3A4360; --ink-2:#6B7390; --rule:#DDE1EA; --tint:#EEF0F5; --tint-2:#F6F7FA;
+  --real-h:#C9DDF5; --real-ht:#1F4E86; --real-c:#F1F6FD; --real-t:#DCE9F9;
+  --ppto-h:#DED3F3; --ppto-ht:#4B3A86; --ppto-c:#F7F3FD; --ppto-t:#EAE1F8;
+  --ater-h:#F9D9B8; --ater-ht:#8A4B12; --ater-c:#FEF6EE; --ater-t:#FCE6CF;
+  --var-h:#E6E9F0; --var-ht:#47506A;
+  --tot:#EEF0F5; --grand:#E3E6EE; --pos:#3E9B6A; --neg:#C9584A;
+  --accent:#7A62C2; --accent-fg:#FFFFFF; --focus:#7A62C2;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --accent:#B8A5EC; --accent-fg:#1D1638; --focus:#B8A5EC } }
+:root[data-theme="dark"]{ --accent:#B8A5EC; --accent-fg:#1D1638; --focus:#B8A5EC }
+body{font-family:var(--f-reg);font-size:14.5px}
+.brand h1{font-family:var(--f-light);font-weight:400;font-size:21px;letter-spacing:0}
+.mark{background:linear-gradient(180deg,var(--ppto-h) 0 33%,var(--real-h) 33% 66%,var(--ater-h) 66%)}
+.ph,.colgrid .gl{font-family:var(--f-reg);font-weight:700}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+
+/* --- slide --- */
+.slide{font-family:var(--f-light);color:var(--ink)}
+.slide::before{width:9px;background:linear-gradient(180deg,var(--ppto-h) 0 33.3%,var(--real-h) 33.3% 66.6%,var(--ater-h) 66.6%)}
+.s-eyebrow{font-family:var(--f-reg);font-weight:700;font-size:12px;color:var(--ppto-ht);letter-spacing:.14em}
+.s-title{font-family:var(--f-light);font-weight:400;font-size:36px;letter-spacing:-.01em;color:var(--slate)}
+.s-sub{font-family:var(--f-light);font-size:14px;color:var(--ink-2)}
+.s-foot{font-family:var(--f-light);font-size:11.5px;color:var(--ink-2)}
+.s-foot .brandline{font-family:var(--f-reg);font-weight:700;color:var(--slate)}
+.kpi{border-radius:10px;min-width:160px;padding:9px 16px;background:#fff;border:1px solid var(--rule);color:var(--slate)}
+.kpi .k{font-family:var(--f-reg);font-weight:700;font-size:10.5px;letter-spacing:.08em}
+.kpi .v{font-family:var(--f-reg);font-weight:700;font-size:25px;letter-spacing:0;color:var(--slate)}
+.kpi .d{font-family:var(--f-light);font-size:12.5px}
+.kpi.hero{background:var(--ppto-t);border-color:var(--ppto-h);color:var(--slate)}
+.kpi.k-ppto .k{color:var(--ppto-ht)} .kpi.k-ater .k{color:var(--ater-ht)} .kpi.k-real .k{color:var(--real-ht)}
+.kpi.k-ater{background:var(--ater-c);border-color:var(--ater-h)} .kpi.k-real{background:var(--real-c);border-color:var(--real-h)}
+.kpi.hero .k{color:var(--ppto-ht)}
+.kpi .d.up,.kpi.hero .d.up{color:var(--pos)} .kpi .d.dn,.kpi.hero .d.dn{color:var(--neg)}
+
+/* --- tabla --- */
+table.ct{font-family:var(--f-light);color:var(--ink)}
+.ct th,.ct td{padding:0 7px;height:21px}
+.ct td{font-family:var(--f-light);font-variant-numeric:tabular-nums lining-nums;font-size:13px;border-bottom:1px solid #E9ECF2}
+.ct td.lbl{font-family:var(--f-light);font-size:13px;padding-left:10px;padding-right:16px}
+.ct thead th{font-family:var(--f-reg);font-weight:700;font-size:11px;color:var(--ink-2);border-bottom:1.25px solid #9AA3BA;max-width:84px}
+.ct thead th.h-real{color:var(--real-ht)} .ct thead th.h-ppto{color:var(--ppto-ht)} .ct thead th.h-ater{color:var(--ater-ht)}
+.ct thead tr.g th{font-family:var(--f-reg);font-weight:700;font-size:10px;letter-spacing:.07em;padding:4px 6px;border-radius:0;box-shadow:inset 1.5px 0 0 #fff,inset -1.5px 0 0 #fff}
+.ct thead tr.g th + th{box-shadow:inset 1.5px 0 0 #fff,inset -1.5px 0 0 #fff}
+.ct thead tr.g th.t-real{background:var(--real-h);color:var(--real-ht)}
+.ct thead tr.g th.t-ppto{background:var(--ppto-h);color:var(--ppto-ht)}
+.ct thead tr.g th.t-ater{background:var(--ater-h);color:var(--ater-ht)}
+.ct thead tr.g th.t-var,.ct thead tr.g th.t-mix{background:var(--var-h);color:var(--var-ht)}
+.ct thead tr.g th.gap{background:transparent;box-shadow:none}
+/* celdas por concepto */
+.ct td.t-real{background:var(--real-c)} .ct td.t-ppto{background:var(--ppto-c)} .ct td.t-ater{background:var(--ater-c)}
+.ct td.c-hero,.ct td.c-strong{font-family:var(--f-reg);font-weight:400}
+.ct td.c-hero{background:var(--ppto-c)}
+.ct td.vp{color:var(--pos)} .ct td.vn{color:var(--neg)}
+.ct td.na{color:#B6BCCB}
+.ct td .ar{font-size:8px}
+.ct td.slc{font-family:var(--f-light);font-size:12px}
+.ct td .sub{font-family:var(--f-light);font-size:12px}
+/* filas */
+.ct tr.group td,.ct tr.jer td,.ct tr.jer1 td{background:transparent;font-family:var(--f-reg);font-weight:700;color:var(--slate)}
+.ct tr.group td.lbl,.ct tr.jer td.lbl,.ct tr.jer1 td.lbl{background:var(--tint-2);color:var(--slate);font-weight:700}
+.ct tr.group td.t-real,.ct tr.jer td.t-real{background:var(--real-c)} .ct tr.group td.t-ppto,.ct tr.jer td.t-ppto{background:var(--ppto-c)} .ct tr.group td.t-ater,.ct tr.jer td.t-ater{background:var(--ater-c)}
+.ct tr.jer td.slc{font-family:var(--f-light);font-weight:400;color:var(--ink-2)}
+.ct tr.jer td .sub{font-weight:400}
+.ct tr.group td.vp,.ct tr.jer td.vp{color:var(--pos)} .ct tr.group td.vn,.ct tr.jer td.vn{color:var(--neg)}
+.ct tr.group td.na,.ct tr.jer td.na{color:#B6BCCB}
+.ct tr.child td,.ct tr.sl td,.ct tr.masterplan-child td,.ct tr.cfnc td{font-family:var(--f-light);color:var(--ink-2)}
+.ct tr.child td.lbl,.ct tr.sl td.lbl{padding-left:26px}
+.ct tr.sub td{font-family:var(--f-reg);font-weight:700;color:var(--slate);border-top:1.5px solid #8F98B0;border-bottom:1px solid var(--rule)}
+.ct tr.sub td.lbl{background:var(--tint-2)}
+.ct tr.sub td.t-real,.ct tr.total td.t-real,.ct tr.grand td.t-real{background:var(--real-t)}
+.ct tr.sub td.t-ppto,.ct tr.total td.t-ppto,.ct tr.grand td.t-ppto{background:var(--ppto-t)}
+.ct tr.sub td.t-ater,.ct tr.total td.t-ater,.ct tr.grand td.t-ater{background:var(--ater-t)}
+.ct tr.total td,.ct tr.grand td{background:var(--tot);color:var(--slate);font-family:var(--f-reg);font-weight:700;border-top:2px solid var(--slate);border-bottom:2px solid var(--slate);height:24px}
+.ct tr.total td.lbl,.ct tr.grand td.lbl{color:var(--slate);font-family:var(--f-reg);letter-spacing:0}
+.ct tr.grand td{background:var(--grand);font-size:14px;height:27px}
+.ct tr.total td.vp,.ct tr.grand td.vp{color:var(--pos)} .ct tr.total td.vn,.ct tr.grand td.vn{color:var(--neg)}
+.ct tr.total td.na,.ct tr.grand td.na{color:#9AA1B3}
+.ct tr.total td.c-hero,.ct tr.grand td.c-hero{background:var(--ppto-t);color:var(--slate)}
+.ct tr.total td.t-real,.ct tr.total td.t-ater,.ct tr.grand td.t-real,.ct tr.grand td.t-ater,.ct tr.total td,.ct tr.grand td{color:var(--slate)}
+.ct tr.total td.vp,.ct tr.grand td.vp{color:var(--pos)} .ct tr.total td.vn,.ct tr.grand td.vn{color:var(--neg)} .ct tr.total td.na,.ct tr.grand td.na,.ct tr.total td.slc,.ct tr.grand td.slc{color:#9AA1B3}
+.ct tr.total td.slc,.ct tr.grand td.slc{font-family:var(--f-light);font-weight:400;color:var(--ink-2)}
+.ct tr.masterplan td{background:#FFF8EE;color:var(--ater-ht);font-family:var(--f-reg);font-weight:700;border-top:1px dashed #E7B987}
+.ct tr.masterplan td.lbl{color:var(--ater-ht)}
+.ct tr.blockhead td{border-bottom:1.5px solid #B9A6E3}
+.ct tr.blockhead td.lbl{font-family:var(--f-reg);color:var(--ppto-ht);font-size:12px}
+.ct tr.blockhead td.t-real,.ct tr.blockhead td.t-ppto,.ct tr.blockhead td.t-ater{background:transparent}
+.ct tbody tr[data-i]{cursor:pointer}
+.ct tbody tr[data-i]:hover td{box-shadow:inset 0 1px 0 #B9A6E3,inset 0 -1px 0 #B9A6E3}
+.ct .chev{display:inline-block;width:14px;color:var(--ppto-ht);font-size:10px}
+.ct td.diff{box-shadow:inset 0 -2px 0 #E7B987}
+.emptyslide h3{font-family:var(--f-light);font-weight:400;font-size:30px;color:var(--slate)}
+.emptyslide p{font-family:var(--f-light)}
+.es-btns .btn.primary{background:#7A62C2;border-color:#7A62C2}
+</style>
 
 <header class="top">
   <div class="brand">
@@ -439,8 +538,9 @@ table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
     const parName = names.find(n => /parametros/i.test(norm(n)));
     const cuadroCands = names.filter(n => /^cuadro_capex/i.test(n.trim()));
     const fctsName = names.find(n => /fcts\s*26/i.test(n)) || names.find(n => /fcts/i.test(n));
+    const jerCands = names.filter(n => /subledger|matriz|03_sl|jerarq/i.test(norm(n)));
     if (!pptoName) throw new Error('No encontré la hoja PPTO27 en el archivo.');
-    const wb = XLSX.read(data, { type: 'array', sheets: [pptoName, parName, fctsName, ...cuadroCands].filter(Boolean), dense: false });
+    const wb = XLSX.read(data, { type: 'array', sheets: [pptoName, parName, fctsName, ...jerCands, ...cuadroCands].filter(Boolean), dense: false });
     const aoa = n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null, blankrows: true });
 
     /* PPTO27 */
@@ -541,7 +641,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
         const iF = fcs[fcs.length - 1];
         if (iSl >= 0) for (let i = fh + 1; i < F.length; i++) {
           const r = F[i]; if (!r || r[iSl] == null) continue;
-          const k = String(r[iSl]).trim();
+          const k = slKey(r[iSl]);
           const o = fc26[k] || (fc26[k] = { p26: 0, fc: 0 });
           o.p26 += iP >= 0 ? num(r[iP]) : 0; o.fc += iF != null ? num(r[iF]) : 0;
         }
@@ -555,12 +655,14 @@ table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
 
     // valores 2026 por SL dentro de cada fila (fallback a PPTO27 si el SL no está en 06_FCTS26)
     rows.forEach(r => {
-      const f = fc26[String(r.sl).trim()];
+      const f = fc26[slKey(r.sl)];
       r.p26 = f ? f.p26 : r.p26b;
       r.fc26 = f ? f.fc : r.fc26b; r.fcSrc = f ? '06' : 'ppto27';
     });
     if (!fcLabel) rows.forEach(r => { r.fcSrc = 'ppto27'; });
-    return { rows, params, snap, cached, snapName, pptoName, fcName: fcLabel, lastReal, loadedAt: new Date().toISOString() };
+    let mzInside = null;
+    for (const n of jerCands) { mzInside = jerFromAoA(aoa(n), n); if (mzInside) break; }
+    return { rows, params, snap, cached, snapName, pptoName, fcName: fcLabel, mzInside, lastReal, loadedAt: new Date().toISOString() };
   }
 
   /* ---------- Cálculo ---------- */
@@ -701,14 +803,10 @@ table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
   }
 
   /* ---------- Matriz de Subledgers (jerarquización de exposición) ---------- */
-  function readMatriz(XLSX, data, names) {
-    names = names || XLSX.read(data, { type: 'array', bookSheets: true }).SheetNames;
-    const cand = names.filter(n => /subledger|matriz|03_sl/i.test(norm(n)));
-    const wb = XLSX.read(data, { type: 'array', sheets: cand.length ? cand : names });
-    for (const n of (cand.length ? cand : names)) {
-      const A = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null });
+  const slKey = x => String(x == null ? '' : x).trim().replace(/\.0+$/, '');
+  function jerFromAoA(A, n) {
       const h = A.findIndex(r => r && r.some(x => norm(x).startsWith('jerarquizacion de exposicion')));
-      if (h < 0) continue;
+      if (h < 0) return null;
       const H = A[h].map(norm);
       const iJ = H.findIndex(x => x.startsWith('jerarquizacion de exposicion'));
       const slCols = ['sl_real', 'sl_activo', 'subledger', 'sl_prov'].map(k => H.indexOf(k)).filter(i => i >= 0);
@@ -718,13 +816,28 @@ table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
       for (let i = h + 1; i < A.length; i++) {
         const r = A[i]; if (!r) continue;
         let sl = null;
-        for (const j of slCols) if (r[j] != null && String(r[j]).trim() !== '') { sl = String(r[j]).trim(); break; }
+        for (const j of slCols) if (r[j] != null && String(r[j]).trim() !== '') { sl = slKey(r[j]); break; }
         if (!sl && iCod >= 0 && r[iCod]) { const m = String(r[iCod]).match(/^(\d{5,})/); if (m) sl = m[1]; }
         if (!sl) continue;
         const jer = r[iJ] == null ? '' : String(r[iJ]).replace(/\s+/g, ' ').trim();
+        if (map[sl] && map[sl].jer && !jer) continue;
         map[sl] = { jer, nom: iNom >= 0 ? r[iNom] : null };
       }
       return { map, sheet: n, count: Object.keys(map).length };
+  }
+  function readMatriz(XLSX, data, names) {
+    names = names || XLSX.read(data, { type: 'array', bookSheets: true }).SheetNames;
+    const cand = names.filter(n => /subledger|matriz|03_sl|jerarq/i.test(norm(n)));
+    const list = cand.length ? cand : names;
+    const wb = XLSX.read(data, { type: 'array', sheets: list });
+    for (const n of list) {
+      const out = jerFromAoA(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null }), n);
+      if (out) return out;
+    }
+    if (cand.length) for (const n of names.filter(x => !cand.includes(x))) {
+      const w2 = XLSX.read(data, { type: 'array', sheets: [n] });
+      const out = jerFromAoA(XLSX.utils.sheet_to_json(w2.Sheets[n], { header: 1, raw: true, defval: null }), n);
+      if (out) return out;
     }
     throw new Error('No encontré la columna "Jerarquización de exposición presupuestaria".');
   }
@@ -744,7 +857,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
       const sls = ds.rows.filter(r => norm(r.part) === norm(part) && norm(r.tipo) === 'on going');
       const groups = {};
       sls.forEach(r => {
-        const m = map[String(r.sl).trim()];
+        const m = map[slKey(r.sl)];
         const jer = m && m.jer ? m.jer : 'Sin jerarquización';
         if (!m || !m.jer) noJer.push(r);
         if (r.fcSrc !== '06') noFc.push(r);
@@ -766,7 +879,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
     return { blocks, total, noJer, noFc };
   }
 
-  root.CapexEngine = { STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, norm };
+  root.CapexEngine = { STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, norm, slKey };
   if (typeof module !== 'undefined') module.exports = root.CapexEngine;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -793,7 +906,7 @@ const state = {
   dir: null, dirName: null, dirPerm: null,
   page: saved.page || 'general',
   unit: saved.unit || 'M', pctDec: +(saved.pctDec || 0), kpis: saved.kpis !== false, sem: saved.sem !== false,
-  texts: saved.texts || {}, opts: saved.opts || {}, drill: null, res: null
+  texts: saved.texts || {}, opts: saved.opts || {}, drill: null, res: null, zoom: new Set()
 };
 function persist(){
   const opts = {};
@@ -821,8 +934,8 @@ function fVar(o){
   if (o.pct == null) return Math.abs(o.num) < 0.5 ? { t: '–', cls: 'na' } : { t: '+100%', cls: 'vp', up: true, arrow: true };
   const p = o.pct * 100;
   if (Math.abs(p) < (state.pctDec ? 0.05 : 0.5)) return { t: '0%', cls: '' };
-  const s = Math.abs(p) >= 999.5 ? '>999' : nf(state.pctDec).format(Math.abs(p));
-  return { t: (p < 0 ? '−' : '+') + s + '%', cls: p < 0 ? 'vn' : 'vp', up: p > 0, arrow: true };
+  if (p >= 999.5) return { t: '>999%', cls: 'vp', up: true, arrow: true };
+  return { t: (p < 0 ? '−' : '+') + nf(state.pctDec).format(Math.abs(p)) + '%', cls: p < 0 ? 'vn' : 'vp', up: p > 0, arrow: true };
 }
 function fRatio(a, b){
   if (!b || Math.abs(b) < 0.5) return { t: '–', cls: 'na' };
@@ -832,6 +945,11 @@ const vr = (num, den) => ({ num, den, pct: den ? num / den - 1 : null });
 const anio = () => (state.ds.params && state.ds.params.anioBase) || 2026;
 const mesTxt = () => { const m = state.res ? state.res.lastReal : -1; return m >= 0 ? E.MES_L[m] + ' ' + anio() : '—'; };
 const mesCorto = () => { const m = state.res ? state.res.lastReal : -1; return m >= 0 ? E.MES[m].toLowerCase() + '-' + String(anio()).slice(2) : ''; };
+
+/* tono pastel por concepto: real = azul · presupuesto = lila · aterrizaje/FCTS = naranja */
+const TONE = { R25: 'real', RACU: 'real', P26O: 'ppto', P26P: 'ppto', P26F: 'ppto', P26: 'ppto', P27O: 'ppto', P27P: 'ppto', P27F: 'ppto', P27: 'ppto',
+  A84: 'ater', A93O: 'ater', A93P: 'ater', A93: 'ater', VO: 'var', V26: 'var', VAT: 'var', V27: 'var' };
+const curMz = () => state.mz || (state.ds && state.ds.mzInside) || null;
 
 /* ============ CUADRO 01 · General ============ */
 const GROUPS = E.STRUCTURE.filter(n => n.type === 'group');
@@ -847,7 +965,7 @@ const General = {
   },
   build(page, o){
     const res = state.res, defs = this.colDefs().filter(c => o.cols.has(c.k));
-    const cols = defs.map(c => { const d = E.COLS.find(x => x.k === c.k); return { k: c.k, label: c.label, grp: c.grp, kind: d.src === 'var' ? 'var' : 'amt', hero: d.hero, strong: d.strong }; });
+    const cols = defs.map(c => { const d = E.COLS.find(x => x.k === c.k); return { k: c.k, label: c.label, grp: c.grp, kind: d.src === 'var' ? 'var' : 'amt', hero: d.hero, strong: d.strong, tone: TONE[c.k] }; });
     const amtCols = cols.filter(c => c.kind === 'amt');
     const isZero = r => amtCols.every(c => r.v[c.k] == null || Math.abs(r.v[c.k]) < 0.5);
     const rows = [];
@@ -870,8 +988,8 @@ const General = {
       note: 'PPTO 2027 = On going + Proyectos on going (en curso y finalizados) + Proyectos futuros (sin aprobación). CFNC prorrateado por mix. Bajas fuera de exposición; se incluyen en el control contra contabilidad.',
       labelHead: 'Concepto', cols, rows,
       kpis: [
-        { k: `PPTO ${p.anioPpto || 2027} c/ TFM`, v: '$' + fAmt(t.P27).t + unitShort(), d: d1.t + ' vs aterrizaje', up: d1.up, hero: true },
-        { k: 'Aterrizaje 2026 9+3', v: '$' + fAmt(t.A93).t + unitShort(), d: t.A93 ? nf(0).format(t.RACU / t.A93 * 100) + '% ejecutado a ' + mesCorto() : '' }
+        { k: `PPTO ${p.anioPpto || 2027} c/ TFM`, v: '$' + fAmt(t.P27).t + unitShort(), d: d1.t + ' vs aterrizaje', up: d1.up, hero: true, tone: 'ppto' },
+        { k: 'Aterrizaje 2026 9+3', tone: 'ater', plain: true, v: '$' + fAmt(t.A93).t + unitShort(), d: t.A93 ? nf(0).format(t.RACU / t.A93 * 100) + '% ejecutado a ' + mesCorto() : '' }
       ]
     };
   },
@@ -890,17 +1008,17 @@ const ItOg = {
   colDefs(){
     return [
       { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
-      { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt' },
-      { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: '2026', kind: 'amt' },
-      { k: 'FC', label: 'FCTS 2026', grp: '2026', kind: 'amt', strong: true },
-      { k: 'P27', label: 'PPTO 2027', grp: '2027', kind: 'amt', hero: true },
-      { k: 'DABS', label: 'Δ $', grp: 'Incremento vs FCTS', kind: 'delta' },
-      { k: 'DPCT', label: 'Δ %', grp: 'Incremento vs FCTS', kind: 'var' },
-      { k: 'EJ', label: '% Ejec. Real / FCTS', grp: 'Análisis 2026', kind: 'ratio' },
-      { k: 'VS26', label: 'FCTS vs PPTO 26', grp: 'Análisis 2026', kind: 'var' }
+      { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto' },
+      { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: '2026', kind: 'amt', tone: 'real' },
+      { k: 'FC', label: 'FCTS 2026', grp: '2026', kind: 'amt', strong: true, tone: 'ater' },
+      { k: 'P27', label: 'PPTO 2027', grp: '2027', kind: 'amt', hero: true, tone: 'ppto' },
+      { k: 'DABS', label: 'Δ $', grp: 'Incremento vs FCTS', kind: 'delta', tone: 'var' },
+      { k: 'DPCT', label: 'Δ %', grp: 'Incremento vs FCTS', kind: 'var', tone: 'var' },
+      { k: 'EJ', label: '% Ejec. Real / FCTS', grp: 'Análisis 2026', kind: 'ratio', tone: 'var' },
+      { k: 'VS26', label: 'FCTS vs PPTO 26', grp: 'Análisis 2026', kind: 'var', tone: 'var' }
     ];
   },
-  defaults(){ return { view: 'completo', cols: this.views.completo.cols.slice(), parts: ['IT - Hard', 'IT - Soft'], split: true, detail: 'sl', compact: true }; },
+  defaults(){ return { view: 'completo', cols: this.views.completo.cols.slice(), parts: ['IT - Hard', 'IT - Soft'], split: true, zoomAll: false, compact: true }; },
   pages(o){
     const parts = IT_PARTS.filter(p => o.parts.includes(p));
     if (!parts.length) return [];
@@ -909,12 +1027,13 @@ const ItOg = {
   optsHtml(o){
     return `<div class="field"><span class="lab">Subcategorías</span><div class="chips" data-opt="parts">${IT_PARTS.map(p => `<button type="button" data-p="${p}" aria-pressed="${o.parts.includes(p)}">${p}</button>`).join('')}</div></div>
       <div class="field"><span class="lab">Armado</span><div class="seg" data-opt="split"><button type="button" data-v="1" aria-pressed="${o.split}">Una slide por subcategoría</button><button type="button" data-v="0" aria-pressed="${!o.split}">Todo en una</button></div></div>
-      <div class="field"><span class="lab">Detalle</span><div class="seg" data-opt="detail"><button type="button" data-v="sl" aria-pressed="${o.detail === 'sl'}">Jerarquía + SL</button><button type="button" data-v="jer" aria-pressed="${o.detail === 'jer'}">Solo jerarquía</button></div></div>
-      <div class="field"><label class="tg" for="itCompact"><input type="checkbox" id="itCompact" data-opt="compact" ${o.compact ? 'checked' : ''}>Jerarquías de un solo SL en una línea</label></div>`;
+      <div class="field"><span class="lab">Zoom por SL</span><div class="seg" data-opt="zoomAll"><button type="button" data-v="0" aria-pressed="${!o.zoomAll}">Solo jerarquías</button><button type="button" data-v="1" aria-pressed="${!!o.zoomAll}">Abrir todos</button></div>
+        <span class="empty" style="font-size:11.5px;padding:0">También podés abrir una jerarquía puntual con un clic en la slide.</span></div>
+      <div class="field"><label class="tg" for="itCompact"><input type="checkbox" id="itCompact" data-opt="compact" ${o.compact ? 'checked' : ''}>Mostrar el nombre del SL cuando la jerarquía tiene uno solo</label></div>`;
   },
   calc(page, o){
     const parts = page.endsWith('|all') ? IT_PARTS.filter(p => o.parts.includes(p)) : [page.split('|')[1]];
-    return { parts, it: E.computeITOngoing(state.ds, state.mz, parts) };
+    return { parts, it: E.computeITOngoing(state.ds, curMz(), parts) };
   },
   build(page, o){
     const { parts, it } = this.calc(page, o);
@@ -937,13 +1056,14 @@ const ItOg = {
       if (multi){ if (bi) rows.push({ spacer: true }); rows.push({ label: b.part, style: 'blockhead', cells: {} }); }
       b.groups.forEach(g => {
         const one = g.sls.length === 1;
-        if (one && o.compact){
+        if (one){
           const r = g.sls[0];
-          rows.push({ label: g.jer, sub: r.nom, style: 'jer1', cells: cellsOf(g.v, String(r.sl)), drill: { title: g.jer, sls: g.sls } });
+          rows.push({ label: g.jer, sub: o.compact ? r.nom : null, style: 'jer', cells: cellsOf(g.v, String(r.sl)), drill: { title: g.jer, sls: g.sls } });
           return;
         }
-        rows.push({ label: g.jer, style: 'jer', cells: cellsOf(g.v, g.sls.length + ' SL'), drill: { title: g.jer, sls: g.sls } });
-        if (o.detail === 'sl') g.items.forEach(({ r, v }) => rows.push({ label: r.nom, style: 'sl', cells: cellsOf(v, String(r.sl)), drill: { title: r.nom, sls: [r] } }));
+        const zk = page + '|' + g.jer, open = !!o.zoomAll || state.zoom.has(zk);
+        rows.push({ label: g.jer, style: 'jer', cells: cellsOf(g.v, g.sls.length + ' SL'), drill: { title: g.jer, sls: g.sls }, zoom: zk, open });
+        if (open) g.items.forEach(({ r, v }) => rows.push({ label: r.nom, style: 'sl', cells: cellsOf(v, String(r.sl)), drill: { title: r.nom, sls: [r] } }));
       });
       const allS = b.groups.flatMap(g => g.sls);
       rows.push({ label: multi ? 'Total ' + b.part : 'Total ' + b.part + ' On going', style: multi ? 'sub' : 'total', cells: cellsOf(b.v, b.n + ' SL'), drill: { title: b.part, sls: allS } });
@@ -957,8 +1077,8 @@ const ItOg = {
       note: 'Incremento = PPTO 2027 − FCTS 2026. PPTO 2026 y FCTS 2026 desde 06_FCTS26; Real y PPTO 2027 desde PPTO27. Jerarquización según Matriz de Subledgers.',
       labelHead: 'Jerarquización · SL', cols, rows,
       kpis: [
-        { k: 'PPTO 2027', v: '$' + fAmt(T.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 2026', up: d.up, hero: true },
-        { k: 'Incremento vs FCTS', v: (dAbs.cls === 'na' ? '–' : (T.P27 - T.FC < 0 ? '−$' : '+$') + fAmt(Math.abs(T.P27 - T.FC)).t + unitShort()), d: 'FCTS 2026 $' + fAmt(T.FC).t + unitShort(), plain: true }
+        { k: 'PPTO 2027', v: '$' + fAmt(T.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 2026', up: d.up, hero: true, tone: 'ppto' },
+        { k: 'Incremento vs FCTS', tone: 'ater', v: (dAbs.cls === 'na' ? '–' : (T.P27 - T.FC < 0 ? '−$' : '+$') + fAmt(Math.abs(T.P27 - T.FC)).t + unitShort()), d: 'FCTS 2026 $' + fAmt(T.FC).t + unitShort(), plain: true }
       ]
     };
   },
@@ -1004,18 +1124,19 @@ function tableHtml(tm){
     let j = i; while (j + 1 < cols.length && cols[j + 1].grp === cols[i].grp) j++;
     const grp = cols[i].grp, span = j - i + 1;
     if (!grp) g += `<th class="gap" colspan="${span}"></th>`;
-    else g += `<th colspan="${span}" class="${/2027/.test(grp) ? 'hero' : /variac|increm|anális/i.test(grp) ? 'var' : ''}">${esc(grp)}</th>`;
+    else { const tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var')); g += `<th colspan="${span}" class="t-${tones.size === 1 ? [...tones][0] : 'mix'}">${esc(grp)}</th>`; }
     i = j + 1;
   }
   g += '</tr>';
-  const h = `<tr><th>${esc(tm.labelHead)}</th>` + cols.map(c => `<th class="${c.hero ? 'hero' : ''}" style="${c.kind === 'sl' ? 'text-align:left' : ''}">${esc(c.label)}</th>`).join('') + '</tr>';
+  const h = `<tr><th>${esc(tm.labelHead)}</th>` + cols.map(c => `<th class="h-${c.tone || 'none'}" style="${c.kind === 'sl' ? 'text-align:left' : ''}">${esc(c.label)}</th>`).join('') + '</tr>';
   let b = '';
   tm.rows.forEach((r, ri) => {
     if (r.spacer){ b += `<tr class="spacer"><td colspan="${cols.length + 1}"></td></tr>`; return; }
-    b += `<tr class="${r.style}"${r.drill ? ` data-i="${ri}"` : ''}><td class="lbl">${esc(r.label)}${r.sub ? `<span class="sub">${esc(r.sub)}</span>` : ''}</td>`;
+    b += `<tr class="${r.style}${r.zoom ? ' zoomable' : ''}"${r.drill || r.zoom ? ` data-i="${ri}"` : ''}><td class="lbl">${r.zoom ? `<span class="chev">${r.open ? '▾' : '▸'}</span>` : ''}${esc(r.label)}${r.sub ? `<span class="sub">${esc(r.sub)}</span>` : ''}</td>`;
     cols.forEach(c => {
       const f = r.cells[c.k] || { t: '', cls: '' };
       let cls = f.cls || '';
+      if (c.tone) cls += ' t-' + c.tone;
       if (c.hero) cls += ' c-hero'; else if (c.strong) cls += ' c-strong';
       const ar = (f.arrow && state.sem) ? `<span class="ar">${f.up ? '▲' : '▼'}</span>` : '';
       b += `<td class="${cls.trim()}">${ar}${esc(f.t)}</td>`;
@@ -1026,7 +1147,7 @@ function tableHtml(tm){
 }
 function kpiHtml(tm){
   if (!state.kpis || !tm.kpis) return '';
-  return tm.kpis.map(k => `<div class="kpi${k.hero ? ' hero' : ''}"><div class="k">${esc(k.k)}</div><div class="v">${esc(k.v)}</div><div class="d ${k.plain ? '' : (k.up ? 'up' : 'dn')}" ${k.plain ? 'style="color:var(--ink-2)"' : ''}>${esc(k.d || '')}</div></div>`).join('');
+  return tm.kpis.map(k => `<div class="kpi${k.hero ? ' hero' : ''} k-${k.tone || 'var'}"><div class="k">${esc(k.k)}</div><div class="v">${esc(k.v)}</div><div class="d ${k.plain ? '' : (k.up ? 'up' : 'dn')}" ${k.plain ? 'style="color:var(--ink-2)"' : ''}>${esc(k.d || '')}</div></div>`).join('');
 }
 function textsFor(key, tm){
   const t = state.texts[key] || {};
@@ -1118,7 +1239,7 @@ function renderFiles(){
   const p = state.ds.params || {};
   $('#files').innerHTML = `
     <div class="fileline"><span class="tag">Presupuesto</span><b>${esc(state.dsName)}</b><span class="st ${state.dsSrc === 'file' ? 'live' : 'demo'}">${state.dsSrc === 'file' ? 'Cargado' : 'Ejemplo · datos ficticios'}</span></div>
-    <div class="fileline"><span class="tag">Matriz de Subledgers</span><b>${esc(state.mzName)}</b><span class="st ${state.mzSrc === 'live' ? 'live' : 'demo'}"${state.mz ? '' : ' style="color:var(--bad)"'}>${state.mzSrc === 'live' ? 'Cargada · ' + state.mz.count + ' SL' : state.mz ? 'Ejemplo · ' + state.mz.count + ' SL' : 'Sin cargar: las jerarquías salen vacías'}</span></div>`;
+    <div class="fileline"><span class="tag">Matriz de Subledgers</span><b>${esc(state.mzName)}</b><span class="st ${state.mzSrc === 'live' || (!state.mz && curMz()) ? 'live' : 'demo'}"${curMz() ? '' : ' style="color:var(--bad)"'}>${state.mzSrc === 'live' ? 'Cargada · ' + state.mz.count + ' SL' : state.mz ? 'Ejemplo · ' + state.mz.count + ' SL' : curMz() ? 'Tomada del archivo de presupuesto · ' + curMz().count + ' SL' : 'Sin cargar: las jerarquías salen vacías'}</span></div>`;
   const items = [['Versión', p.version || '—'], ['Real cargado hasta', mesTxt()], ['SL en PPTO27', state.ds.rows.length], ['Valores 2026 desde', state.ds.fcName || state.ds.snapName]];
   $('#meta').innerHTML = items.map(([a, b]) => `<dt>${a}</dt><dd>${esc(b)}</dd>`).join('');
   const live = state.dsSrc === 'file';
@@ -1168,7 +1289,7 @@ function renderDrill(){
     return `<span class="pill">${esc(s.tipo || '')}</span>`;
   };
   const m = v => fAmt((v || 0) / 1e6).t;
-  const jer = s => { const x = state.mz && state.mz.map[String(s.sl).trim()]; return x && x.jer ? x.jer : '—'; };
+  const jer = s => { const m = curMz(), x = m && m.map[E.slKey(s.sl)]; return x && x.jer ? x.jer : '—'; };
   el.hidden = false;
   el.innerHTML = `<div class="drawer-head"><h2>${esc(d.title)}</h2><span class="muted">${sls.length} SL · montos en ${unitLbl()}</span><button class="btn" type="button" id="drClose">Cerrar</button></div>
     ${sls.length ? `<div class="tscroll"><table class="dt"><thead><tr><th>SL</th><th>Nombre</th><th>Jerarquización</th><th>Tipo</th><th class="n">PPTO 2026</th><th class="n">Real 2026</th><th class="n">FCTS 2026</th><th class="n">PPTO 2027</th></tr></thead><tbody>
@@ -1196,6 +1317,7 @@ async function loadFiles(list, from){
   state.drill = null;
   renderAll(true); busy(false);
   const bad = state.res.checks.filter(c => !c.ok && !c.warn).length;
+  if (!curMz()){ toast('Falta la Matriz de Subledgers: sin ella, las jerarquías salen vacías. Sumala a la carpeta o cargala con "Cargar Excel".'); return; }
   toast(`${from ? 'Actualizado desde la carpeta' : 'Cargado'}: ${msgs.join(' y ')}. ` + (bad ? `${bad} control${bad > 1 ? 'es' : ''} para revisar.` : 'Los controles cuadran.'));
 }
 $('#btnLoad').onclick = () => $('#file').click();
@@ -1235,7 +1357,7 @@ $('#cuadroOpts').onclick = e => {
     o.parts = has ? o.parts.filter(x => x !== p) : IT_PARTS.filter(x => o.parts.includes(x) || x === p);
   }
   if (opt === 'split'){ o.split = b.dataset.v === '1'; }
-  if (opt === 'detail') o.detail = b.dataset.v;
+  if (opt === 'zoomAll'){ o.zoomAll = b.dataset.v === '1'; state.zoom.clear(); }
   if (opt === 'split' || opt === 'parts'){ const pages = c.pages(o); if (!pages.some(p => p.key === state.page)) state.page = pages[0].key; }
   rerender();
 };
@@ -1259,7 +1381,9 @@ $('#optPct').onchange = e => { state.pctDec = +e.target.value; persist(); render
 });
 $('#sFit').onclick = e => {
   const tr = e.target.closest('tr[data-i]'); if (!tr || !TM) return;
-  const r = TM.rows[+tr.dataset.i]; if (!r || !r.drill) return;
+  const r = TM.rows[+tr.dataset.i]; if (!r) return;
+  if (r.zoom){ state.zoom.has(r.zoom) ? state.zoom.delete(r.zoom) : state.zoom.add(r.zoom); renderSlide(); return; }
+  if (!r.drill) return;
   state.drill = r.drill; renderDrill();
   $('#drawer').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
 };
@@ -1283,73 +1407,81 @@ async function saveFile(name, data){
 const stamp = () => { const d = new Date(); return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); };
 const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '');
 
-const PX = { NAVY: '14234B', NAVY2: '24407A', TEAL: '0F8A8A', INK: '18213A', INK2: '55607A', TINT: 'F7F9FC', TEALT: 'E4F3F2', AMB: 'FBF3E1', LINE: 'E3E8F0' };
+/* paleta pastel compartida con el CSS (hex sin #) */
+const PX = { SLATE: '2B3452', INK: '3A4360', INK2: '6B7390', RULE: 'DDE1EA', TOT: 'EEF0F5', GRAND: 'E3E6EE', LINE: 'E9ECF2' };
+const TN = {
+  real: { h: 'C9DDF5', ht: '1F4E86', c: 'F1F6FD', t: 'DCE9F9' },
+  ppto: { h: 'DED3F3', ht: '4B3A86', c: 'F7F3FD', t: 'EAE1F8' },
+  ater: { h: 'F9D9B8', ht: '8A4B12', c: 'FEF6EE', t: 'FCE6CF' },
+  var:  { h: 'E6E9F0', ht: '47506A', c: 'FFFFFF', t: 'EEF0F5' },
+  mix:  { h: 'E6E9F0', ht: '47506A', c: 'FFFFFF', t: 'EEF0F5' }
+};
 const ROWSTYLE = {
-  group: { fill: PX.TINT, bold: true, color: PX.INK, lab: PX.NAVY },
-  jer: { fill: PX.TINT, bold: true, color: PX.INK, lab: PX.NAVY },
-  jer1: { fill: PX.TINT, bold: false, color: PX.INK, lab: PX.INK, labBold: true },
-  child: { fill: 'FFFFFF', bold: false, color: PX.INK2, indent: true },
-  sl: { fill: 'FFFFFF', bold: false, color: PX.INK2, indent: true },
-  cfnc: { fill: 'FFFFFF', bold: false, color: PX.INK2 },
-  sub: { fill: 'FFFFFF', bold: true, color: PX.INK, top: PX.NAVY },
-  total: { fill: PX.NAVY, bold: true, color: 'FFFFFF', dark: true },
-  grand: { fill: '0A1430', bold: true, color: 'FFFFFF', dark: true },
-  masterplan: { fill: PX.AMB, bold: true, color: PX.INK, lab: '7A5608' },
-  'masterplan-child': { fill: 'FFFFFF', bold: false, color: PX.INK2, indent: true },
-  blockhead: { fill: 'FFFFFF', bold: true, color: PX.TEAL, lab: PX.TEAL, bottom: PX.TEAL }
+  group: { bold: true, color: PX.SLATE, labFill: 'F6F7FA' },
+  jer: { bold: true, color: PX.SLATE, labFill: 'F6F7FA' },
+  jer1: { bold: true, color: PX.SLATE, labFill: 'F6F7FA' },
+  child: { bold: false, color: PX.INK2, indent: true, light: true },
+  sl: { bold: false, color: PX.INK2, indent: true, light: true },
+  cfnc: { bold: false, color: PX.INK, light: true },
+  sub: { bold: true, color: PX.SLATE, top: '8F98B0', labFill: 'F6F7FA' },
+  total: { bold: true, color: PX.SLATE, top: PX.SLATE, bottom: PX.SLATE, labFill: PX.TOT, strong: true },
+  grand: { bold: true, color: PX.SLATE, top: PX.SLATE, bottom: PX.SLATE, labFill: PX.GRAND, strong: true, big: true },
+  masterplan: { bold: true, color: '8A4B12', labFill: 'FFF8EE', top: 'E7B987' },
+  'masterplan-child': { bold: false, color: PX.INK2, indent: true, light: true },
+  blockhead: { bold: true, color: TN.ppto.ht, bottom: 'B9A6E3' }
 };
 function addSlide(pptx, tm, tx){
   const s = pptx.addSlide(); s.background = { color: 'FFFFFF' };
-  s.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.08, h: 7.5, fill: { color: PX.NAVY }, line: { color: PX.NAVY } });
-  s.addText(tm.eyebrow.toUpperCase(), { x: 0.45, y: 0.25, w: 8, h: 0.25, fontSize: 9, bold: true, color: PX.TEAL, fontFace: 'Arial', charSpacing: 2 });
-  s.addText(tx.title, { x: 0.45, y: 0.48, w: 8.6, h: 0.45, fontSize: 24, bold: true, color: PX.NAVY, fontFace: 'Arial' });
-  s.addText(tx.sub, { x: 0.45, y: 0.92, w: 8.6, h: 0.28, fontSize: 10, color: PX.INK2, fontFace: 'Arial' });
+  [['DED3F3', 0], ['C9DDF5', 2.5], ['F9D9B8', 5]].forEach(([c, y]) => s.addShape(pptx.ShapeType.rect, { x: 0, y, w: 0.09, h: 2.5, fill: { color: c }, line: { color: c } }));
+  s.addText(tm.eyebrow.toUpperCase(), { x: 0.45, y: 0.25, w: 8, h: 0.25, fontSize: 9, bold: true, color: TN.ppto.ht, fontFace: 'Calibri', charSpacing: 2 });
+  s.addText(tx.title, { x: 0.45, y: 0.46, w: 8.6, h: 0.48, fontSize: 26, color: PX.SLATE, fontFace: 'Calibri Light' });
+  s.addText(tx.sub, { x: 0.45, y: 0.93, w: 8.6, h: 0.28, fontSize: 10.5, color: PX.INK2, fontFace: 'Calibri Light' });
   if (state.kpis && tm.kpis){
     tm.kpis.slice(0, 2).forEach((k, i) => {
-      const x = 12.9 - (tm.kpis.length - i) * 2.05;
-      s.addText([{ text: k.k.toUpperCase() + '\n', options: { fontSize: 7, bold: true, color: k.hero ? 'AFC3E8' : PX.INK2 } }, { text: k.v + '\n', options: { fontSize: 14, bold: true, color: k.hero ? 'FFFFFF' : PX.INK } }, { text: k.d || '', options: { fontSize: 7.5, color: k.plain ? PX.INK2 : (k.hero ? (k.up ? '7FE0A8' : 'FFB2A3') : (k.up ? '2E9A5A' : 'C9503B')) } }],
-        { x, y: 0.3, w: 1.95, h: 0.85, fill: { color: k.hero ? PX.NAVY : PX.TINT }, line: { color: k.hero ? PX.NAVY : 'DCE2EC', width: 0.75 }, fontFace: 'Arial', valign: 'middle', margin: 6 });
+      const x = 12.9 - (tm.kpis.length - i) * 2.05, tn = TN[k.tone || 'var'];
+      s.addText([{ text: k.k.toUpperCase() + '\n', options: { fontSize: 7, bold: true, color: tn.ht } }, { text: k.v + '\n', options: { fontSize: 15, bold: true, color: PX.SLATE } }, { text: k.d || '', options: { fontSize: 8, color: k.plain ? PX.INK2 : (k.up ? '3E9B6A' : 'C9584A') } }],
+        { x, y: 0.3, w: 1.95, h: 0.85, fill: { color: k.hero ? tn.t : tn.c }, line: { color: tn.h, width: 0.75 }, fontFace: 'Calibri', valign: 'middle', margin: 6 });
     });
   }
   const cols = tm.cols, rows = tm.rows.filter(r => !r.spacer);
-  const avail = 7.5 - 1.4 - 0.5, rh = Math.min(0.25, avail / (rows.length + 2));
-  const fs = Math.max(5.5, Math.min(9, rh * 37));
-  const totW = 12.45, slW = 0.75;
-  const numW = cols.filter(c => c.kind !== 'sl').length, labW = Math.min(4, Math.max(2.3, totW - numW * 0.95 - (cols.some(c => c.kind === 'sl') ? slW : 0)));
-  const cw = (totW - labW - (cols.some(c => c.kind === 'sl') ? slW : 0)) / Math.max(1, numW);
+  const avail = 7.5 - 1.4 - 0.5, rh = Math.min(0.26, avail / (rows.length + 2));
+  const fs = Math.max(6, Math.min(10, rh * 40));
+  const totW = 12.45, slW = 0.8, hasSl = cols.some(c => c.kind === 'sl');
+  const numW = cols.filter(c => c.kind !== 'sl').length;
+  const labW = Math.min(4.2, Math.max(2.4, totW - numW * 0.95 - (hasSl ? slW : 0)));
+  const cw = (totW - labW - (hasSl ? slW : 0)) / Math.max(1, numW);
   const head1 = [{ text: '', options: { fill: { color: 'FFFFFF' } } }];
   let i = 0;
   while (i < cols.length){ let j = i; while (j + 1 < cols.length && cols[j + 1].grp === cols[i].grp) j++;
-    const g = cols[i].grp;
-    head1.push(g ? { text: g.toUpperCase(), options: { colspan: j - i + 1, fill: { color: /2027/.test(g) ? PX.TEAL : /variac|increm|anális/i.test(g) ? PX.NAVY2 : PX.NAVY }, color: 'FFFFFF', bold: true, align: 'center', fontSize: fs - 0.5 } }
+    const g = cols[i].grp, tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var')), tn = TN[tones.size === 1 ? [...tones][0] : 'mix'];
+    head1.push(g ? { text: g.toUpperCase(), options: { colspan: j - i + 1, fill: { color: tn.h }, color: tn.ht, bold: true, align: 'center', fontSize: fs - 1, fontFace: 'Calibri', border: [null, { pt: 1.5, color: 'FFFFFF' }, null, { pt: 1.5, color: 'FFFFFF' }] } }
                : { text: '', options: { colspan: j - i + 1, fill: { color: 'FFFFFF' } } });
     i = j + 1; }
-  const bNavy = [null, null, { pt: 1.5, color: PX.NAVY }, null];
-  const head2 = [{ text: tm.labelHead, options: { bold: true, color: PX.INK2, align: 'left', border: bNavy } }]
-    .concat(cols.map(c => ({ text: c.label, options: { bold: true, color: c.hero ? PX.TEAL : PX.INK2, align: c.kind === 'sl' ? 'left' : 'right', border: bNavy } })));
+  const bHead = [null, null, { pt: 1.25, color: '9AA3BA' }, null];
+  const head2 = [{ text: tm.labelHead, options: { bold: true, color: PX.INK2, align: 'left', border: bHead, fontFace: 'Calibri' } }]
+    .concat(cols.map(c => ({ text: c.label, options: { bold: true, color: c.tone && TN[c.tone] && c.tone !== 'var' ? TN[c.tone].ht : PX.INK2, align: c.kind === 'sl' ? 'left' : 'right', border: bHead, fontFace: 'Calibri' } })));
   const body = rows.map(r => {
     const st = ROWSTYLE[r.style] || ROWSTYLE.child;
-    const border = [st.top ? { pt: 1.5, color: st.top } : null, null, { pt: st.bottom ? 1.5 : 0.5, color: st.bottom || PX.LINE }, null];
-    const base = { fill: { color: st.fill }, bold: st.bold, color: st.color, border };
+    const border = [st.top ? { pt: st.strong ? 1.75 : 1, color: st.top } : null, null, { pt: st.bottom ? 1.75 : 0.5, color: st.bottom || PX.LINE }, null];
+    const face = st.bold ? 'Calibri' : 'Calibri Light', size = st.big ? fs + 0.5 : fs;
     const labTxt = (st.indent ? '    ' : '') + r.label;
-    const lab = r.sub
-      ? { text: [{ text: labTxt, options: { bold: st.labBold || st.bold, color: st.lab || st.color } }, { text: '   ' + r.sub, options: { bold: false, color: PX.INK2, fontSize: fs - 1 } }], options: Object.assign({}, base, { align: 'left' }) }
-      : { text: labTxt, options: Object.assign({}, base, { align: 'left', color: st.lab || st.color, bold: st.labBold || st.bold }) };
+    const labO = { fill: { color: st.labFill || 'FFFFFF' }, bold: st.bold, color: st.color, border, align: 'left', fontFace: face, fontSize: size };
+    const lab = r.sub ? { text: [{ text: labTxt }, { text: '   ' + r.sub, options: { bold: false, color: PX.INK2, fontSize: size - 1, fontFace: 'Calibri Light' } }], options: labO } : { text: labTxt, options: labO };
     return [lab].concat(cols.map(c => {
-      const f = r.cells[c.k] || { t: '', cls: '' };
-      const o = Object.assign({}, base, { align: c.kind === 'sl' ? 'left' : 'right', fontFace: 'Consolas' });
-      if (c.hero) o.fill = { color: st.dark ? '0B6E6E' : PX.TEALT };
-      if (c.kind === 'sl') o.color = st.dark ? 'C7D2EA' : PX.INK2;
-      if (state.sem && /vp/.test(f.cls)) o.color = st.dark ? '8EE7B4' : '2E9A5A';
-      if (state.sem && /vn/.test(f.cls)) o.color = st.dark ? 'FFB4A4' : 'C9503B';
-      if (/na/.test(f.cls)) o.color = st.dark ? '7C8DB2' : 'B3BACB';
+      const f = r.cells[c.k] || { t: '', cls: '' }, tn = TN[c.tone || 'var'];
+      const fill = r.style === 'blockhead' ? 'FFFFFF' : (st.strong || r.style === 'sub') ? tn.t : tn.c;
+      const o = { fill: { color: fill }, bold: st.bold, color: st.color, border, align: c.kind === 'sl' ? 'left' : 'right', fontFace: face, fontSize: size };
+      if (c.kind === 'sl') { o.color = PX.INK2; o.bold = false; o.fontFace = 'Calibri Light'; }
+      if (state.sem && /vp/.test(f.cls)) o.color = '3E9B6A';
+      if (state.sem && /vn/.test(f.cls)) o.color = 'C9584A';
+      if (/na/.test(f.cls)) o.color = 'B6BCCB';
       return { text: f.t || '', options: o };
     }));
   });
   const colW = [labW].concat(cols.map(c => c.kind === 'sl' ? slW : cw));
-  s.addTable([head1, head2].concat(body), { x: 0.4, y: 1.4, w: totW, colW, rowH: rh, fontSize: fs, fontFace: 'Arial', valign: 'middle', margin: [0, 4, 0, 4], autoPage: false });
-  s.addText(tx.note, { x: 0.45, y: 7.02, w: 10.5, h: 0.32, fontSize: 7.5, color: PX.INK2, fontFace: 'Arial' });
-  s.addText('FARMACITY · PCG', { x: 11, y: 7.02, w: 1.9, h: 0.32, fontSize: 7.5, bold: true, color: PX.NAVY, align: 'right', fontFace: 'Arial' });
+  s.addTable([head1, head2].concat(body), { x: 0.4, y: 1.4, w: totW, colW, rowH: rh, fontSize: fs, fontFace: 'Calibri Light', valign: 'middle', margin: [0, 5, 0, 5], autoPage: false });
+  s.addText(tx.note, { x: 0.45, y: 7.02, w: 10.5, h: 0.32, fontSize: 8, color: PX.INK2, fontFace: 'Calibri Light' });
+  s.addText('FARMACITY · PCG', { x: 11, y: 7.02, w: 1.9, h: 0.32, fontSize: 8, bold: true, color: PX.SLATE, align: 'right', fontFace: 'Calibri' });
 }
 async function exportPptx(all){
   if (typeof PptxGenJS === 'undefined'){ toast('No cargó la librería de PowerPoint.'); return; }
@@ -1388,11 +1520,11 @@ $('#xXlsx').onclick = async () => {
 $('#xCopy').onclick = async () => {
   const tm = TM, cols = tm.cols, rows = tm.rows.filter(r => !r.spacer);
   const tsv = [[tm.labelHead].concat(cols.map(c => c.label)).join('\t')].concat(rows.map(r => [r.label + (r.sub ? ' · ' + r.sub : '')].concat(cols.map(c => (r.cells[c.k] || {}).t || '')).join('\t'))).join('\n');
-  const th = a => `style="font:600 10pt Arial;color:#55607A;text-align:${a};border-bottom:1.5pt solid #14234B;padding:2pt 6pt"`;
-  const html = `<table style="border-collapse:collapse;font:10pt Arial"><tr><th ${th('left')}>${esc(tm.labelHead)}</th>${cols.map(c => `<th ${th(c.kind === 'sl' ? 'left' : 'right')}>${esc(c.label)}</th>`).join('')}</tr>` +
+  const th = a => `style="font:700 10pt Calibri,sans-serif;color:#6B7390;text-align:${a};border-bottom:1.25pt solid #9AA3BA;padding:2pt 6pt"`;
+  const html = `<table style="border-collapse:collapse;font:10pt Calibri,sans-serif"><tr><th ${th('left')}>${esc(tm.labelHead)}</th>${cols.map(c => `<th ${th(c.kind === 'sl' ? 'left' : 'right')}>${esc(c.label)}</th>`).join('')}</tr>` +
     rows.map(r => { const st = ROWSTYLE[r.style] || ROWSTYLE.child;
-      const css = `background:#${st.fill};color:#${st.color};font-weight:${st.bold ? 700 : 400};padding:2pt 6pt;border-bottom:.5pt solid #E3E8F0`;
-      return `<tr><td style="${css};text-align:left;${st.indent ? 'padding-left:16pt;' : ''}color:#${st.lab || st.color}">${esc(r.label)}${r.sub ? ' · ' + esc(r.sub) : ''}</td>${cols.map(c => `<td style="${css};text-align:${c.kind === 'sl' ? 'left' : 'right'};font-family:Consolas,monospace">${esc((r.cells[c.k] || {}).t || '')}</td>`).join('')}</tr>`; }).join('') + '</table>';
+      const css = `color:#${st.color};font-weight:${st.bold ? 700 : 400};font-family:${st.bold ? 'Calibri' : "'Calibri Light',Calibri"},sans-serif;padding:2pt 6pt;border-bottom:${st.bottom ? '1.5pt solid #' + st.bottom : '.5pt solid #E9ECF2'};${st.top ? 'border-top:1.5pt solid #' + st.top + ';' : ''}`;
+      return `<tr><td style="${css};background:#${st.labFill || 'FFFFFF'};text-align:left;${st.indent ? 'padding-left:16pt;' : ''}">${esc(r.label)}${r.sub ? ' · ' + esc(r.sub) : ''}</td>${cols.map(c => { const tn = TN[c.tone || 'var']; return `<td style="${css};background:#${st.strong || r.style === 'sub' ? tn.t : tn.c};text-align:${c.kind === 'sl' ? 'left' : 'right'}">${esc((r.cells[c.k] || {}).t || '')}</td>`; }).join('')}</tr>`; }).join('') + '</table>';
   try{
     if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write)
       await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([tsv], { type: 'text/plain' }) })]);
@@ -1444,7 +1576,13 @@ async function syncFolder(ask){
     }
     const newest = arr => arr.sort((a, b) => b.lastModified - a.lastModified)[0];
     const ppto = newest(cands.filter(f => /ppto/i.test(f.name) && /capex/i.test(f.name)));
-    const mz = newest(cands.filter(f => /subledger|matriz/i.test(f.name)));
+    let mz = newest(cands.filter(f => /subledger|matriz|jerarq/i.test(f.name)));
+    if (!mz && !state.mz){
+      // sin nombre reconocible: busca la columna de jerarquización en los demás Excel livianos
+      for (const f of cands.filter(f => f !== ppto && f.size < 20e6).sort((a, b) => a.size - b.size)){
+        try{ E.readMatriz(XLSX, new Uint8Array(await f.arrayBuffer())); mz = f; break; }catch(e){}
+      }
+    }
     if (!ppto && !mz){ toast(`No encontré en "${dir.name}" archivos con "PPTO … CAPEX" ni "Subledger/Matriz" en el nombre.`); return; }
     const when = f => new Date(f.lastModified).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     state.lastSync = [ppto && `PPTO: ${ppto.name} (${when(ppto)})`, mz && `Matriz: ${mz.name} (${when(mz)})`].filter(Boolean).join(' · ');
