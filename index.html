@@ -420,7 +420,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 15:45</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 15:48</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1532,7 +1532,20 @@ const ItPr = {
         if (k === 'sin'){
           // proyectos futuros: listado completo de proyectos con su PPTO 2027
           if (multi){ if (bi) rows.push({ spacer: true }); rows.push({ label: pp, style: 'blockhead', cells: {} }); }
-          B.slice().sort((a, b2) => b2.v.P27 - a.v.P27).forEach(x => rows.push({ label: x.r.nom || String(x.r.sl), style: 'jer', cells: cells(x.v, String(x.r.sl), x), drill: { title: x.r.nom, sls: [x.r] } }));
+          // cada línea lleva el nombre de su jerarquización de exposición; si el SL no la tiene en la matriz, se usa el nombre del proyecto
+          const mzS = curMz(), GS = {};
+          B.forEach(x => {
+            let j = mzS && mzS.map[E.slKey(x.r.sl)] ? String(mzS.map[E.slKey(x.r.sl)].jer || '').trim() : '';
+            const key = (!j || j === '-' || /^n\/?a$/i.test(j)) ? 'sl:' + x.r.sl : E.norm(j);
+            if (key.startsWith('sl:')) j = x.r.nom || String(x.r.sl);
+            (GS[key] = GS[key] || { jer: j, items: [], noJer: key.startsWith('sl:') }).items.push(x);
+          });
+          Object.values(GS).map(g => { g.v = this.sumV(g.items); return g; }).sort((a, b2) => b2.v.P27 - a.v.P27).forEach(g => {
+            if (g.items.length === 1){ const x = g.items[0]; rows.push({ label: g.jer, sub: g.noJer ? 'sin jerarquización' : null, style: 'jer', cells: cells(g.v, String(x.r.sl), x), drill: { title: g.jer, sls: [x.r] } }); return; }
+            const zk = page + '|' + pp + '|' + g.jer, open = !!o.zoomAll || state.zoom.has(zk);
+            rows.push({ label: g.jer, style: 'jer', cells: cells(g.v, g.items.length + ' SL'), drill: { title: g.jer, sls: g.items.map(x => x.r) }, zoom: zk, open });
+            if (open) g.items.forEach(x => rows.push({ label: x.r.nom || String(x.r.sl), style: 'sl', cells: cells(x.v, String(x.r.sl), x), drill: { title: x.r.nom, sls: [x.r] } }));
+          });
           if (multi){ const v = this.sumV(B); rows.push({ label: 'Total ' + pp, style: 'sub', cells: cells(v, B.length + ' SL'), drill: null }); }
           return;
         }
@@ -1580,7 +1593,7 @@ const ItPr = {
         : k === 'curso' ? 'Saldo luego de PPTO 27 = Saldo aprobado − PPTO 2027. En rojo: el PPTO 2027 supera el saldo aprobado.'
         : 'Estado según PPTO27 (tipo PROYECTOS); "Aprobación extra" según la columna D de 08_PROYECTOS. Montos 2026 desde 06_FCTS26 y PPTO 2027 desde PPTO27.',
       split2: k === 'sin',
-      labelHead: k === 'resumen' ? 'Subcategoría' : k === 'sin' ? 'Proyecto' : 'Jerarquización · SL', cols, rows: rows.length ? rows : [{ label: 'Sin proyectos en esta categoría', style: 'cfnc', cells: {} }], kpis: kp
+      labelHead: k === 'resumen' ? 'Subcategoría' : 'Jerarquización · SL', cols, rows: rows.length ? rows : [{ label: 'Sin proyectos en esta categoría', style: 'cfnc', cells: {} }], kpis: kp
     };
   },
   checks(page, o){
