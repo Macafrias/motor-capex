@@ -409,7 +409,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 12:23</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 12:30</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -534,10 +534,10 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
   ];
 
   const VIEWS = {
-    completo:  { label:'Completo', cols: COLS.map(c=>c.k) },
+    completo:  { label:'Completo', cols: COLS.map(c=>c.k).filter(k => k !== 'A84') },
     ejecutivo: { label:'Ejecutivo', cols:['R25','P26','A93','RACU','P27','VAT','V27'] },
     apertura:  { label:'Apertura 2027', cols:['A93O','P27O','VO','A93P','P27P','P27F','A93','P27','V27'] },
-    ppto26:    { label:'Cierre 2026', cols:['R25','P26O','P26P','P26F','P26','A84','RACU','A93','V26','VAT'] }
+    ppto26:    { label:'Cierre 2026', cols:['R25','P26O','P26P','P26F','P26','RACU','A93','V26','VAT'] }
   };
 
   /* ---------- Lectura del Excel ---------- */
@@ -689,11 +689,10 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         const iQ = GH.findIndex(x => x.startsWith('cantidades totales')), iImp = GH.findIndex(x => x.startsWith('total ano'));
         const iDet = GH.findIndex(x => x.startsWith('detalle de articulo'));
         const iQm = MES_L.map(m => GH.findIndex(x => x === 'cantidad en ' + m));
-        // horas/cantidades por propuesta (PPTO 2026 · FCTS 2026 · PPTO 2027): por encabezado, a la derecha de TOTAL AÑO; si no, columnas AN/AO/AP
-        const from = iImp >= 0 ? iImp + 1 : 0, findH = re => { for (let j = from; j < GH.length; j++) if (re.test(GH[j])) return j; return -1; };
-        let iH26 = findH(/(ppto|presupuesto)\s*2026/), iHfc = findH(/fcts|forecast|9\s*\+\s*3|8\s*\+\s*4/), iH27 = findH(/(ppto|presupuesto)\s*2027/);
-        if (iHfc < 0) iHfc = findH(/proyectad|aterrizaje/);
-        if (iH26 < 0) iH26 = 39; if (iHfc < 0) iHfc = 40; if (iH27 < 0) iH27 = GH[41] ? 41 : -1;
+        // horas por propuesta en columnas fijas de la hoja: AN = PPTO 2026 · AO = FCTS 2026 (9+3) · AP = PPTO 2027
+        const ws07 = wb.Sheets[ogName], off = ws07 && ws07['!ref'] ? XLSX.utils.decode_range(ws07['!ref']).s.c : 0;
+        const colIdx = L => XLSX.utils.decode_col(L) - off;
+        const iH26 = colIdx('AN'), iHfc = colIdx('AO'), iH27 = colIdx('AP');
         for (let i = gh + 1; i < G.length; i++) {
           const r = G[i]; if (!r || r[iSl] == null || r[iSl] === '') continue;
           const k = slKey(r[iSl]);
@@ -707,7 +706,8 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
           if (iDet >= 0 && r[iDet]) o.det.push(String(r[iDet]));
         }
         Object.values(og).forEach(o => { o.price = o.qty ? o.val / o.qty : 0; o.mon = [...o.mon].join('/') || ''; if (o.h27 == null) o.h27 = o.qty; });
-        og.__cols = { h26: GH[iH26] || null, hfc: GH[iHfc] || null, h27: iH27 >= 0 ? GH[iH27] : 'cantidades totales' };
+        const raw = G[gh] || [];
+        og.__cols = { h26: 'AN ' + (raw[iH26] || '(sin título)'), hfc: 'AO ' + (raw[iHfc] || '(sin título)'), h27: 'AP ' + (raw[iH27] || '(sin título)') };
       }
     }
     let mzInside = null;
@@ -1034,7 +1034,7 @@ const General = {
     const d1 = fVar(t.V27);
     return {
       eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027}`, title: 'Cuadro General CAPEX',
-      sub: `En ${unitLbl()} · Real acumulado a ${mesTxt()} · Aterrizaje 2026 9+3${p.version ? ' · Versión ' + p.version : ''}`,
+      sub: `En ${unitLbl()} · Real acumulado a ${mesTxt()} · Aterrizaje 2026 9+3`,
       note: 'PPTO 2027 = On going + Proyectos on going (en curso y finalizados) + Proyectos futuros (sin aprobación). CFNC prorrateado por mix. Bajas fuera de exposición; se incluyen en el control contra contabilidad.',
       labelHead: 'Concepto', cols, rows,
       kpis: [
@@ -1060,7 +1060,7 @@ const ItOg = {
       { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
       { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto' },
       { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: '2026', kind: 'amt', tone: 'real' },
-      { k: 'FC', label: 'FCTS 2026', grp: '2026', kind: 'amt', strong: true, tone: 'ater' },
+      { k: 'FC', label: 'FCTS 9+3', grp: '2026', kind: 'amt', strong: true, tone: 'ater' },
       { k: 'P27', label: 'PPTO 2027', grp: '2027', kind: 'amt', hero: true, tone: 'ppto' },
       { k: 'DABS', label: 'Δ $', grp: 'Incremento vs FCTS', kind: 'delta', tone: 'var' },
       { k: 'DPCT', label: 'Δ %', grp: 'Incremento vs FCTS', kind: 'var', tone: 'var' },
@@ -1135,8 +1135,8 @@ const ItOg = {
       note: 'Incremento = PPTO 2027 − FCTS 2026. PPTO 2026 y FCTS 2026 desde 06_FCTS26; Real y PPTO 2027 desde PPTO27. Jerarquización según Matriz de Subledgers.',
       labelHead: 'Jerarquización · SL', cols, rows,
       kpis: [
-        { k: 'PPTO 2027', v: '$' + fAmt(T.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 2026', up: d.up, hero: true, tone: 'ppto' },
-        { k: 'Incremento vs FCTS', tone: 'ater', v: (dAbs.cls === 'na' ? '–' : (T.P27 - T.FC < 0 ? '−$' : '+$') + fAmt(Math.abs(T.P27 - T.FC)).t + unitShort()), d: 'FCTS 2026 $' + fAmt(T.FC).t + unitShort(), plain: true }
+        { k: 'PPTO 2027', v: '$' + fAmt(T.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 9+3', up: d.up, hero: true, tone: 'ppto' },
+        { k: 'Incremento vs FCTS', tone: 'ater', v: (dAbs.cls === 'na' ? '–' : (T.P27 - T.FC < 0 ? '−$' : '+$') + fAmt(Math.abs(T.P27 - T.FC)).t + unitShort()), d: 'FCTS 9+3 $' + fAmt(T.FC).t + unitShort(), plain: true }
       ]
     };
   },
@@ -1158,7 +1158,7 @@ const ItOg = {
     if (o.ecomHoras){
       cols.push(
         { k: 'H26', label: 'PPTO 2026', grp: 'Horas', kind: 'hrs', tone: 'aux' },
-        { k: 'HFC', label: 'FCTS 2026', grp: 'Horas', kind: 'hrs', tone: 'aux' },
+        { k: 'HFC', label: 'FCTS 9+3', grp: 'Horas', kind: 'hrs', tone: 'aux' },
         { k: 'H27', label: 'PPTO 2027', grp: 'Horas', kind: 'hrs', tone: 'aux' });
       if (o.ecomPrecio) cols.push(
         { k: 'PH', label: 'Precio por hora', grp: 'Horas', kind: 'hrs', tone: 'aux' },
@@ -1192,7 +1192,7 @@ const ItOg = {
       note: 'Total ECOM cruza con el resumen de IT. El SL del equipo ECOM expuesto en TFM se muestra aparte y no suma al total de IT. Horas de PPTO 2026, FCTS 2026 y PPTO 2027 según 07_ON GOING.',
       labelHead: 'Subledger', cols, rows,
       kpis: [
-        { k: 'PPTO 2027 · ECOM', v: '$' + fAmt(tOwn.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 2026', up: d.up, hero: true, tone: 'ppto' },
+        { k: 'PPTO 2027 · ECOM', v: '$' + fAmt(tOwn.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 9+3', up: d.up, hero: true, tone: 'ppto' },
         { k: 'Horas PPTO 2027', tone: 'aux', plain: true, v: nfi.format(tOwn.H27 || tOwn.HS) + ' hs', d: tOwn.HFC ? 'FCTS 2026: ' + nfi.format(tOwn.HFC) + ' hs' : (tOwn.HS ? tOwn.mon + ' ' + nf2.format(tOwn.USD / tOwn.HS) + ' por hora' : '') }
       ]
     };
@@ -1211,8 +1211,8 @@ const ItOg = {
       note: 'Resumen de la porción On going de IT. IT = IT - Hard + IT - Soft + ECOM. Incremento = PPTO 2027 − FCTS 2026.',
       labelHead: 'Concepto', cols, rows,
       kpis: [
-        { k: 'PPTO 2027 · IT On going', v: '$' + fAmt(T.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 2026', up: d.up, hero: true, tone: 'ppto' },
-        { k: 'Incremento vs FCTS', tone: 'ater', v: (dAbs.cls === 'na' ? '–' : (T.P27 - T.FC < 0 ? '−$' : '+$') + fAmt(Math.abs(T.P27 - T.FC)).t + unitShort()), d: 'FCTS 2026 $' + fAmt(T.FC).t + unitShort(), plain: true }
+        { k: 'PPTO 2027 · IT On going', v: '$' + fAmt(T.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 9+3', up: d.up, hero: true, tone: 'ppto' },
+        { k: 'Incremento vs FCTS', tone: 'ater', v: (dAbs.cls === 'na' ? '–' : (T.P27 - T.FC < 0 ? '−$' : '+$') + fAmt(Math.abs(T.P27 - T.FC)).t + unitShort()), d: 'FCTS 9+3 $' + fAmt(T.FC).t + unitShort(), plain: true }
       ]
     };
   },
@@ -1251,6 +1251,7 @@ function optsOf(c){
   if (!o){ o = d; state.opts[c.id] = o; }
   if (c.id === 'itog' && !o.ecomV){ if (o.parts && !o.parts.includes('ECOM')) o.parts.push('ECOM'); o.ecomV = 1; }
   for (const k in d) if (o[k] == null) o[k] = d[k];
+  if (o.view && o.view !== 'custom' && c.views[o.view]) o.cols = new Set(c.views[o.view].cols);
   if (!(o.cols instanceof Set)) o.cols = new Set(o.cols);
   return o;
 }
@@ -1385,8 +1386,9 @@ function renderFiles(){
     <div class="fileline"><span class="tag">Presupuesto</span><b>${esc(state.dsName)}</b><span class="st ${state.dsSrc === 'file' ? 'live' : 'demo'}">${state.dsSrc === 'file' ? 'Cargado' : 'Ejemplo · datos ficticios'}</span></div>
     <div class="fileline"><span class="tag">Matriz de Subledgers</span><b>${esc(state.mzName)}</b><span class="st ${state.mzSrc === 'live' || (!state.mz && curMz()) ? 'live' : 'demo'}"${curMz() ? '' : ' style="color:var(--bad)"'}>${state.mzSrc === 'live' ? 'Cargada · ' + state.mz.count + ' SL' : state.mz ? 'Ejemplo · ' + state.mz.count + ' SL' : curMz() ? 'Tomada del archivo de presupuesto · ' + curMz().count + ' SL' : 'Sin cargar: las jerarquías salen vacías'}</span></div>`;
   const hc = state.ds.og && state.ds.og.__cols;
-  const items = [['Versión', p.version || '—'], ['Real cargado hasta', mesTxt()], ['SL en PPTO27', state.ds.rows.length], ['Valores 2026 desde', state.ds.fcName || state.ds.snapName]].concat(hc ? [['Horas ECOM (07)', [hc.h26, hc.hfc, hc.h27].map(x => x || '—').join(' · ')]] : []);
-  $('#meta').innerHTML = items.map(([a, b]) => `<dt>${a}</dt><dd>${esc(b)}</dd>`).join('');
+  const items = [['FCTS 2026', '9+3 · ' + (state.ds.fcName || state.ds.snapName)], ['Real cargado hasta', mesTxt()], ['SL en PPTO27', state.ds.rows.length]];
+  $('#meta').innerHTML = items.map(([a, b]) => `<dt>${a}</dt><dd>${esc(b)}</dd>`).join('')
+    + (hc ? `<dt style="grid-column:1/-1">Horas ECOM (07_ON GOING)</dt><dd style="grid-column:1/-1;text-align:left;font-weight:400">${[['PPTO 2026', hc.h26], ['FCTS 9+3', hc.hfc], ['PPTO 2027', hc.h27]].map(([k, v]) => `<b>${k}</b>: ${esc(v)}`).join('<br>')}</dd>` : '');
   const live = state.dsSrc === 'file';
   $('#srcChip').classList.toggle('live', live);
   $('#srcTxt').textContent = live ? 'Archivo cargado' : 'Ejemplo · datos ficticios';
