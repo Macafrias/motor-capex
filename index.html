@@ -429,7 +429,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 16:24</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 16:27</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -591,7 +591,8 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     const idx = (name, from = 0) => { for (let i = from; i < H.length; i++) if (H[i] === norm(name)) return i; return -1; };
     const c = {
       gral: idx('Categoria gral en cuadros'), part: idx('Categoria particular para cuadros'),
-      sl: idx('Subledger'), nom: idx('Nombre Subledger'), resp: idx('RESPONSABLE'), tipo: idx('TIPO DE SL'), estado: idx('ESTADO DEL SL'),
+      sl: idx('Subledger'), nom: idx('Nombre Subledger'), resp: idx('RESPONSABLE'),
+      jer: H.findIndex(x => x && x.startsWith('jerarquizacion de exposicion')), tipo: idx('TIPO DE SL'), estado: idx('ESTADO DEL SL'),
       p26: idx('PPTO 2026'), real: MES_L.map(m => idx('REAL ' + m)), real26: idx('REAL 2026'),
       oc: H.findIndex(x => x.startsWith('ordenes pendientes')), fc26: idx('FCTS 2026'), p27: idx('PPTO 2027')
     };
@@ -606,7 +607,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       if (part == null && tipo == null) continue;
       if (norm(part) === 'categoria particular para cuadros') continue;
       rows.push({
-        sl: r[c.sl], nom: r[c.nom], resp: c.resp >= 0 && r[c.resp] != null ? String(r[c.resp]).trim() : '', gral: r[c.gral], part, tipo, estado: r[c.estado],
+        sl: r[c.sl], nom: r[c.nom], jer: c.jer >= 0 && r[c.jer] != null ? String(r[c.jer]).replace(/\s+/g, ' ').trim() : '', resp: c.resp >= 0 && r[c.resp] != null ? String(r[c.resp]).trim() : '', gral: r[c.gral], part, tipo, estado: r[c.estado],
         real: c.real.map(j => j >= 0 ? num(r[j]) : 0), real26: num(r[c.real26]),
         p26b: c.p26 >= 0 ? num(r[c.p26]) : 0, fc26b: c.fc26 >= 0 ? num(r[c.fc26]) : 0,
         oc: c.oc >= 0 ? num(r[c.oc]) : 0, p27m: c.m27.map(j => j >= 0 ? num(r[j]) : 0), p27: num(r[c.p27])
@@ -735,7 +736,8 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     const pr = {}; // 08_PROYECTOS se lee aparte, en streaming (readProyectos)
     let mzInside = null;
     for (const n of jerCands) { mzInside = jerFromAoA(aoa(n), n); if (mzInside) break; }
-    return { rows, params, snap, cached, snapName, pptoName, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
+    const jerCol = c.jer >= 0 ? XLSX.utils.encode_col(c.jer + (wb.Sheets[pptoName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[pptoName]['!ref']).s.c : 0)) : null;
+    return { rows, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
   }
 
   /* ---------- Cálculo ---------- */
@@ -904,6 +906,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
   }
   // jerarquía de un SL: por número de SL y, si no aparece, por nombre del SL
   function jerOf(mz, r) {
+    // prioridad: columna "Jerarquización de exposición presupuestaria" de PPTO27; si está vacía, la Matriz de Subledgers
+    const own = r && r.jer && r.jer !== '-' && !/^#?n\/?a$/i.test(r.jer) && !/^#/.test(r.jer) ? r.jer : '';
+    if (own) return { jer: own, src: 'ppto' };
     if (!mz || !mz.map) return null;
     const a = mz.map[slKey(r.sl)];
     if (a && a.jer) return a;
@@ -1419,7 +1424,7 @@ const ItOg = {
     const { parts, it } = this.calc(page, o);
     const f0 = v => nf(0).format(v);
     const out = [];
-    out.push({ label: 'SL sin jerarquización en la matriz', ok: !it.noJer.length, count: it.noJer.length, detail: it.noJer.map(r => `${r.sl} · ${r.nom}`) });
+    out.push({ label: 'SL sin jerarquización', ok: !it.noJer.length, count: it.noJer.length, detail: it.noJer.map(r => `${r.sl} · ${r.nom}`) });
     out.push({ label: 'SL sin dato en 06_FCTS26', ok: !it.noFc.length, count: it.noFc.length, warn: true, detail: it.noFc.map(r => `${r.sl} · ${r.nom} (usa PPTO27)`) });
     const lines = [];
     it.blocks.forEach(b => {
@@ -1634,7 +1639,7 @@ const ItPr = {
   checks(page, o){
     const k = this.kind(page), D = this.data(o), f2 = v => nf(2).format(v), out = [];
     const sinJ = D.items.filter(x => k === 'resumen' ? false : (x.cat === k) && !((E.jerOf(curMz(), x.r) || {}).jer));
-    if (k !== 'resumen') out.push({ label: 'SL sin jerarquización en la matriz', ok: !sinJ.length, warn: true, count: sinJ.length, detail: sinJ.map(x => `${x.r.sl} · ${x.r.nom}`), okTxt: 'todos tienen jerarquía' });
+    if (k !== 'resumen') out.push({ label: 'SL sin jerarquización', ok: !sinJ.length, warn: true, count: sinJ.length, detail: sinJ.map(x => `${x.r.sl} · ${x.r.nom}`), okTxt: 'todos tienen jerarquía' });
     out.push({ label: 'SL sin dato en 08_PROYECTOS', ok: !D.no08.length, warn: true, count: D.no08.length, detail: D.no08.map(r => `${r.sl} · ${r.nom} (estado tomado de PPTO27: ${r.estado})`) });
     out.push({ label: 'Estado distinto en 08_PROYECTOS (se usa PPTO27)', ok: !D.mism.length, warn: true, count: D.mism.length,
       detail: D.mism.map(m => `${m.r.sl} · ${m.r.nom}: PPTO27 "${m.r.estado}" · 08 "${m.estado08}"`), okTxt: 'coinciden' });
@@ -1925,6 +1930,7 @@ function renderFiles(){
   const p = state.ds.params || {};
   $('#files').innerHTML = `
     <div class="fileline"><span class="tag">Presupuesto</span><b>${esc(state.dsName)}</b><span class="st ${state.dsSrc === 'file' ? 'live' : 'demo'}">${state.dsSrc === 'file' ? 'Cargado' : 'Ejemplo · datos ficticios'}</span></div>
+    ${state.ds.jerCol ? `<div class="fileline"><span class="tag">Jerarquización</span><b>PPTO27 · columna ${esc(state.ds.jerCol)}</b><span class="st live">Se usa primero; la Matriz completa los vacíos</span></div>` : ''}
     <div class="fileline"><span class="tag">Matriz de Subledgers</span><b>${esc(state.mzName)}</b><span class="st ${state.mzSrc === 'live' || (!state.mz && curMz()) ? 'live' : 'demo'}"${curMz() ? '' : ' style="color:var(--bad)"'}>${state.mzSrc === 'live' ? 'Cargada · ' + state.mz.count + ' SL' : state.mz ? 'Ejemplo · ' + state.mz.count + ' SL' : curMz() ? 'Tomada del archivo de presupuesto · ' + curMz().count + ' SL' : 'Sin cargar: las jerarquías salen vacías'}</span></div>`;
   const hc = state.ds.og && state.ds.og.__cols;
   const items = [['FCTS 2026', '9+3 · ' + (state.ds.fcName || state.ds.snapName)], ['Real cargado hasta', mesTxt()], ['SL en PPTO27', state.ds.rows.length]];
@@ -2007,7 +2013,7 @@ async function loadFiles(list, from){
   state.drill = null;
   renderAll(true); busy(false);
   const bad = state.res.checks.filter(c => !c.ok && !c.warn).length;
-  if (!curMz()){ toast('Falta la Matriz de Subledgers: sin ella, las jerarquías salen vacías. Sumala a la carpeta o cargala con "Cargar Excel".'); return; }
+  if (!curMz() && !(state.ds && state.ds.jerCol)){ toast('No encontré la jerarquización: falta la columna "Jerarquización de exposición presupuestaria" en PPTO27 o la Matriz de Subledgers.'); return; }
   toast(`${from ? 'Actualizado desde la carpeta' : 'Cargado'}: ${msgs.join(' y ')}. ` + (bad ? `${bad} control${bad > 1 ? 'es' : ''} para revisar.` : 'Los controles cuadran.'));
 }
 $('#btnLoad').onclick = () => $('#file').click();
