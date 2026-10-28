@@ -391,6 +391,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .ct tbody tr td.aap{color:#8A4B12;font-family:var(--f-reg);font-weight:700}
 .ct-two{display:flex;gap:28px;align-items:flex-start}
 .ct-two > table{flex:1 1 0;width:auto !important}
+.ct tbody tr td.resp{text-align:left;font-family:var(--f-light);font-weight:400;font-size:11.5px;color:#6B7390;max-width:220px;white-space:normal;line-height:1.2}
 </style>
 
 <header class="top">
@@ -420,7 +421,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 15:53</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 16:04</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -582,7 +583,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     const idx = (name, from = 0) => { for (let i = from; i < H.length; i++) if (H[i] === norm(name)) return i; return -1; };
     const c = {
       gral: idx('Categoria gral en cuadros'), part: idx('Categoria particular para cuadros'),
-      sl: idx('Subledger'), nom: idx('Nombre Subledger'), tipo: idx('TIPO DE SL'), estado: idx('ESTADO DEL SL'),
+      sl: idx('Subledger'), nom: idx('Nombre Subledger'), resp: idx('RESPONSABLE'), tipo: idx('TIPO DE SL'), estado: idx('ESTADO DEL SL'),
       p26: idx('PPTO 2026'), real: MES_L.map(m => idx('REAL ' + m)), real26: idx('REAL 2026'),
       oc: H.findIndex(x => x.startsWith('ordenes pendientes')), fc26: idx('FCTS 2026'), p27: idx('PPTO 2027')
     };
@@ -597,7 +598,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       if (part == null && tipo == null) continue;
       if (norm(part) === 'categoria particular para cuadros') continue;
       rows.push({
-        sl: r[c.sl], nom: r[c.nom], gral: r[c.gral], part, tipo, estado: r[c.estado],
+        sl: r[c.sl], nom: r[c.nom], resp: c.resp >= 0 && r[c.resp] != null ? String(r[c.resp]).trim() : '', gral: r[c.gral], part, tipo, estado: r[c.estado],
         real: c.real.map(j => j >= 0 ? num(r[j]) : 0), real26: num(r[c.real26]),
         p26b: c.p26 >= 0 ? num(r[c.p26]) : 0, fc26b: c.fc26 >= 0 ? num(r[c.fc26]) : 0,
         oc: c.oc >= 0 ? num(r[c.oc]) : 0, p27m: c.m27.map(j => j >= 0 ? num(r[j]) : 0), p27: num(r[c.p27])
@@ -925,6 +926,12 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     return { kind: 'matriz', mz: readMatriz(XLSX, data, names) };
   }
 
+  /* responsable de un conjunto de SL: uno solo, dos juntos o "Varios" */
+  function respOf(rows) {
+    const u = [...new Set(rows.map(r => (r.resp || '').trim()).filter(x => x && !/^(-|n\/?a|#.*)$/i.test(x)))];
+    return !u.length ? '' : u.length === 1 ? u[0] : u.length === 2 ? u.join(' / ') : 'Varios (' + u.length + ')';
+  }
+
   /* ---------- Cuadro particular: IT On going ---------- */
   function computeITOngoing(ds, mz, parts) {
     const U = 1e6, map = (mz && mz.map) || {};
@@ -945,13 +952,16 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       const gl = Object.values(groups).map(g => {
         g.sls.sort((a, b) => b.p27 - a.p27);
         g.v = g.sls.reduce((acc, r) => add(acc, val(r)), { P26: 0, REAL: 0, FC: 0, P27: 0 });
-        g.items = g.sls.map(r => ({ r, v: val(r) }));
+        g.v.RESPT = respOf(g.sls);
+        g.items = g.sls.map(r => ({ r, v: Object.assign(val(r), { RESPT: respOf([r]) }) }));
         return g;
       }).sort((a, b) => (a.jer === 'Sin jerarquización') - (b.jer === 'Sin jerarquización') || b.v.P27 - a.v.P27);
-      const v = gl.reduce((acc, g) => add(acc, g.v), { P26: 0, REAL: 0, FC: 0, P27: 0 });
+      const v = gl.reduce((acc, g) => { const { RESPT, ...num } = g.v; return add(acc, num); }, { P26: 0, REAL: 0, FC: 0, P27: 0 });
+      v.RESPT = respOf(sls);
       blocks.push({ part, groups: gl, v, n: sls.length });
     });
-    const total = blocks.reduce((acc, b) => { for (const k in b.v) acc[k] = (acc[k] || 0) + b.v[k]; return acc; }, { P26: 0, REAL: 0, FC: 0, P27: 0 });
+    const total = blocks.reduce((acc, b) => { ['P26','REAL','FC','P27'].forEach(k => acc[k] += b.v[k]); return acc; }, { P26: 0, REAL: 0, FC: 0, P27: 0 });
+    total.RESPT = '';
     return { blocks, total, noJer, noFc };
   }
 
@@ -1084,7 +1094,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     return { items, no08, mism };
   }
 
-  root.CapexEngine = { STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, computeITProyectos, jerOf, readAnyAsync, readProyectos, PR_CATS, norm, slKey };
+  root.CapexEngine = { STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, computeITProyectos, jerOf, respOf, readAnyAsync, readProyectos, PR_CATS, norm, slKey };
   if (typeof module !== 'undefined') module.exports = root.CapexEngine;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1231,11 +1241,13 @@ const ItOg = {
   views: {
     completo: { label: 'Completo', cols: ['SL','P26','REAL','FC','P27','DABS','DPCT'] },
     evolucion: { label: 'Evolución FCTS → PPTO 27', cols: ['SL','FC','P27','DABS','DPCT'] },
+    resp: { label: 'Con responsable', cols: ['SL','RESP','FC','P27','DABS','DPCT'] },
     ejecucion: { label: 'Ejecución 2026', cols: ['SL','P26','REAL','FC','EJ','VS26'] }
   },
   colDefs(){
     return [
       { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
+      { k: 'RESP', label: 'Responsable', grp: null, kind: 'text', tone: 'aux' },
       { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto' },
       { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: '2026', kind: 'amt', tone: 'real' },
       { k: 'FC', label: 'FCTS 9+3', grp: '2026', kind: 'amt', strong: true, tone: 'ater' },
@@ -1276,6 +1288,7 @@ const ItOg = {
       const cells = {};
       cols.forEach(c => {
         if (c.kind === 'sl') cells[c.k] = { t: slTxt || '', cls: 'slc' };
+        else if (c.k === 'RESP') cells[c.k] = { t: v.RESPT || '', cls: 'resp' };
         else if (c.k === 'DABS') cells[c.k] = fDelta(v.P27 - v.FC);
         else if (c.k === 'DPCT') cells[c.k] = fVar(vr(v.P27, v.FC));
         else if (c.k === 'EJ') cells[c.k] = fRatio(v.REAL, v.FC);
@@ -1436,9 +1449,9 @@ const ItPr = {
     const k = this.kind(page);
     const V = {
       resumen: { completo: { label: 'Composición PPTO 2027', cols: ['SL','P27','PCT','CUB','AAP'] }, con26: { label: 'Con referencia 2026', cols: ['SL','P26','FC','P27','PCT','APR'] } },
-      curso: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR'] }, aprob: { label: 'Saldo aprobado', cols: ['SL','APR','CONS','SALDO','P27','SAL27'] }, ppto: { label: 'Presupuesto', cols: ['SL','P26','REAL','FC','P27','DPCT'] } },
-      extra: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR','EXC'] }, aprob: { label: 'Saldo aprobado', cols: ['SL','APR','CONS','SALDO','P27','EXC'] } },
-      sin: { completo: { label: 'Listado PPTO 2027', cols: ['SL','P27'] }, vent: { label: 'Con ventana 2027', cols: ['SL','P27','VENT'] }, ref: { label: 'Con referencia 2026', cols: ['SL','P26','FC','P27'] } },
+      curso: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR'] }, resp: { label: 'Con responsable', cols: ['SL','RESP','P26','FC','P27','APR'] }, aprob: { label: 'Saldo aprobado', cols: ['SL','APR','CONS','SALDO','P27','SAL27'] }, ppto: { label: 'Presupuesto', cols: ['SL','P26','REAL','FC','P27','DPCT'] } },
+      extra: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR','EXC'] }, resp: { label: 'Con responsable', cols: ['SL','RESP','P27','APR','EXC'] }, aprob: { label: 'Saldo aprobado', cols: ['SL','APR','CONS','SALDO','P27','EXC'] } },
+      sin: { completo: { label: 'Listado PPTO 2027', cols: ['SL','P27'] }, resp: { label: 'Con responsable', cols: ['SL','RESP','P27'] }, vent: { label: 'Con ventana 2027', cols: ['SL','P27','VENT'] }, ref: { label: 'Con referencia 2026', cols: ['SL','P26','FC','P27'] } },
       fin: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR'] }, aprob: { label: 'Aprobación', cols: ['SL','APR','CONS','SALDO','PEJ','REAL','FC'] } }
     };
     return V[k];
@@ -1446,6 +1459,7 @@ const ItPr = {
   colDefs(page){
     return [
       { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
+      { k: 'RESP', label: 'Responsable', grp: null, kind: 'text', tone: 'aux' },
       { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto' },
       { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: '2026', kind: 'amt', tone: 'real' },
       { k: 'FC', label: 'FCTS 9+3', grp: '2026', kind: 'amt', tone: 'ater', strong: true },
@@ -1483,11 +1497,12 @@ const ItPr = {
   data(o){
     const D = E.computeITProyectos(state.ds, o.parts);
     // el estado se lee de cara al PPTO 2027: on going ya está cubierto; aprobación extra y sin aprobación se presentan a aprobar
-    D.items.forEach(x => { x.v.CUB = x.cat === 'curso' ? x.v.P27 : 0; x.v.AAP = (x.cat === 'extra' || x.cat === 'sin') ? x.v.P27 : 0; });
+    D.items.forEach(x => { x.v.RESPT = E.respOf([x.r]); x.v.CUB = x.cat === 'curso' ? x.v.P27 : 0; x.v.AAP = (x.cat === 'extra' || x.cat === 'sin') ? x.v.P27 : 0; });
     return D;
   },
   fmtCell(c, v, slTxt, it){
     if (c.kind === 'sl') return { t: slTxt || '', cls: 'slc' };
+    if (c.k === 'RESP') return { t: v.RESPT || '', cls: 'resp' };
     if (c.k === 'PEJ') return v.APR ? { t: nf(0).format(v.CONS / v.APR * 100) + '%', cls: v.CONS > v.APR ? 'vn' : '' } : { t: '–', cls: 'na' };
     if (c.k === 'SALDO' || c.k === 'SAL27'){ const x = v[c.k]; if (x == null) return { t: '–', cls: 'na' }; const f = fAmt(x); if (f.cls === 'na') return f; return { t: f.t, cls: x < 0 ? 'vn' : '' }; }
     if (c.k === 'EXC'){ const f = fAmt(v.EXC); return f.cls === 'na' ? f : { t: f.t, cls: 'vn strong-neg' }; }
@@ -1505,7 +1520,7 @@ const ItPr = {
   sumV(list){
     const s = { P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, EXC: 0, CUB: 0, AAP: 0 };
     list.forEach(x => { for (const k in s) s[k] += x.v[k] || 0; });
-    s.SAL27 = s.SALDO - s.P27; s.PEJ = s.APR ? s.CONS / s.APR : null; return s;
+    s.SAL27 = s.SALDO - s.P27; s.PEJ = s.APR ? s.CONS / s.APR : null; s.RESPT = E.respOf(list.map(x => x.r)); return s;
   },
   build(page, o){
     const k = this.kind(page), st = this.colState(page, o);
@@ -1693,6 +1708,11 @@ function kpiHtml(tm){
   if (!state.kpis || !tm.kpis) return '';
   return tm.kpis.map(k => `<div class="kpi${k.hero ? ' hero' : ''} k-${k.tone || 'var'}"><div class="k">${esc(k.k)}</div><div class="v">${esc(k.v)}</div><div class="d ${k.plain ? '' : (k.up ? 'up' : 'dn')}" ${k.plain ? 'style="color:var(--ink-2)"' : ''}>${esc(k.d || '')}</div></div>`).join('');
 }
+/* en filas de total/subtotal no se muestra responsable */
+function postTM(tm){
+  (tm.rows || []).forEach(r => { if (r.cells && r.cells.RESP && ['total','sub','grand'].includes(r.style)) r.cells.RESP = { t: '', cls: 'resp' }; });
+  return tm;
+}
 function textsFor(key, tm){
   const t = state.texts[key] || {};
   return { title: t.title || tm.title, sub: t.sub || tm.sub, note: t.note || tm.note };
@@ -1718,7 +1738,7 @@ function renderSlide(){
   if (!pg){ $('#sFit').innerHTML = ''; return; }
   state.page = pg.key;
   const o = optsOf(pg.cuadro);
-  TM = pg.cuadro.build(pg.key, o);
+  TM = postTM(pg.cuadro.build(pg.key, o));
   const tx = textsFor(pg.key, TM);
   $('#sEyebrow').textContent = TM.eyebrow;
   $('#sTitle').textContent = tx.title; $('#sSub').textContent = tx.sub; $('#sNote').textContent = tx.note;
@@ -2046,7 +2066,7 @@ function addSlide(pptx, tm, tx){
     return [lab].concat(cols.map(c => {
       const f = r.cells[c.k] || { t: '', cls: '' }, tn = TN[c.tone || 'var'];
       const fill = r.style === 'blockhead' ? 'FFFFFF' : (st.strong || r.style === 'sub') ? tn.t : tn.c;
-      const o = { fill: { color: fill }, bold: st.bold, color: st.color, border, align: c.kind === 'sl' ? 'left' : 'right', fontFace: face, fontSize: size };
+      const o = { fill: { color: fill }, bold: st.bold, color: st.color, border, align: (c.kind === 'sl' || c.kind === 'text') ? 'left' : 'right', fontFace: face, fontSize: size };
       if (c.kind === 'sl' || c.tone === 'aux') { o.color = c.tone === 'aux' ? '8A91A6' : PX.INK2; o.bold = false; o.fontFace = 'Calibri Light'; }
       if (state.sem && /vp/.test(f.cls)) o.color = '3E9B6A';
       if (state.sem && /vn/.test(f.cls)) o.color = 'C9584A';
@@ -2078,7 +2098,7 @@ async function exportPptx(all){
   if (!(await ensureLib('PptxGenJS', LIBS.PptxGenJS))){ toast('No se pudo cargar la librería de PowerPoint. Revisá la conexión o probá en otra red.'); return; }
   const pptx = new PptxGenJS(); pptx.layout = 'LAYOUT_WIDE'; pptx.title = 'Presupuesto CAPEX';
   const pages = all ? allPages() : [currentPage()];
-  pages.forEach(p => { const tm = p.cuadro.build(p.key, optsOf(p.cuadro)); addSlide(pptx, tm, textsFor(p.key, tm)); });
+  pages.forEach(p => { const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro))); addSlide(pptx, tm, textsFor(p.key, tm)); });
   try{
     const blob = await pptx.write({ outputType: 'blob' });
     await saveFile(all ? `Presupuesto_CAPEX_${stamp()}.pptx` : `${slug(textsFor(state.page, TM).title)}_${stamp()}.pptx`, blob);
@@ -2099,7 +2119,7 @@ $('#xXlsx').onclick = async () => {
   if (!(await ensureLib('XLSX', LIBS.XLSX))){ toast('No se pudo cargar la librería de Excel.'); return; }
   const wb = XLSX.utils.book_new();
   allPages().forEach((p, n) => {
-    const tm = p.cuadro.build(p.key, optsOf(p.cuadro)), rows = tm.rows.filter(r => !r.spacer);
+    const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro))), rows = tm.rows.filter(r => !r.spacer);
     const aoa = [[tm.labelHead].concat(tm.cols.map(c => (c.grp ? c.grp + ' · ' : '') + c.label))];
     rows.forEach(r => aoa.push([(ROWSTYLE[r.style] && ROWSTYLE[r.style].indent ? '   ' : '') + r.label + (r.sub ? ' · ' + r.sub : '')].concat(tm.cols.map(c => (r.cells[c.k] || {}).t || ''))));
     const ws = XLSX.utils.aoa_to_sheet(aoa);
