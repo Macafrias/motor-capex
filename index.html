@@ -420,7 +420,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 15:48</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 15:53</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -871,23 +871,35 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
   function jerFromAoA(A, n) {
       const h = A.findIndex(r => r && r.some(x => norm(x).startsWith('jerarquizacion de exposicion')));
       if (h < 0) return null;
-      const H = A[h].map(norm);
-      const iJ = H.findIndex(x => x.startsWith('jerarquizacion de exposicion'));
-      const slCols = ['sl_real', 'sl_activo', 'subledger', 'sl_prov'].map(k => H.indexOf(k)).filter(i => i >= 0);
-      const iCod = H.findIndex(x => x.startsWith('codificacion'));
-      const iNom = H.findIndex(x => x === 'nombre_sl' || x === 'nombre subledger');
+      const H = Array.from(A[h], norm);
+      const iJ = H.findIndex(x => x && x.startsWith('jerarquizacion de exposicion'));
+      const slCols = ['sl_real', 'sl_activo', 'subledger', 'sl_prov', 'sl'].map(k => H.indexOf(k)).filter(i => i >= 0);
+      const iCod = H.findIndex(x => x && x.startsWith('codificacion'));
+      const iNom = H.findIndex(x => x === 'nombre_sl' || x === 'nombre subledger' || x === 'nombre del sl');
+      const valid = k => /^[0-9][0-9_]{3,}$/.test(k) && !/^0+$/.test(k);
       const map = {};
+      const put = (key, rec) => { if (!key) return; if (map[key] && map[key].jer && !rec.jer) return; map[key] = rec; };
       for (let i = h + 1; i < A.length; i++) {
         const r = A[i]; if (!r) continue;
-        let sl = null;
-        for (const j of slCols) if (r[j] != null && String(r[j]).trim() !== '') { sl = slKey(r[j]); break; }
-        if (!sl && iCod >= 0 && r[iCod]) { const m = String(r[iCod]).match(/^(\d{5,})/); if (m) sl = m[1]; }
-        if (!sl) continue;
-        const jer = r[iJ] == null ? '' : String(r[iJ]).replace(/\s+/g, ' ').trim();
-        if (map[sl] && map[sl].jer && !jer) continue;
-        map[sl] = { jer, nom: iNom >= 0 ? r[iNom] : null };
+        // todas las claves posibles del SL: SL_Real, SL_Activo, SL_Prov y el prefijo de la codificación única (ej. 9200_344_IT)
+        const keys = new Set();
+        for (const j of slCols) { const k = slKey(r[j]); if (valid(k)) keys.add(k); }
+        if (iCod >= 0 && r[iCod]) { const m = String(r[iCod]).trim().match(/^([0-9][0-9_]*?)_(?=[^0-9_])/) || String(r[iCod]).trim().match(/^([0-9][0-9_]*)$/); if (m && valid(m[1])) keys.add(m[1]); }
+        let jer = r[iJ] == null ? '' : String(r[iJ]).replace(/\s+/g, ' ').trim();
+        if (jer === '-' || /^#?n\/?a$/i.test(jer) || /^#/.test(jer)) jer = '';
+        const rec = { jer, nom: iNom >= 0 ? r[iNom] : null };
+        keys.forEach(k => put(k, rec));
+        if (iNom >= 0 && r[iNom] && jer) put('nom:' + norm(r[iNom]), rec);
       }
-      return { map, sheet: n, count: Object.keys(map).length };
+      return { map, sheet: n, count: Object.keys(map).filter(k => !k.startsWith('nom:')).length };
+  }
+  // jerarquía de un SL: por número de SL y, si no aparece, por nombre del SL
+  function jerOf(mz, r) {
+    if (!mz || !mz.map) return null;
+    const a = mz.map[slKey(r.sl)];
+    if (a && a.jer) return a;
+    const b = r.nom ? mz.map['nom:' + norm(r.nom)] : null;
+    return b || a || null;
   }
   function readMatriz(XLSX, data, names) {
     names = names || XLSX.read(data, { type: 'array', bookSheets: true }).SheetNames;
@@ -921,7 +933,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       const sls = ds.rows.filter(r => norm(r.part) === norm(part) && norm(r.tipo) === 'on going');
       const groups = {};
       sls.forEach(r => {
-        const m = map[slKey(r.sl)];
+        const m = jerOf(mz, r);
         const jer = m && m.jer ? m.jer : 'Sin jerarquización';
         if (!m || !m.jer) noJer.push(r);
         if (r.fcSrc !== '06') noFc.push(r);
@@ -1072,7 +1084,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     return { items, no08, mism };
   }
 
-  root.CapexEngine = { STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, computeITProyectos, readAnyAsync, readProyectos, PR_CATS, norm, slKey };
+  root.CapexEngine = { STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, computeITProyectos, jerOf, readAnyAsync, readProyectos, PR_CATS, norm, slKey };
   if (typeof module !== 'undefined') module.exports = root.CapexEngine;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1311,7 +1323,7 @@ const ItOg = {
     const isOn = r => E.norm(r.tipo) === 'on going';
     const val = r => { const g = og[E.slKey(r.sl)]; return { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U, HS: g ? g.qty : 0, USD: g ? g.val : 0, H26: g && g.h26 != null ? g.h26 : null, HFC: g && g.hfc != null ? g.hfc : null, H27: g && g.h27 != null ? g.h27 : null, mon: g ? g.mon : '', hasOg: !!g, imp: g ? g.imp / U : 0 }; };
     const own = state.ds.rows.filter(r => E.norm(r.part) === 'ecom' && isOn(r)).map(r => ({ r, v: val(r) })).sort((a, b) => b.v.P27 - a.v.P27);
-    const aparte = state.ds.rows.filter(r => E.norm(r.part) !== 'ecom' && isOn(r) && map[E.slKey(r.sl)] && E.norm(map[E.slKey(r.sl)].jer) === 'ecom').map(r => ({ r, v: val(r) }));
+    const aparte = state.ds.rows.filter(r => E.norm(r.part) !== 'ecom' && isOn(r) && E.norm((E.jerOf(mz, r) || {}).jer) === 'ecom').map(r => ({ r, v: val(r) }));
     const sum = arr => arr.reduce((a, x) => {
       ['P26','REAL','FC','P27','HS','USD'].forEach(k => a[k] += x.v[k]);
       ['H26','HFC','H27'].forEach(k => { if (x.v[k] != null) a[k] = (a[k] || 0) + x.v[k]; });
@@ -1535,7 +1547,7 @@ const ItPr = {
           // cada línea lleva el nombre de su jerarquización de exposición; si el SL no la tiene en la matriz, se usa el nombre del proyecto
           const mzS = curMz(), GS = {};
           B.forEach(x => {
-            let j = mzS && mzS.map[E.slKey(x.r.sl)] ? String(mzS.map[E.slKey(x.r.sl)].jer || '').trim() : '';
+            let j = String((E.jerOf(mzS, x.r) || {}).jer || '').trim();
             const key = (!j || j === '-' || /^n\/?a$/i.test(j)) ? 'sl:' + x.r.sl : E.norm(j);
             if (key.startsWith('sl:')) j = x.r.nom || String(x.r.sl);
             (GS[key] = GS[key] || { jer: j, items: [], noJer: key.startsWith('sl:') }).items.push(x);
@@ -1553,7 +1565,7 @@ const ItPr = {
         // composición por jerarquización de exposición presupuestaria (Matriz de Subledgers)
         const mz = curMz(), G = {};
         B.forEach(x => {
-          let j = mz && mz.map[E.slKey(x.r.sl)] ? String(mz.map[E.slKey(x.r.sl)].jer || '').trim() : '';
+          let j = String((E.jerOf(mz, x.r) || {}).jer || '').trim();
           if (!j || j === '-' || /^n\/?a$/i.test(j)) j = 'Sin jerarquización';
           (G[E.norm(j)] = G[E.norm(j)] || { jer: j, items: [] }).items.push(x);
         });
@@ -1598,6 +1610,8 @@ const ItPr = {
   },
   checks(page, o){
     const k = this.kind(page), D = this.data(o), f2 = v => nf(2).format(v), out = [];
+    const sinJ = D.items.filter(x => k === 'resumen' ? false : (x.cat === k) && !((E.jerOf(curMz(), x.r) || {}).jer));
+    if (k !== 'resumen') out.push({ label: 'SL sin jerarquización en la matriz', ok: !sinJ.length, warn: true, count: sinJ.length, detail: sinJ.map(x => `${x.r.sl} · ${x.r.nom}`), okTxt: 'todos tienen jerarquía' });
     out.push({ label: 'SL sin dato en 08_PROYECTOS', ok: !D.no08.length, warn: true, count: D.no08.length, detail: D.no08.map(r => `${r.sl} · ${r.nom} (estado tomado de PPTO27: ${r.estado})`) });
     out.push({ label: 'Estado distinto en 08_PROYECTOS (se usa PPTO27)', ok: !D.mism.length, warn: true, count: D.mism.length,
       detail: D.mism.map(m => `${m.r.sl} · ${m.r.nom}: PPTO27 "${m.r.estado}" · 08 "${m.estado08}"`), okTxt: 'coinciden' });
@@ -1823,7 +1837,7 @@ function renderDrill(){
     return `<span class="pill">${esc(s.tipo || '')}</span>`;
   };
   const m = v => fAmt((v || 0) / 1e6).t;
-  const jer = s => { const m = curMz(), x = m && m.map[E.slKey(s.sl)]; return x && x.jer ? x.jer : '—'; };
+  const jer = s => { const x = E.jerOf(curMz(), s); return x && x.jer ? x.jer : '—'; };
   el.hidden = false;
   el.innerHTML = `<div class="drawer-head"><h2>${esc(d.title)}</h2><span class="muted">${sls.length} SL · montos en ${unitLbl()}</span><button class="btn" type="button" id="drClose">Cerrar</button></div>
     ${sls.length ? `<div class="tscroll"><table class="dt"><thead><tr><th>SL</th><th>Nombre</th><th>Jerarquización</th><th>Tipo</th><th class="n">PPTO 2026</th><th class="n">Real 2026</th><th class="n">FCTS 2026</th><th class="n">PPTO 2027</th></tr></thead><tbody>
