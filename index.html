@@ -409,7 +409,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 12:07</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 12:23</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -689,17 +689,25 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         const iQ = GH.findIndex(x => x.startsWith('cantidades totales')), iImp = GH.findIndex(x => x.startsWith('total ano'));
         const iDet = GH.findIndex(x => x.startsWith('detalle de articulo'));
         const iQm = MES_L.map(m => GH.findIndex(x => x === 'cantidad en ' + m));
+        // horas/cantidades por propuesta (PPTO 2026 · FCTS 2026 · PPTO 2027): por encabezado, a la derecha de TOTAL AÑO; si no, columnas AN/AO/AP
+        const from = iImp >= 0 ? iImp + 1 : 0, findH = re => { for (let j = from; j < GH.length; j++) if (re.test(GH[j])) return j; return -1; };
+        let iH26 = findH(/(ppto|presupuesto)\s*2026/), iHfc = findH(/fcts|forecast|9\s*\+\s*3|8\s*\+\s*4/), iH27 = findH(/(ppto|presupuesto)\s*2027/);
+        if (iHfc < 0) iHfc = findH(/proyectad|aterrizaje/);
+        if (iH26 < 0) iH26 = 39; if (iHfc < 0) iHfc = 40; if (iH27 < 0) iH27 = GH[41] ? 41 : -1;
         for (let i = gh + 1; i < G.length; i++) {
           const r = G[i]; if (!r || r[iSl] == null || r[iSl] === '') continue;
           const k = slKey(r[iSl]);
           const q = iQ >= 0 && typeof r[iQ] === 'number' ? r[iQ] : iQm.reduce((a, j) => a + (j >= 0 ? num(r[j]) : 0), 0);
           const pr = num(r[iPr]);
-          const o = og[k] || (og[k] = { qty: 0, val: 0, imp: 0, mon: new Set(), lines: 0, det: [] });
+          const o = og[k] || (og[k] = { qty: 0, val: 0, imp: 0, mon: new Set(), lines: 0, det: [], h26: null, hfc: null, h27: null });
+          const addH = (key, j) => { if (j >= 0 && typeof r[j] === 'number') o[key] = (o[key] || 0) + r[j]; };
+          addH('h26', iH26); addH('hfc', iHfc); addH('h27', iH27);
           o.qty += q; o.val += q * pr; o.imp += iImp >= 0 ? num(r[iImp]) : 0; o.lines++;
           if (iMon >= 0 && r[iMon]) o.mon.add(String(r[iMon]).trim().toUpperCase());
           if (iDet >= 0 && r[iDet]) o.det.push(String(r[iDet]));
         }
-        Object.values(og).forEach(o => { o.price = o.qty ? o.val / o.qty : 0; o.mon = [...o.mon].join('/') || ''; });
+        Object.values(og).forEach(o => { o.price = o.qty ? o.val / o.qty : 0; o.mon = [...o.mon].join('/') || ''; if (o.h27 == null) o.h27 = o.qty; });
+        og.__cols = { h26: GH[iH26] || null, hfc: GH[iHfc] || null, h27: iH27 >= 0 ? GH[iH27] : 'cantidades totales' };
       }
     }
     let mzInside = null;
@@ -1060,7 +1068,7 @@ const ItOg = {
       { k: 'VS26', label: 'FCTS vs PPTO 26', grp: 'Análisis 2026', kind: 'var', tone: 'var' }
     ];
   },
-  defaults(){ return { view: 'completo', cols: this.views.completo.cols.slice(), parts: ['IT - Hard', 'IT - Soft', 'ECOM'], split: true, zoomAll: false, slName: false, ecomHoras: true, ecomTotal: true, ecomV: 1 }; },
+  defaults(){ return { view: 'completo', cols: this.views.completo.cols.slice(), parts: ['IT - Hard', 'IT - Soft', 'ECOM'], split: true, zoomAll: false, slName: false, ecomHoras: true, ecomPrecio: false, ecomTotal: true, ecomV: 1 }; },
   pages(o){
     const parts = IT_PARTS.filter(p => o.parts.includes(p));
     if (!parts.length) return [];
@@ -1073,7 +1081,8 @@ const ItOg = {
       <div class="field"><span class="lab">Zoom por SL</span><div class="seg" data-opt="zoomAll"><button type="button" data-v="0" aria-pressed="${!o.zoomAll}">Solo jerarquías</button><button type="button" data-v="1" aria-pressed="${!!o.zoomAll}">Abrir todos</button></div>
         <span class="empty" style="font-size:11.5px;padding:0">También podés abrir una jerarquía puntual con un clic en la slide.</span></div>
       ${o.parts.includes('ECOM') ? `<div class="field"><span class="lab">ECOM</span>
-        <label class="tg" for="ecH"><input type="checkbox" id="ecH" data-opt="ecomHoras" ${o.ecomHoras ? 'checked' : ''}>Horas × precio por hora (07_ON GOING)</label>
+        <label class="tg" for="ecH"><input type="checkbox" id="ecH" data-opt="ecomHoras" ${o.ecomHoras ? 'checked' : ''}>Horas PPTO 2026 · FCTS 2026 · PPTO 2027</label>
+        <label class="tg" for="ecP"><input type="checkbox" id="ecP" data-opt="ecomPrecio" ${o.ecomPrecio ? 'checked' : ''}>Sumar precio por hora y costo</label>
         <label class="tg" for="ecT"><input type="checkbox" id="ecT" data-opt="ecomTotal" ${o.ecomTotal ? 'checked' : ''}>Total del equipo incluyendo lo expuesto en TFM</label></div>` : ''}
       <div class="field"><label class="tg" for="itSlName"><input type="checkbox" id="itSlName" data-opt="slName" ${o.slName ? 'checked' : ''}>Mostrar el nombre del SL al lado de la jerarquía (si es distinto)</label></div>`;
   },
@@ -1134,29 +1143,33 @@ const ItOg = {
   ecomData(){
     const U = 1e6, mz = curMz(), map = (mz && mz.map) || {}, og = state.ds.og || {};
     const isOn = r => E.norm(r.tipo) === 'on going';
-    const val = r => { const g = og[E.slKey(r.sl)]; return { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U, HS: g ? g.qty : 0, USD: g ? g.val : 0, mon: g ? g.mon : '', hasOg: !!g, imp: g ? g.imp / U : 0 }; };
+    const val = r => { const g = og[E.slKey(r.sl)]; return { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U, HS: g ? g.qty : 0, USD: g ? g.val : 0, H26: g && g.h26 != null ? g.h26 : null, HFC: g && g.hfc != null ? g.hfc : null, H27: g && g.h27 != null ? g.h27 : null, mon: g ? g.mon : '', hasOg: !!g, imp: g ? g.imp / U : 0 }; };
     const own = state.ds.rows.filter(r => E.norm(r.part) === 'ecom' && isOn(r)).map(r => ({ r, v: val(r) })).sort((a, b) => b.v.P27 - a.v.P27);
     const aparte = state.ds.rows.filter(r => E.norm(r.part) !== 'ecom' && isOn(r) && map[E.slKey(r.sl)] && E.norm(map[E.slKey(r.sl)].jer) === 'ecom').map(r => ({ r, v: val(r) }));
-    const sum = arr => arr.reduce((a, x) => { ['P26','REAL','FC','P27','HS','USD'].forEach(k => a[k] += x.v[k]); return a; }, { P26: 0, REAL: 0, FC: 0, P27: 0, HS: 0, USD: 0 });
+    const sum = arr => arr.reduce((a, x) => {
+      ['P26','REAL','FC','P27','HS','USD'].forEach(k => a[k] += x.v[k]);
+      ['H26','HFC','H27'].forEach(k => { if (x.v[k] != null) a[k] = (a[k] || 0) + x.v[k]; });
+      return a; }, { P26: 0, REAL: 0, FC: 0, P27: 0, HS: 0, USD: 0, H26: null, HFC: null, H27: null });
     return { own, aparte, sum };
   },
   buildEcom(page, o, cols0, cellsOf0){
     const { own, aparte, sum } = this.ecomData();
     const cols = cols0.slice();
     if (o.ecomHoras){
-      const extra = [
-        { k: 'HS', label: 'Horas 2027', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'aux' },
-        { k: 'PH', label: 'Precio por hora', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'aux' },
-        { k: 'USD', label: 'Costo 2027 (moneda origen)', grp: 'Horas × precio 2027', kind: 'hrs', tone: 'aux' }
-      ];
-      const at = cols.findIndex(c => c.k === 'P27');
-      cols.splice(at >= 0 ? at : cols.length, 0, ...extra);
+      cols.push(
+        { k: 'H26', label: 'PPTO 2026', grp: 'Horas', kind: 'hrs', tone: 'aux' },
+        { k: 'HFC', label: 'FCTS 2026', grp: 'Horas', kind: 'hrs', tone: 'aux' },
+        { k: 'H27', label: 'PPTO 2027', grp: 'Horas', kind: 'hrs', tone: 'aux' });
+      if (o.ecomPrecio) cols.push(
+        { k: 'PH', label: 'Precio por hora', grp: 'Horas', kind: 'hrs', tone: 'aux' },
+        { k: 'USD', label: 'Costo 2027', grp: 'Horas', kind: 'hrs', tone: 'aux' });
     }
     const nfi = nf(0), nf2 = nf(2);
     const cellsOf = (v, slTxt) => {
       const c = cellsOf0(v, slTxt);
       const mon = v.mon || 'USD';
-      c.HS = v.HS ? { t: nfi.format(v.HS), cls: '' } : { t: '–', cls: 'na' };
+      const hh = x => x ? { t: nfi.format(x), cls: '' } : { t: '–', cls: 'na' };
+      c.HS = hh(v.HS); c.H26 = hh(v.H26); c.HFC = hh(v.HFC); c.H27 = hh(v.H27);
       c.PH = v.HS ? { t: mon + ' ' + nf2.format(v.USD / v.HS), cls: '' } : { t: '–', cls: 'na' };
       c.USD = v.USD ? { t: mon + ' ' + nfi.format(v.USD), cls: '' } : { t: '–', cls: 'na' };
       return c;
@@ -1175,12 +1188,12 @@ const ItOg = {
     const d = fVar(vr(tOwn.P27, tOwn.FC));
     return {
       eyebrow: `Presupuesto CAPEX ${(state.ds.params || {}).anioPpto || 2027} · IT`, title: 'ECOM · On going',
-      sub: `En ${unitLbl()} · Horas y precio por hora según 07_ON GOING · Real acumulado a ${mesTxt()}`,
-      note: 'Total ECOM cruza con el resumen de IT. El SL del equipo ECOM expuesto en TFM se muestra aparte y no suma al total de IT. Costo 2027 = horas × precio por hora, en la moneda de origen.',
+      sub: `En ${unitLbl()} · Horas por propuesta según 07_ON GOING · Real acumulado a ${mesTxt()}`,
+      note: 'Total ECOM cruza con el resumen de IT. El SL del equipo ECOM expuesto en TFM se muestra aparte y no suma al total de IT. Horas de PPTO 2026, FCTS 2026 y PPTO 2027 según 07_ON GOING.',
       labelHead: 'Subledger', cols, rows,
       kpis: [
         { k: 'PPTO 2027 · ECOM', v: '$' + fAmt(tOwn.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 2026', up: d.up, hero: true, tone: 'ppto' },
-        { k: 'Horas 2027', tone: 'aux', plain: true, v: nfi.format(tOwn.HS) + ' hs', d: tOwn.HS ? (tOwn.mon + ' ' + nf2.format(tOwn.USD / tOwn.HS) + ' por hora') : '' }
+        { k: 'Horas PPTO 2027', tone: 'aux', plain: true, v: nfi.format(tOwn.H27 || tOwn.HS) + ' hs', d: tOwn.HFC ? 'FCTS 2026: ' + nfi.format(tOwn.HFC) + ' hs' : (tOwn.HS ? tOwn.mon + ' ' + nf2.format(tOwn.USD / tOwn.HS) + ' por hora' : '') }
       ]
     };
   },
@@ -1221,6 +1234,8 @@ const ItOg = {
       const { own, aparte } = this.ecomData(), all = own.concat(aparte);
       const sinH = all.filter(x => !x.v.hasOg);
       out.push({ label: 'SL de ECOM sin horas en 07_ON GOING', ok: !sinH.length, warn: true, count: sinH.length, detail: sinH.map(x => `${x.r.sl} · ${x.r.nom}`) });
+      const sin26 = all.filter(x => x.v.H26 == null || x.v.HFC == null);
+      out.push({ label: 'Horas PPTO 2026 / FCTS 2026 cargadas', ok: !sin26.length, warn: true, count: sin26.length, detail: sin26.map(x => `${x.r.sl} · ${x.r.nom}: falta ${[x.v.H26 == null && 'PPTO 2026', x.v.HFC == null && 'FCTS 2026'].filter(Boolean).join(' y ')}`), okTxt: 'todas las líneas tienen horas' });
       const dif = all.filter(x => x.v.hasOg && Math.abs(x.v.imp - x.v.P27) > 0.01);
       out.push({ label: 'PPTO 2027 = importe de 07_ON GOING', ok: !dif.length, warn: true, count: dif.length, detail: dif.map(x => `${x.r.sl} · PPTO27 ${nf(2).format(x.v.P27)} vs 07 ${nf(2).format(x.v.imp)}`), okTxt: 'coincide en todos los SL' });
     }
@@ -1369,7 +1384,8 @@ function renderFiles(){
   $('#files').innerHTML = `
     <div class="fileline"><span class="tag">Presupuesto</span><b>${esc(state.dsName)}</b><span class="st ${state.dsSrc === 'file' ? 'live' : 'demo'}">${state.dsSrc === 'file' ? 'Cargado' : 'Ejemplo · datos ficticios'}</span></div>
     <div class="fileline"><span class="tag">Matriz de Subledgers</span><b>${esc(state.mzName)}</b><span class="st ${state.mzSrc === 'live' || (!state.mz && curMz()) ? 'live' : 'demo'}"${curMz() ? '' : ' style="color:var(--bad)"'}>${state.mzSrc === 'live' ? 'Cargada · ' + state.mz.count + ' SL' : state.mz ? 'Ejemplo · ' + state.mz.count + ' SL' : curMz() ? 'Tomada del archivo de presupuesto · ' + curMz().count + ' SL' : 'Sin cargar: las jerarquías salen vacías'}</span></div>`;
-  const items = [['Versión', p.version || '—'], ['Real cargado hasta', mesTxt()], ['SL en PPTO27', state.ds.rows.length], ['Valores 2026 desde', state.ds.fcName || state.ds.snapName]];
+  const hc = state.ds.og && state.ds.og.__cols;
+  const items = [['Versión', p.version || '—'], ['Real cargado hasta', mesTxt()], ['SL en PPTO27', state.ds.rows.length], ['Valores 2026 desde', state.ds.fcName || state.ds.snapName]].concat(hc ? [['Horas ECOM (07)', [hc.h26, hc.hfc, hc.h27].map(x => x || '—').join(' · ')]] : []);
   $('#meta').innerHTML = items.map(([a, b]) => `<dt>${a}</dt><dd>${esc(b)}</dd>`).join('');
   const live = state.dsSrc === 'file';
   $('#srcChip').classList.toggle('live', live);
