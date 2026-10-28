@@ -409,7 +409,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 12:49</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 12:59</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1003,14 +1003,19 @@ const curMz = () => state.mz || (state.ds && state.ds.mzInside) || null;
 
 /* ============ CUADRO 01 · General ============ */
 const GROUPS = E.STRUCTURE.filter(n => n.type === 'group');
+/* categorías generales filtrables del Cuadro General */
+const CATS = [['IT','IT'],['CB','Crecimiento Brick'],['ME','Mejoras Edilicias'],['LOG','Logística'],['OI','Otras Inversiones'],['CFNC','CFNC'],['TFM','TFM'],['OPL','Otros proy. logística']];
+const SUMS = new Set(['SUB','TC','TCT','TOT']);
 const General = {
   id: 'general', name: 'Cuadro General CAPEX', blurb: 'PPTO 2026 · Aterrizaje · PPTO 2027',
   views: E.VIEWS,
   colDefs(){ return E.COLS.map(c => ({ k: c.k, label: c.k === 'RACU' ? 'Real acum. ' + mesCorto() : c.label, grp: c.grp, src: c.src })); },
-  defaults(){ return { view: 'completo', cols: E.VIEWS.completo.cols.slice(), expand: Object.fromEntries(GROUPS.map(g => [g.id, true])), hideZero: true }; },
+  defaults(){ return { view: 'completo', cols: E.VIEWS.completo.cols.slice(), expand: Object.fromEntries(GROUPS.map(g => [g.id, true])), hideZero: true, cats: CATS.map(c => c[0]) }; },
   pages(){ return [{ key: 'general', label: null }]; },
   optsHtml(o){
-    return `<div class="field"><span class="lab">Aperturas visibles</span><div class="chips" data-opt="expand">${GROUPS.map(g => `<button type="button" data-g="${g.id}" aria-pressed="${!!o.expand[g.id]}">${g.label}</button>`).join('')}</div></div>
+    return `<div class="field"><span class="lab">Categorías</span><div class="chips" data-opt="cats">${CATS.map(([id, l]) => `<button type="button" data-c="${id}" aria-pressed="${o.cats.includes(id)}">${l}</button>`).join('')}</div>
+        <div class="chips" data-opt="catsAll" style="margin-top:2px"><button type="button" data-v="all">Todas</button></div></div>
+      <div class="field"><span class="lab">Aperturas visibles</span><div class="chips" data-opt="expand">${GROUPS.map(g => `<button type="button" data-g="${g.id}" aria-pressed="${!!o.expand[g.id]}">${g.label}</button>`).join('')}</div></div>
       <div class="field"><label class="tg" for="gZero"><input type="checkbox" id="gZero" data-opt="hideZero" ${o.hideZero ? 'checked' : ''}>Ocultar aperturas en cero</label></div>`;
   },
   build(page, o){
@@ -1018,11 +1023,12 @@ const General = {
     const cols = defs.map(c => { const d = E.COLS.find(x => x.k === c.k); return { k: c.k, label: c.label, grp: c.grp, kind: d.src === 'var' ? 'var' : 'amt', hero: d.hero, strong: d.strong, tone: TONE[c.k] }; });
     const amtCols = cols.filter(c => c.kind === 'amt');
     const isZero = r => amtCols.every(c => r.v[c.k] == null || Math.abs(r.v[c.k]) < 0.5);
-    const rows = [];
+    const rows = [], all = CATS.every(([id]) => o.cats.includes(id)), sel = new Set(o.cats);
     res.rows.forEach(r => {
+      if (!all){ if (SUMS.has(r.id)) return; if (!sel.has(r.parent || r.id)) return; }
       if (r.parent && !o.expand[r.parent]) return;
       if (r.parent && o.hideZero && isZero(r)) return;
-      if (r.style === 'masterplan' || r.id === 'TOT') rows.push({ spacer: true });
+      if ((r.style === 'masterplan' && rows.length) || r.id === 'TOT') rows.push({ spacer: true });
       let sls = r.sls || [];
       if (r.hasKids) res.rows.filter(x => x.parent === r.id).forEach(k => sls = sls.concat(k.sls || []));
       const cells = {};
@@ -1030,15 +1036,28 @@ const General = {
       rows.push({ label: r.label, style: r.style, level: r.level, cells, drill: sls.length ? { title: r.label, sls } : null });
     });
     const p = state.ds.params || {};
-    const t = res.rows.find(r => r.id === 'TCT').v;
+    let t = res.rows.find(r => r.id === 'TCT').v, kLbl = `PPTO ${p.anioPpto || 2027} c/ TFM`, title = 'Cuadro General CAPEX';
+    if (!all){
+      // total de la selección: suma de las categorías elegidas y variaciones recalculadas
+      const tops = res.rows.filter(r => !r.parent && sel.has(r.id)), v = {};
+      E.COLS.forEach(c => { if (c.src !== 'var') v[c.k] = tops.some(r => r.v[c.k] != null) ? tops.reduce((a, r) => a + (r.v[c.k] || 0), 0) : null; });
+      E.COLS.forEach(c => { if (c.src === 'var') v[c.k] = (v[c.num] == null || v[c.den] == null) ? null : { num: v[c.num], den: v[c.den], pct: v[c.den] ? v[c.num] / v[c.den] - 1 : null }; });
+      const names = CATS.filter(([id]) => sel.has(id)).map(c => c[1]);
+      if (tops.length > 1){
+        const cells = {}; cols.forEach(c => { cells[c.k] = c.kind === 'var' ? fVar(v[c.k]) : fAmt(v[c.k]); });
+        rows.push({ spacer: true }, { label: 'Total ' + names.join(' + '), style: 'total', cells, drill: null });
+      }
+      t = v; kLbl = `PPTO ${p.anioPpto || 2027} · ` + (names.length === 1 ? names[0] : 'selección');
+      title = names.length === 1 ? names[0] + ' · Cuadro General' : 'Cuadro General CAPEX · selección';
+    }
     const d1 = fVar(t.V27);
     return {
-      eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027}`, title: 'Cuadro General CAPEX',
+      eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027}`, title,
       sub: `En ${unitLbl()} · Real acumulado a ${mesTxt()} · Aterrizaje 2026 9+3`,
       note: 'PPTO 2027 = On going + Proyectos on going (en curso y finalizados) + Proyectos futuros (sin aprobación). CFNC prorrateado por mix. Bajas fuera de exposición; se incluyen en el control contra contabilidad.',
       labelHead: 'Concepto', cols, rows,
       kpis: [
-        { k: `PPTO ${p.anioPpto || 2027} c/ TFM`, v: '$' + fAmt(t.P27).t + unitShort(), d: d1.t + ' vs aterrizaje', up: d1.up, hero: true, tone: 'ppto' },
+        { k: kLbl, v: '$' + fAmt(t.P27).t + unitShort(), d: d1.t + ' vs aterrizaje', up: d1.up, hero: true, tone: 'ppto' },
         { k: 'Aterrizaje 2026 9+3', tone: 'ater', plain: true, v: '$' + fAmt(t.A93).t + unitShort(), d: t.A93 ? nf(0).format(t.RACU / t.A93 * 100) + '% ejecutado a ' + mesCorto() : '' }
       ]
     };
@@ -1499,6 +1518,12 @@ $('#cuadroOpts').onclick = e => {
   const wrap = b.closest('[data-opt]'); if (!wrap) return;
   const c = currentPage().cuadro, o = optsOf(c), opt = wrap.dataset.opt;
   if (opt === 'expand') o.expand[b.dataset.g] = !o.expand[b.dataset.g];
+  if (opt === 'cats'){
+    const id = b.dataset.c, has = o.cats.includes(id);
+    if (has && o.cats.length === 1){ toast('Dejá al menos una categoría.'); return; }
+    o.cats = has ? o.cats.filter(x => x !== id) : CATS.map(c => c[0]).filter(x => o.cats.includes(x) || x === id);
+  }
+  if (opt === 'catsAll') o.cats = CATS.map(c => c[0]);
   if (opt === 'parts'){
     const p = b.dataset.p, has = o.parts.includes(p);
     if (has && o.parts.length === 1){ toast('Dejá al menos una subcategoría.'); return; }
