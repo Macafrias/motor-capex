@@ -417,7 +417,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 15:17</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 15:27</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1029,7 +1029,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 
   /* ---------- Cuadro particular: IT Proyectos ---------- */
   const PR_CATS = [
-    { id: 'curso', label: 'En curso · aprobados' },
+    { id: 'curso', label: 'Proyectos on going' },
     { id: 'extra', label: 'Aprobación extra' },
     { id: 'sin', label: 'Sin aprobación' },
     { id: 'fin', label: 'Finalizados' }
@@ -1052,10 +1052,13 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       if (norm(r.tipo) !== 'proyectos' || !parts.some(p => norm(p) === norm(r.part))) return;
       const k = slKey(r.sl), p = prm[k];
       if (!p) no08.push(r);
-      const cat = prCat(p && p.estado, r.estado);
-      const pptoBucket = ['en curso', 'finalizado'].includes(norm(r.estado)) ? 'apr' : 'fut';
-      const myBucket = cat === 'sin' ? 'fut' : 'apr';
-      if (pptoBucket !== myBucket) mism.push({ r, cat, estado08: p ? p.estado : '(sin dato)' });
+      // la clasificación sigue el estado del SL en PPTO27 (cruza con el Cuadro General);
+      // dentro de los EN CURSO, los marcados "Aprobación extra" en 08_PROYECTOS van a su propio cuadro
+      const ep = norm(r.estado), e8 = norm(p && p.estado);
+      let cat = ep.startsWith('finaliz') ? 'fin' : ep === 'en curso' ? 'curso' : 'sin';
+      if (cat === 'curso' && e8.includes('extra')) cat = 'extra';
+      const cat08 = p ? prCat(p.estado, '') : null;
+      if (cat08 && cat08 !== cat && !(cat === 'curso' && cat08 === 'curso')) mism.push({ r, cat, cat08, estado08: p.estado });
       const v = { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U,
         APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null };
       v.PEJ = v.APR ? v.CONS / v.APR : null;
@@ -1406,7 +1409,7 @@ const ItOg = {
 /* ============ CUADRO 03 · IT Proyectos ============ */
 const PR_PAGES = [
   { kind: 'resumen', label: 'Resumen' },
-  { kind: 'curso', label: 'En curso · aprobados' },
+  { kind: 'curso', label: 'Proyectos on going' },
   { kind: 'extra', label: 'Aprobación extra' },
   { kind: 'sin', label: 'Sin aprobación' },
   { kind: 'fin', label: 'Finalizados' }
@@ -1485,10 +1488,10 @@ const ItPr = {
     const cells = (v, sl, it) => { const out = {}; cols.forEach(c => out[c.k] = this.fmtCell(c, v, sl, it)); return out; };
     const p = state.ds.params || {}, rows = [];
     const empty = x => ['P26','REAL','FC','P27','APR','CONS'].every(q => !x.v[q] || Math.abs(x.v[q]) < 0.005);
-    const titleBy = { resumen: 'IT Proyectos · Resumen', curso: 'IT Proyectos · En curso', extra: 'IT Proyectos · Aprobación extra', sin: 'IT Proyectos · Sin aprobación', fin: 'IT Proyectos · Finalizados' };
+    const titleBy = { resumen: 'IT Proyectos · Resumen', curso: 'IT Proyectos · On going', extra: 'IT Proyectos · Aprobación extra', sin: 'IT Proyectos · Sin aprobación', fin: 'IT Proyectos · Finalizados' };
     const subBy = {
-      resumen: 'Proyectos de IT según su estado de aprobación (08_PROYECTOS)',
-      curso: 'Proyectos aprobados en ejecución · saldo aprobado frente al PPTO 2027',
+      resumen: 'Proyectos de IT según el estado del SL en PPTO27 · cruza con el Cuadro General',
+      curso: 'Proyectos aprobados en ejecución (on going) · saldo aprobado frente al PPTO 2027',
       extra: 'Proyectos aprobados que requieren aprobación adicional por mayor alcance o valor',
       sin: 'Proyectos que deben pasar por el proceso de aprobación',
       fin: 'Proyectos cerrados · no deberían tener PPTO 2027'
@@ -1523,7 +1526,7 @@ const ItPr = {
     const kp = {
       resumen: [{ k: 'PPTO 2027 · IT Proyectos', v: '$' + fAmt(tot.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 9+3', up: d.up, hero: true, tone: 'ppto' },
                 { k: 'Exceso a aprobar', tone: 'ater', plain: true, v: '$' + fAmt(tot.EXC).t + unitShort(), d: 'proyectos con aprobación extra' }],
-      curso: [{ k: 'PPTO 2027 · en curso', v: '$' + fAmt(tot.P27).t + unitShort(), d: 'saldo aprobado ' + (tot.SALDO < 0 ? '−$' : '$') + fAmt(Math.abs(tot.SALDO)).t + unitShort(), plain: true, hero: true, tone: 'ppto' }],
+      curso: [{ k: 'PPTO 2027 · on going', v: '$' + fAmt(tot.P27).t + unitShort(), d: 'saldo aprobado ' + (tot.SALDO < 0 ? '−$' : '$') + fAmt(Math.abs(tot.SALDO)).t + unitShort(), plain: true, hero: true, tone: 'ppto' }],
       extra: [{ k: 'Exceso a aprobar', v: '$' + fAmt(tot.EXC).t + unitShort(), d: 'PPTO 2027 $' + fAmt(tot.P27).t + unitShort(), plain: true, hero: true, tone: 'ater' }],
       sin: [{ k: 'PPTO 2027 a aprobar', v: '$' + fAmt(tot.P27).t + unitShort(), d: D.items.filter(x => x.cat === 'sin').length + ' proyectos', plain: true, hero: true, tone: 'ppto' }],
       fin: [{ k: 'Aprobado total', v: '$' + fAmt(tot.APR).t + unitShort(), d: 'consumido ' + (tot.APR ? nf(0).format(tot.CONS / tot.APR * 100) + '%' : '–'), plain: true, hero: true, tone: 'var' }]
@@ -1533,15 +1536,21 @@ const ItPr = {
       sub: `En ${unitLbl()} · ${subBy[k]}`,
       note: k === 'extra' ? 'Exceso a aprobar = Consumido total + PPTO 2027 − Aprobado total. Consumido total incluye real histórico, real 2026 y FCTS oct–dic (08_PROYECTOS).'
         : k === 'curso' ? 'Saldo luego de PPTO 27 = Saldo aprobado − PPTO 2027. En rojo: el PPTO 2027 supera el saldo aprobado.'
-        : 'Estado según la columna D de 08_PROYECTOS. Montos 2026 desde 06_FCTS26 y PPTO 2027 desde PPTO27.',
+        : 'Estado según PPTO27 (tipo PROYECTOS); "Aprobación extra" según la columna D de 08_PROYECTOS. Montos 2026 desde 06_FCTS26 y PPTO 2027 desde PPTO27.',
       labelHead: k === 'resumen' ? 'Estado' : 'Proyecto', cols, rows: rows.length ? rows : [{ label: 'Sin proyectos en esta categoría', style: 'cfnc', cells: {} }], kpis: kp
     };
   },
   checks(page, o){
     const k = this.kind(page), D = this.data(o), f2 = v => nf(2).format(v), out = [];
     out.push({ label: 'SL sin dato en 08_PROYECTOS', ok: !D.no08.length, warn: true, count: D.no08.length, detail: D.no08.map(r => `${r.sl} · ${r.nom} (estado tomado de PPTO27: ${r.estado})`) });
-    out.push({ label: 'Estado distinto entre 08_PROYECTOS y PPTO27', ok: !D.mism.length, warn: true, count: D.mism.length,
-      detail: D.mism.map(m => `${m.r.sl} · ${m.r.nom}: 08 "${m.estado08}" vs PPTO27 "${m.r.estado}"`), okTxt: 'cruza con el Cuadro General' });
+    out.push({ label: 'Estado distinto en 08_PROYECTOS (se usa PPTO27)', ok: !D.mism.length, warn: true, count: D.mism.length,
+      detail: D.mism.map(m => `${m.r.sl} · ${m.r.nom}: PPTO27 "${m.r.estado}" · 08 "${m.estado08}"`), okTxt: 'coinciden' });
+    const g = state.res.rows.filter(r => r.parent === 'IT' && o.parts.some(pp => E.norm('IT|' + pp) === E.norm(r.id)));
+    const sumG = key => g.reduce((a, r) => a + (r.v[key] || 0), 0), sumI = cats => D.items.filter(x => cats.includes(x.cat)).reduce((a, x) => a + x.v.P27, 0);
+    const lines = [];
+    if (Math.abs(sumI(['sin']) - sumG('P27F')) > 0.005) lines.push(`Sin aprobación: acá ${f2(sumI(['sin']))} vs Cuadro General ${f2(sumG('P27F'))}`);
+    if (Math.abs(sumI(['curso','extra','fin']) - sumG('P27P')) > 0.005) lines.push(`On going + extra + finalizados: acá ${f2(sumI(['curso','extra','fin']))} vs Cuadro General ${f2(sumG('P27P'))}`);
+    out.push({ label: 'Cruce con el Cuadro General (PPTO 2027)', ok: !lines.length, count: lines.length, detail: lines, okTxt: 'proyectos on going y futuros coinciden' });
     if (k === 'fin'){ const bad = D.items.filter(x => x.cat === 'fin' && Math.abs(x.v.P27) >= 0.005); out.push({ label: 'Finalizados con PPTO 2027', ok: !bad.length, count: bad.length, detail: bad.map(x => `${x.r.sl} · ${x.r.nom}: ${f2(x.v.P27)}`) }); }
     if (k === 'curso'){ const bad = D.items.filter(x => x.cat === 'curso' && x.v.SAL27 != null && x.v.SAL27 < -0.005); out.push({ label: 'En curso con PPTO 2027 mayor al saldo', ok: !bad.length, warn: true, count: bad.length, detail: bad.map(x => `${x.r.sl} · ${x.r.nom}: excede ${f2(-x.v.SAL27)} (¿aprobación extra?)`) }); }
     if (k === 'extra'){ const bad = D.items.filter(x => x.cat === 'extra' && x.v.EXC < 0.005); out.push({ label: 'Aprobación extra sin exceso calculado', ok: !bad.length, warn: true, count: bad.length, detail: bad.map(x => `${x.r.sl} · ${x.r.nom}`) }); }
