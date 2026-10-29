@@ -433,7 +433,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 29/10/2026 14:32</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 29/10/2026 15:50</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -596,7 +596,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     const c = {
       gral: idx('Categoria gral en cuadros'), part: idx('Categoria particular para cuadros'),
       sl: idx('Subledger'), nom: idx('Nombre Subledger'), resp: idx('RESPONSABLE'),
-      jer: H.findIndex(x => x && x.startsWith('jerarquizacion de exposicion')), tipo: idx('TIPO DE SL'), estado: idx('ESTADO DEL SL'),
+      jer: H.findIndex(x => x && x.startsWith('jerarquizacion de exposicion')), tipo: idx('TIPO DE SL'), estado: idx('ESTADO DEL SL'), cid: idx('CAPEX IDENTIFICADO'),
       p26: idx('PPTO 2026'), real: MES_L.map(m => idx('REAL ' + m)), real26: idx('REAL 2026'),
       oc: H.findIndex(x => x.startsWith('ordenes pendientes')), fc26: idx('FCTS 2026'), p27: idx('PPTO 2027')
     };
@@ -611,7 +611,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       if (part == null && tipo == null) continue;
       if (norm(part) === 'categoria particular para cuadros') continue;
       rows.push({
-        sl: r[c.sl], nom: r[c.nom], jer: c.jer >= 0 && r[c.jer] != null ? String(r[c.jer]).replace(/\s+/g, ' ').trim() : '', resp: c.resp >= 0 && r[c.resp] != null ? String(r[c.resp]).trim() : '', gral: r[c.gral], part, tipo, estado: r[c.estado],
+        sl: r[c.sl], nom: r[c.nom], jer: c.jer >= 0 && r[c.jer] != null ? String(r[c.jer]).replace(/\s+/g, ' ').trim() : '', resp: c.resp >= 0 && r[c.resp] != null ? String(r[c.resp]).trim() : '', gral: r[c.gral], part, tipo, estado: r[c.estado], cid: c.cid >= 0 && r[c.cid] != null ? String(r[c.cid]).replace(/\s+/g, ' ').trim() : '',
         real: c.real.map(j => j >= 0 ? num(r[j]) : 0), real26: num(r[c.real26]),
         p26b: c.p26 >= 0 ? num(r[c.p26]) : 0, fc26b: c.fc26 >= 0 ? num(r[c.fc26]) : 0,
         oc: c.oc >= 0 ? num(r[c.oc]) : 0, p27m: c.m27.map(j => j >= 0 ? num(r[j]) : 0), p27: num(r[c.p27])
@@ -719,7 +719,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         // horas por propuesta en columnas fijas de la hoja: AN = PPTO 2026 · AP = FCTS 9+3 (cantidad proyectadas 2026) · T = PPTO 2027 (cantidades totales)
         const ws07 = wb.Sheets[ogName], off = ws07 && ws07['!ref'] ? XLSX.utils.decode_range(ws07['!ref']).s.c : 0;
         const colIdx = L => XLSX.utils.decode_col(L) - off;
-        const iH26 = colIdx('AN'), iHfc = colIdx('AP'), iH27 = colIdx('T');
+        const iH26 = colIdx('AN'), iHfc = colIdx('AP'), iH27 = colIdx('T'), iAO = colIdx('AO'), iAL = colIdx('AL'), iCom = GH.findIndex(x => x === 'comentario');
         for (let i = gh + 1; i < G.length; i++) {
           const r = G[i]; if (!r || r[iSl] == null || r[iSl] === '') continue;
           const k = slKey(r[iSl]);
@@ -729,6 +729,12 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
           const addH = (key, j) => { if (j >= 0 && typeof r[j] === 'number') o[key] = (o[key] || 0) + r[j]; };
           addH('h26', iH26); addH('hfc', iHfc); addH('h27', iH27);
           o.qty += q; o.val += q * pr; o.imp += iImp >= 0 ? num(r[iImp]) : 0; o.lines++;
+          // detalle por renglón: cantidades PPTO 2026 (AN), compradas (AO) y a comprar (AP) en 2026, PPTO 2027 (T) e importe 2027 (AL)
+          const qn = x => typeof x === 'number' ? x : (x == null || x === '' ? 0 : (parseFloat(String(x).replace(',', '.')) || 0));
+          const txt = x => (typeof x === 'string' && /[a-z]/i.test(x)) ? x.replace(/^\s*\d+([.,]\d+)?\s*[-–:]?\s*/, '').trim() : '';
+          (o.rowsDet || (o.rowsDet = [])).push({ det: iDet >= 0 && r[iDet] != null ? String(r[iDet]).trim() : '', com: iCom >= 0 && r[iCom] != null ? String(r[iCom]).trim() : '',
+            mon: iMon >= 0 && r[iMon] ? String(r[iMon]).trim().toUpperCase() : '', q26: qn(r[iH26]), qao: qn(r[iAO]), qap: qn(r[iHfc]), aoTxt: txt(r[iAO]),
+            q27: q, imp: iImp >= 0 ? num(r[iImp]) : (iAL >= 0 ? num(r[iAL]) : 0) });
           if (iMon >= 0 && r[iMon]) o.mon.add(String(r[iMon]).trim().toUpperCase());
           if (iDet >= 0 && r[iDet]) o.det.push(String(r[iDet]));
         }
@@ -2078,6 +2084,260 @@ const Log = {
   }
 };
 
+/* ============ CUADRO 06 · Otras Inversiones ============ */
+/* bloque = categoría general "Otras Inversiones"; slides por categoría particular */
+const OI_ORDER = ['Rodados','Otros (Seguridad y telefonia)','Expansión comercial','Infraestructura corporativa','Adecuación de Oficinas','Iniciativas Farmacity','Iniciativas GTL'];
+const OI_PAGES = [
+  { kind: 'resumen', label: 'Resumen' },
+  { kind: 'rod', label: 'Rodados' },
+  { kind: 'seg', label: 'Seguridad y telefonía' },
+  { kind: 'exp', label: 'Expansión comercial' },
+  { kind: 'inf', label: 'Infraestructura corporativa' }
+];
+const CID_ORDER = ['Farmacity','Simplicity','Get The Look','Cross','The Food Market','Logística'];
+const mny = v => Math.abs(v || 0) < 0.005 ? 'sin monto' : '$' + fAmt(v).t + unitShort();
+const fQty = v => v == null ? { t: '', cls: '' } : Math.abs(v) < 0.5 ? { t: '–', cls: 'na' } : { t: nf(0).format(v), cls: '' };
+const fQtyD = v => v == null ? { t: '', cls: '' } : Math.abs(v) < 0.5 ? { t: '0', cls: '' } : { t: (v > 0 ? '+' : '−') + nf(0).format(Math.abs(v)), cls: v < 0 ? 'vn' : 'vp', up: v > 0, arrow: true };
+const Oi = {
+  id: 'oi', name: 'Otras Inversiones', blurb: 'Resumen · rodados · seguridad y telefonía · expansión comercial · infraestructura corporativa',
+  kind(page){ return page.split('|')[1] || 'resumen'; },
+  views(page){
+    const k = this.kind(page);
+    if (k === 'inf') return Me.views('me|ofi');
+    const V = {
+      resumen: { completo: { label: 'Completo', cols: ['P26','FC','P27','DABS','DPCT'] }, real: { label: 'Con real 2026', cols: ['P26','REAL','FC','P27','DPCT'] } },
+      rod: { completo: { label: 'Cantidades y PPTO 2027', cols: ['Q26','QFC','Q27','DQ','P27','PU'] }, montos: { label: 'Con montos 2026', cols: ['Q26','QFC','Q27','P26','FC','P27','DPCT'] }, cant: { label: 'Solo cantidades', cols: ['Q26','QFC','Q27','DQ'] } },
+      seg: { completo: { label: 'Montos y cantidades', cols: ['P26','FC','P27','DPCT','Q26','QFC','Q27'] }, montos: { label: 'Solo montos', cols: ['SL','P26','FC','P27','DABS','DPCT'] }, real: { label: 'Con real 2026', cols: ['P26','REAL','FC','P27','Q26','QFC','Q27'] } },
+      exp: { completo: { label: 'Detalle', cols: ['SL','P26','REAL','FC','P27'] }, aprob: { label: 'Aprobación', cols: ['SL','APR','CONS','SALDO','P27'] }, resp: { label: 'Con responsable', cols: ['SL','RESP','P26','FC','P27'] } }
+    };
+    return V[k];
+  },
+  colDefs(page){
+    if (page && this.kind(page) === 'inf') return Me.colDefs('me|ofi');
+    const rod = page && this.kind(page) === 'rod';
+    const q = [
+      { k: 'Q26', label: 'PPTO 2026', grp: 'Cantidades', kind: 'qty', tone: rod ? 'ppto' : 'aux' },
+      { k: 'QFC', label: 'Aterrizaje 9+3', grp: 'Cantidades', kind: 'qty', tone: rod ? 'ater' : 'aux', strong: rod },
+      { k: 'Q27', label: 'PPTO 2027', grp: 'Cantidades', kind: 'qty', tone: rod ? 'ppto' : 'aux', strong: rod },
+      { k: 'DQ', label: 'Δ vs aterrizaje', grp: 'Cantidades', kind: 'qty', tone: 'var' }
+    ];
+    const m = [
+      { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
+      { k: 'RESP', label: 'Responsable', grp: null, kind: 'text', tone: 'aux' },
+      { k: 'P26', label: 'PPTO 2026', grp: rod ? 'Montos' : '2026', kind: 'amt', tone: 'ppto' },
+      { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: rod ? 'Montos' : '2026', kind: 'amt', tone: 'real' },
+      { k: 'FC', label: 'Aterrizaje 9+3', grp: rod ? 'Montos' : '2026', kind: 'amt', tone: 'ater', strong: true },
+      { k: 'P27', label: 'PPTO 2027', grp: rod ? 'Montos' : '2027', kind: 'amt', tone: 'ppto', hero: true },
+      { k: 'PU', label: 'Valor unit. prom.', grp: rod ? 'Montos' : '2027', kind: 'amt', tone: 'aux' },
+      { k: 'DABS', label: 'Δ $', grp: 'Incremento vs aterrizaje', kind: 'delta', tone: 'var' },
+      { k: 'DPCT', label: 'Δ %', grp: rod ? 'Montos' : 'Incremento vs aterrizaje', kind: 'var', tone: 'var' },
+      { k: 'APR', label: 'Aprobado total', grp: 'Aprobación', kind: 'amt', tone: 'var', strong: true },
+      { k: 'CONS', label: 'Consumido total', grp: 'Aprobación', kind: 'amt', tone: 'var' },
+      { k: 'SALDO', label: 'Saldo aprobado', grp: 'Aprobación', kind: 'delta', tone: 'var' }
+    ];
+    return rod ? q.concat(m) : m.concat(q);
+  },
+  defaults(){ return { zoomAll: false, hideEmpty: true, byPage: {} }; },
+  colState(page, o){
+    const k = this.kind(page), bp = o.byPage || (o.byPage = {}), V = this.views(page);
+    const st = bp[k] || (bp[k] = { view: 'completo', cols: V.completo.cols.slice() });
+    if (st.view !== 'custom' && V[st.view]) st.cols = V[st.view].cols.slice();
+    if (!(st.cols instanceof Set)) st.cols = new Set(st.cols);
+    return st;
+  },
+  pages(){ return OI_PAGES.map(p => ({ key: p.kind === 'resumen' ? 'oi' : 'oi|' + p.kind, label: p.label })); },
+  optsHtml(o){
+    return `<div class="field"><span class="lab">Zoom</span><div class="seg" data-opt="zoomAll"><button type="button" data-v="0" aria-pressed="${!o.zoomAll}">Solo totales</button><button type="button" data-v="1" aria-pressed="${!!o.zoomAll}">Abrir todos</button></div></div>
+      <div class="field"><label class="tg" for="oiEmpty"><input type="checkbox" id="oiEmpty" data-opt="hideEmpty" ${o.hideEmpty ? 'checked' : ''}>Ocultar SL sin montos</label></div>
+      <p class="empty" style="font-size:11.5px;padding:0">Cantidades desde 07_ON GOING: PPTO 2026 = col. AN · Aterrizaje 9+3 = AO (comprado) + AP (a comprar) · PPTO 2027 = T. Expansión comercial: solo aprobados (en curso y finalizados), por CAPEX identificado.</p>`;
+  },
+  data(){
+    const U = 1e6, prm = state.ds.pr || {};
+    return state.ds.rows.filter(r => E.norm(r.gral) === 'otras inversiones').map(r => {
+      const p = prm[E.slKey(r.sl)], ep = E.norm(r.estado);
+      const v = { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U, APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null };
+      return { r, p, v, cat: ep.startsWith('finaliz') ? 'fin' : ep === 'en curso' ? 'curso' : 'sin', desde: p ? p.desde : null, hasta: p ? p.hasta : null };
+    });
+  },
+  sumV(list){
+    const s = { P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0 };
+    list.forEach(x => { for (const k in s) s[k] += x.v[k] || 0; });
+    s.RESPT = E.respOf(list.map(x => x.r)); return s;
+  },
+  jerRows: Log.jerRows,
+  fmtCell(c, v, slTxt, it){
+    if (c.kind === 'sl') return { t: slTxt || '', cls: 'slc' };
+    if (c.k === 'RESP') return { t: it ? E.respOf([it.r]) : (v.RESPT || ''), cls: 'resp' };
+    if (c.k === 'Q26' || c.k === 'QFC' || c.k === 'Q27') return fQty(v[c.k]);
+    if (c.k === 'DQ') return v.Q27 == null ? { t: '', cls: '' } : fQtyD(v.Q27 - (v.QFC || 0));
+    if (c.k === 'PU') return v.Q27 ? fAmt(v.P27 / v.Q27) : { t: '', cls: '' };
+    if (c.k === 'DABS') return v.FC == null ? { t: '', cls: '' } : fDelta(v.P27 - v.FC);
+    if (c.k === 'DPCT') return v.FC == null ? { t: '', cls: '' } : fVar(vr(v.P27, v.FC));
+    if (c.k === 'SALDO'){ const x = v.SALDO; if (x == null) return { t: '–', cls: 'na' }; const f = fAmt(x); return f.cls === 'na' ? f : { t: f.t, cls: x < 0 ? 'vn' : '' }; }
+    return fAmt(v[c.k]);
+  },
+  /* renglones de 07_ON GOING agrupados por clase, con cantidades y PPTO 2027 */
+  qtyGroups(sl, classify){
+    const og = (state.ds.og || {})[E.slKey(sl)], det = og && og.rowsDet ? og.rowsDet : [];
+    const G = {};
+    det.forEach(d => {
+      const k = classify(d); if (!k) return;
+      const g = G[k] || (G[k] = { k, lines: [], Q26: 0, QFC: 0, Q27: 0, P27: 0, notes: [] });
+      const x = { det: d.det, com: d.com, Q26: d.q26 || 0, QFC: (d.qao || 0) + (d.qap || 0), Q27: d.q27 || 0, P27: (d.imp || 0) / 1e6, aoTxt: d.aoTxt };
+      g.lines.push(x); ['Q26','QFC','Q27','P27'].forEach(q => g[q] += x[q]);
+      if (d.aoTxt) g.notes.push(d.aoTxt);
+    });
+    return { G, has: det.length > 0 };
+  },
+  qtyRows(rows, page, tag, defs, Gq, o, cells){
+    defs.forEach(df => {
+      if (df.head){ rows.push({ label: df.label, sub: df.sub || null, style: 'jer', cells: cells(df.v || {}), drill: null }); return; }
+      const g = Gq.G[df.k]; if (!g) return;
+      const zk = page + '|' + tag + '|' + df.k, open = !!o.zoomAll || state.zoom.has(zk), multi = g.lines.length > 1;
+      const sub = df.sub ? df.sub(g) : null;
+      rows.push({ label: df.label, sub, style: df.style || 'jer', cells: cells(g), drill: null, zoom: multi ? zk : null, open });
+      if (open && multi) g.lines.forEach(x => rows.push({ label: x.det, sub: x.aoTxt ? 'comprado 2026: ' + x.aoTxt : null, style: 'sl', cells: cells(x), drill: null }));
+    });
+  },
+  build(page, o){
+    const k = this.kind(page), st = this.colState(page, o);
+    if (k === 'inf'){
+      const tm = Me.buildOfi('me|ofi', optsOf(Me), st);
+      tm.eyebrow = `Presupuesto CAPEX ${(state.ds.params || {}).anioPpto || 2027} · Otras Inversiones · Infraestructura corporativa`;
+      const inf = this.data().filter(x => E.norm(x.r.part) === 'infraestructura corporativa');
+      const t = this.sumV(inf), ofiP = (state.ds.rows.find(r => E.slKey(r.sl) === OFI_SL) || { p27: 0 }).p27 / 1e6;
+      tm.note = `Infraestructura corporativa · PPTO 2027 $${fAmt(t.P27).t}${unitShort()}: corresponde a la renovación de oficinas (SL ${OFI_SL})` + (Math.abs(t.P27 - ofiP) > 0.005 ? ` y $${fAmt(t.P27 - ofiP).t}${unitShort()} de otros SL (ver controles).` : '; el resto de los SL de la categoría no tiene PPTO 2027.');
+      return tm;
+    }
+    const cols = this.colDefs(page).filter(c => st.cols.has(c.k));
+    const D = this.data(), p = state.ds.params || {}, rows = [];
+    const cells = (v, sl, it) => { const out = {}; cols.forEach(c => out[c.k] = this.fmtCell(c, v, sl, it)); return out; };
+    const empty = x => ['P26','REAL','FC','P27','APR','CONS'].every(q => !x.v[q] || Math.abs(x.v[q]) < 0.005);
+    const keep = L => L.filter(x => !(o.hideEmpty && empty(x)));
+    const byPart = n => D.filter(x => E.norm(x.r.part) === E.norm(n));
+    let title, sub, note, kpis, labelHead = 'Detalle';
+    if (k === 'resumen'){
+      title = 'Otras Inversiones'; sub = 'Composición por categoría particular';
+      const parts = [...new Set(D.map(x => x.r.part))].sort((a, b) => { const ia = OI_ORDER.findIndex(n => E.norm(n) === E.norm(a)), ib = OI_ORDER.findIndex(n => E.norm(n) === E.norm(b)); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
+      const gotoOf = { 'rodados': 'oi|rod', 'otros (seguridad y telefonia)': 'oi|seg', 'expansion comercial': 'oi|exp', 'infraestructura corporativa': 'oi|inf' };
+      parts.forEach(pt => {
+        const L = byPart(pt), v = this.sumV(L), zk = page + '|' + pt, open = !!o.zoomAll || state.zoom.has(zk);
+        rows.push({ label: pt, style: 'jer', cells: cells(v, L.length + ' SL'), drill: { title: pt, sls: L.map(x => x.r) }, zoom: zk, open, goto: gotoOf[E.norm(pt)] || null });
+        if (open){
+          const mz = curMz(), G = {};
+          L.forEach(x => { let j = String((E.jerOf(mz, x.r) || {}).jer || '').trim(); if (!j || j === '-' || /^n\/?a$/i.test(j)) j = 'Sin jerarquización'; (G[E.norm(j)] = G[E.norm(j)] || { jer: j, items: [] }).items.push(x); });
+          Object.values(G).map(g => (g.v = this.sumV(g.items), g)).sort((a, b) => b.v.P27 - a.v.P27 || b.v.FC - a.v.FC)
+            .forEach(g => rows.push({ label: g.jer, style: 'sl', cells: cells(g.v, g.items.length + ' SL'), drill: { title: g.jer, sls: g.items.map(x => x.r) } }));
+        }
+      });
+      const t = this.sumV(D);
+      rows.push({ spacer: true }, { label: 'Total Otras Inversiones', sub: 'cruza con el Cuadro General', style: 'grand', cells: cells(t, D.length + ' SL'), drill: { title: 'Otras Inversiones', sls: D.map(x => x.r) } });
+      const d = fVar(vr(t.P27, t.FC)), top = parts.map(pt => ({ pt, v: this.sumV(byPart(pt)).P27 })).sort((a, b) => b.v - a.v)[0];
+      kpis = [{ k: 'PPTO 2027 · Otras Inversiones', v: '$' + fAmt(t.P27).t + unitShort(), d: (d.t || '') + ' vs aterrizaje 9+3', up: d.up, hero: true, tone: 'ppto' },
+              top ? { k: 'Mayor componente', tone: 'ater', plain: true, v: E.norm(top.pt).startsWith('otros (seg') ? 'Seguridad y telefonía' : top.pt, d: t.P27 ? nf(0).format(top.v / t.P27 * 100) + '% del PPTO 2027' : '' } : null].filter(Boolean);
+      note = 'Categoría general "Otras Inversiones" de PPTO27, por categoría particular; abrí cada línea para ver sus jerarquías. Cada componente tiene su slide de detalle.';
+    } else if (k === 'rod'){
+      title = 'Rodados'; sub = 'Unidades y PPTO 2027 por tipo de asignación · cantidades de 07_ON GOING'; labelHead = 'Tipo de auto';
+      const L = byPart('Rodados'), t = this.sumV(L);
+      const cls = d => /kangoo/i.test(d.det) ? 'asig' : /yaris/i.test(d.det) ? 'yaris' : 'cc';
+      const qs = L.map(x => this.qtyGroups(x.r.sl, cls)), G = {};
+      qs.forEach(q => Object.values(q.G).forEach(g => { const h = G[g.k] || (G[g.k] = { k: g.k, lines: [], Q26: 0, QFC: 0, Q27: 0, P27: 0, notes: [] }); ['Q26','QFC','Q27','P27'].forEach(z => h[z] += g[z]); h.lines.push(...g.lines); h.notes.push(...g.notes); }));
+      const ben = ['cc','yaris'].map(z => G[z]).filter(Boolean), bv = { Q26: 0, QFC: 0, Q27: 0, P27: 0 };
+      ben.forEach(g => ['Q26','QFC','Q27','P27'].forEach(z => bv[z] += g[z]));
+      const Gq = { G };
+      this.qtyRows(rows, page, 'rod', [{ k: 'asig', label: 'Autos de asignación', sub: () => 'innominada y nominada · Kangoo' }], Gq, o, cells);
+      if (ben.length){
+        rows.push({ label: 'Autos de beneficio', style: 'jer', cells: cells(bv), drill: null });
+        this.qtyRows(rows, page, 'rod', [
+          { k: 'cc', label: 'Corolla y Compass', style: 'child', sub: g => g.notes.length ? 'aterrizaje incluye ' + g.notes.join(', ') + ' (alta gama)' : null },
+          { k: 'yaris', label: 'Yaris', style: 'child' }], Gq, o, cells);
+      }
+      const tq = Object.values(G).reduce((a, g) => { ['Q26','QFC','Q27','P27'].forEach(z => a[z] += g[z]); return a; }, { Q26: 0, QFC: 0, Q27: 0, P27: 0 });
+      rows.push({ spacer: true }, { label: 'Total Rodados', sub: L.length === 1 ? 'SL ' + L[0].r.sl : L.length + ' SL', style: 'total', cells: cells(Object.assign({}, t, { Q26: tq.Q26, QFC: tq.QFC, Q27: tq.Q27 })), drill: { title: 'Rodados', sls: L.map(x => x.r) } });
+      const dq = tq.Q27 - tq.QFC;
+      kpis = [{ k: 'PPTO 2027 · Rodados', v: '$' + fAmt(t.P27).t + unitShort(), d: nf(0).format(tq.Q27) + ' unidades', plain: true, hero: true, tone: 'ppto' },
+              { k: 'Unidades vs aterrizaje 9+3', tone: 'ater', plain: true, v: (dq > 0 ? '+' : dq < 0 ? '−' : '') + nf(0).format(Math.abs(dq)) + ' u.', d: nf(0).format(tq.QFC) + ' en 2026 · ' + nf(0).format(tq.Q26) + ' en PPTO 2026' }];
+      note = 'Cantidades de 07_ON GOING: PPTO 2026 = col. AN; Aterrizaje 9+3 = AO (comprado) + AP (a comprar en lo que resta del año); PPTO 2027 = col. T. Montos 2027 por renglón (col. AL). Asignación = Kangoo; beneficio = Corolla, Corolla Cross, Compass y Yaris.';
+    } else if (k === 'seg'){
+      title = 'Seguridad y telefonía'; sub = 'Seguridad por jerarquización · telefonía con cantidades de 07_ON GOING';
+      const L = keep(byPart('Otros (Seguridad y telefonia)'));
+      const isTel = x => /telefon/i.test((E.jerOf(curMz(), x.r) || {}).jer || '') || /telefon/i.test(x.r.nom || '');
+      const seg = L.filter(x => !isTel(x)), tel = L.filter(isTel);
+      if (seg.length){
+        rows.push({ label: 'Seguridad', style: 'blockhead', cells: {} });
+        this.jerRows(rows, seg, page, 'seg', o, cells);
+        rows.push({ label: 'Sub total seguridad', style: 'sub', cells: cells(this.sumV(seg), seg.length + ' SL'), drill: { title: 'Seguridad', sls: seg.map(x => x.r) } });
+      }
+      let tq = { Q26: 0, QFC: 0, Q27: 0 };
+      if (tel.length){
+        rows.push({ spacer: true }, { label: 'Telefonía', style: 'blockhead', cells: {} });
+        const cls = d => /iphone|apple/i.test(d.det + ' ' + d.com) ? 'iph' : 'cc';
+        tel.forEach(x => {
+          const Gq = this.qtyGroups(x.r.sl, cls);
+          if (!Gq.has){ rows.push({ label: x.r.nom, style: 'jer', cells: cells(x.v, String(x.r.sl), x), drill: { title: x.r.nom, sls: [x.r] } }); return; }
+          Object.values(Gq.G).forEach(g => ['Q26','QFC','Q27'].forEach(z => tq[z] += g[z]));
+          this.qtyRows(rows, page, 'tel' + x.r.sl, [
+            { k: 'cc', label: 'Casa Central y la Operación', sub: () => 'reposición, aperturas, ingresos, Last Mile, renovación' },
+            { k: 'iph', label: 'iPhones', sub: g => 'directores' }], Gq, o, cells);
+        });
+        rows.push({ label: 'Sub total telefonía', style: 'sub', cells: cells(Object.assign(this.sumV(tel), tq), tel.length + ' SL'), drill: { title: 'Telefonía', sls: tel.map(x => x.r) } });
+      }
+      const t = this.sumV(L);
+      rows.push({ spacer: true }, { label: 'Total seguridad y telefonía', style: 'total', cells: cells(Object.assign({}, t, tel.length ? tq : {}), L.length + ' SL'), drill: { title: 'Otros (Seguridad y telefonía)', sls: L.map(x => x.r) } });
+      const d = fVar(vr(t.P27, t.FC));
+      kpis = [{ k: 'PPTO 2027 · seguridad y telefonía', v: '$' + fAmt(t.P27).t + unitShort(), d: (d.t || '') + ' vs aterrizaje 9+3', up: d.up, hero: true, tone: 'ppto' },
+              tel.length ? { k: 'Teléfonos 2027', tone: 'ater', plain: true, v: nf(0).format(tq.Q27) + ' u.', d: nf(0).format(tq.QFC) + ' en el aterrizaje 2026' } : null].filter(Boolean);
+      note = 'Telefonía: Casa Central y la Operación = Robos/Pérdida + Apertura nuevos locales + Nuevos ingresos CC + Proyecto Last Mile + Obsoletos/Renovación tecnológica. Cantidades de 07_ON GOING: PPTO 2026 = AN; Aterrizaje 9+3 = AO + AP; PPTO 2027 = T. En las líneas de telefonía el monto es el PPTO 2027 por renglón (col. AL).';
+    } else {
+      title = 'Expansión comercial'; sub = 'Proyectos aprobados (en curso y finalizados) por CAPEX identificado'; labelHead = 'Jerarquización · SL';
+      const all = byPart('Expansión comercial'), L = keep(all.filter(x => x.cat !== 'sin')), out = all.filter(x => x.cat === 'sin');
+      const ids = [...new Set(L.map(x => x.r.cid || 'Sin identificar'))].sort((a, b) => { const ia = CID_ORDER.findIndex(n => E.norm(n) === E.norm(a)), ib = CID_ORDER.findIndex(n => E.norm(n) === E.norm(b)); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
+      ids.forEach((id, bi) => {
+        const B = L.filter(x => (x.r.cid || 'Sin identificar') === id);
+        if (bi) rows.push({ spacer: true });
+        rows.push({ label: id, style: 'blockhead', cells: {} });
+        this.jerRows(rows, B, page, 'exp' + id, o, cells);
+        if (ids.length > 1) rows.push({ label: 'Sub total ' + id, style: 'sub', cells: cells(this.sumV(B), B.length + ' SL'), drill: { title: 'Expansión comercial · ' + id, sls: B.map(x => x.r) } });
+      });
+      const t = this.sumV(L), to = this.sumV(out);
+      rows.push({ spacer: true }, { label: 'Total aprobados', style: 'total', cells: cells(t, L.length + ' SL'), drill: { title: 'Expansión comercial · aprobados', sls: L.map(x => x.r) } });
+      kpis = [{ k: 'Aterrizaje 2026 9+3 · aprobados', v: '$' + fAmt(t.FC).t + unitShort(), d: 'PPTO 2027: ' + mny(t.P27), plain: true, hero: true, tone: 'ater' },
+              { k: 'PPTO 2026 · aprobados', tone: 'ppto', plain: true, v: '$' + fAmt(t.P26).t + unitShort(), d: L.filter(x => x.cat === 'curso').length + ' en curso · ' + L.filter(x => x.cat === 'fin').length + ' finalizados' }];
+      note = `Solo SL de Expansión comercial con estado EN CURSO o FINALIZADO en PPTO27, por CAPEX identificado (col. K) y jerarquización de exposición presupuestaria.${out.length ? ` No incluye ${out.length} SL sin aprobación (PPTO 2026: ${mny(to.P26)} · PPTO 2027: ${mny(to.P27)}).` : ''}`;
+    }
+    return { eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · Otras Inversiones`, title, sub: `En ${unitLbl()} · ${sub}`, note, labelHead, cols, kpis,
+      rows: rows.length ? rows : [{ label: 'Sin SL en esta categoría', style: 'cfnc', cells: {} }] };
+  },
+  checks(page, o){
+    const k = this.kind(page), D = this.data(), f2 = v => nf(2).format(v), out = [];
+    if (k === 'inf'){
+      Me.checksOfi(optsOf(Me)).forEach(c => out.push(c));
+      const oth = D.filter(x => E.norm(x.r.part) === 'infraestructura corporativa' && E.slKey(x.r.sl) !== OFI_SL && Math.abs(x.v.P27) >= 0.005);
+      out.push({ label: 'Otros SL de infraestructura con PPTO 2027', ok: !oth.length, warn: true, count: oth.length, detail: oth.map(x => `${x.r.sl} · ${x.r.nom}: ${f2(x.v.P27)}`), okTxt: 'la slide cubre todo el PPTO 2027' });
+      return out;
+    }
+    const g = state.res ? state.res.rows.find(r => r.id === 'OI') : null, t = this.sumV(D), lines = [];
+    if (g){
+      if (Math.abs(t.P27 - (g.v.P27 || 0)) > 0.005) lines.push(`PPTO 2027: acá ${f2(t.P27)} vs Cuadro General ${f2(g.v.P27 || 0)}`);
+    } else lines.push('No se encontró Otras Inversiones en el Cuadro General');
+    out.push({ label: 'Total Otras Inversiones vs Cuadro General (PPTO 2027)', ok: !lines.length, count: lines.length, detail: lines, okTxt: 'cruza' });
+    if (g && g.v.A93 != null){ const ok = Math.abs(t.FC - g.v.A93) <= 0.5;
+      out.push({ label: 'Aterrizaje 9+3 vs Cuadro General', ok, warn: true, count: ok ? 0 : 1, detail: [`Acá ${f2(t.FC)} (06_FCTS26 por SL) vs Cuadro General ${f2(g.v.A93)} (hoja Cuadro_Capex (2)). Revisar la fórmula de Otras Inversiones en esa hoja.`], okTxt: 'cruza' }); }
+    if (k === 'rod' || k === 'seg'){
+      const sls = D.filter(x => k === 'rod' ? E.norm(x.r.part) === 'rodados' : /telefon/i.test(((E.jerOf(curMz(), x.r) || {}).jer || '') + ' ' + x.r.nom));
+      const bad = [];
+      sls.forEach(x => { const og = (state.ds.og || {})[E.slKey(x.r.sl)]; const s = og && og.rowsDet ? og.rowsDet.reduce((a, d) => a + (d.imp || 0), 0) / 1e6 : null;
+        if (s == null) bad.push(`${x.r.sl} · ${x.r.nom}: sin renglones en 07_ON GOING`); else if (Math.abs(s - x.v.P27) > 0.005) bad.push(`${x.r.sl} · ${x.r.nom}: 07_ON GOING ${f2(s)} vs PPTO27 ${f2(x.v.P27)}`); });
+      out.push({ label: 'Renglones de 07_ON GOING vs PPTO 2027 del SL', ok: !bad.length, count: bad.length, detail: bad, okTxt: 'cruzan' });
+    }
+    if (k === 'exp'){
+      const noId = D.filter(x => E.norm(x.r.part) === 'expansion comercial' && x.cat !== 'sin' && !x.r.cid);
+      out.push({ label: 'Aprobados sin CAPEX identificado', ok: !noId.length, warn: true, count: noId.length, detail: noId.map(x => `${x.r.sl} · ${x.r.nom}`) });
+    }
+    return out;
+  }
+};
+
 Me.checksOfi = function(o){
   const D = this.ofi(o || optsOf(this)), f2 = v => nf(2).format(v), out = [];
   out.push({ label: `SL ${OFI_SL} en PPTO27`, ok: !!D.row, count: D.row ? 0 : 1, detail: D.row ? [] : [`No se encontró el SL ${OFI_SL} en la hoja de presupuesto`], okTxt: D.row ? D.row.nom : '' });
@@ -2088,7 +2348,7 @@ Me.checksOfi = function(o){
   }
   return out;
 };
-const CUADROS = [General, ItOg, ItPr, Me, Log];
+const CUADROS = [General, ItOg, ItPr, Me, Log, Oi];
 const cuadroOf = key => CUADROS.find(c => key === c.id || key.startsWith(c.id + '|'));
 function optsOf(c){
   let o = state.opts[c.id];
