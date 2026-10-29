@@ -433,7 +433,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 29/10/2026 15:50</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 29/10/2026 16:11</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -470,6 +470,13 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
   </main>
 
   <aside class="side">
+    <section class="panel">
+      <h2 class="ph">Tipo de SL</h2>
+      <div class="field"><div class="seg" id="tipoQuick"><button type="button" data-q="all">Todos</button><button type="button" data-q="og">Solo on going</button><button type="button" data-q="pr">Solo proyectos</button></div></div>
+      <div class="field"><span class="lab">Incluir</span><div class="chips" id="tipoChips"></div></div>
+      <div class="field"><label class="tg" for="optTipoCol"><input type="checkbox" id="optTipoCol">Columna "Tipo" en los cuadros</label></div>
+      <p class="empty" id="tipoNote" style="font-size:11.5px;padding:0"></p>
+    </section>
     <section class="panel">
       <h2 class="ph">Columnas</h2>
       <div class="colgrid" id="colgrid"></div>
@@ -1149,7 +1156,8 @@ const state = {
   dir: null, dirName: null, dirPerm: null,
   page: saved.page || 'general',
   unit: saved.unit || 'M', pctDec: +(saved.pctDec || 0), dec: saved.dec == null ? 2 : +saved.dec, kpis: saved.kpis !== false, sem: saved.sem !== false,
-  texts: saved.texts || {}, opts: saved.opts || {}, drill: null, res: null, zoom: new Set()
+  texts: saved.texts || {}, opts: saved.opts || {}, drill: null, res: null, zoom: new Set(),
+  tipoSel: Array.isArray(saved.tipoSel) ? saved.tipoSel : null, tipoCol: !!saved.tipoCol, dsFull: null, _view: null
 };
 function persist(){
   const opts = {};
@@ -1158,7 +1166,7 @@ function persist(){
     if (o.byPage){ const bp = {}; for (const p in o.byPage){ const x = Object.assign({}, o.byPage[p]); if (x.cols instanceof Set) x.cols = [...x.cols]; bp[p] = x; } o.byPage = bp; }
     opts[k] = o;
   }
-  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts });
+  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts, tipoSel: state.tipoSel, tipoCol: state.tipoCol });
 }
 
 /* ============ formato ============ */
@@ -1197,6 +1205,45 @@ const mesCorto = () => { const m = state.res ? state.res.lastReal : -1; return m
 const TONE = { R25: 'real', RACU: 'real', P26O: 'ppto', P26P: 'ppto', P26F: 'ppto', P26: 'ppto', P27O: 'ppto', P27P: 'ppto', P27F: 'ppto', P27: 'ppto',
   A84: 'ater', A93O: 'ater', A93P: 'ater', A93: 'ater', VO: 'var', V26: 'var', VAT: 'var', V27: 'var' };
 const curMz = () => state.mz || (state.ds && state.ds.mzInside) || null;
+
+/* ============ filtro global por tipo de SL (on going / proyectos por estado) ============ */
+const TIPOS = [['og','On going'],['curso','En curso'],['extra','Aprobación extra'],['fin','Finalizado'],['sin','Sin aprobación']];
+const TIPO_LBL = { og: 'On going', curso: 'En curso', extra: 'Aprob. extra', fin: 'Finalizado', sin: 'Sin aprobación', otro: '' };
+function tipoOf(r, ds){
+  const t = E.norm(r.tipo);
+  if (t === 'on going') return 'og';
+  if (t !== 'proyectos') return 'otro';
+  const ep = E.norm(r.estado);
+  if (ep.startsWith('finaliz')) return 'fin';
+  if (ep === 'en curso'){ const p = ((ds || state.dsFull || state.ds || {}).pr || {})[E.slKey(r.sl)]; return p && E.norm(p.estado).includes('extra') ? 'extra' : 'curso'; }
+  return 'sin';
+}
+const tipoAll = () => !state.tipoSel || TIPOS.every(([k]) => state.tipoSel.includes(k));
+function tipoLabel(){
+  if (tipoAll()) return '';
+  const sel = state.tipoSel, pr = ['curso','extra','fin','sin'];
+  if (sel.length === 1 && sel[0] === 'og') return 'Solo on going';
+  if (!sel.includes('og') && pr.every(k => sel.includes(k))) return 'Solo proyectos';
+  return 'Filtro: ' + TIPOS.filter(([k]) => sel.includes(k)).map(([, l]) => l.toLowerCase()).join(', ');
+}
+/* arma la vista filtrada; el Cuadro General recalcula PPTO 2026 y aterrizaje 9+3 desde los SL (no usa los valores congelados del Excel) */
+function viewDs(full){
+  if (!full || tipoAll()) return full;
+  const sel = new Set(state.tipoSel), U = 1e6;
+  const rows = full.rows.filter(r => sel.has(tipoOf(r, full)));
+  const snap = {};
+  rows.forEach(r => {
+    const t = tipoOf(r, full), k = E.norm(r.part);
+    [k, 'opl|' + k].forEach(key => {
+      const o = snap[key] || (snap[key] = { R25: null, A84: null, P26: 0, P26O: 0, P26P: 0, P26F: 0, A93: 0, A93O: 0, A93P: 0 });
+      o.P26 += r.p26 / U; o.A93 += r.fc26 / U;
+      if (t === 'og'){ o.P26O += r.p26 / U; o.A93O += r.fc26 / U; }
+      else if (t === 'sin'){ o.P26F += r.p26 / U; o.A93P += r.fc26 / U; }
+      else { o.P26P += r.p26 / U; o.A93P += r.fc26 / U; }
+    });
+  });
+  return Object.assign({}, full, { rows, snap, cached: null, filtered: tipoLabel() });
+}
 
 /* ============ CUADRO 01 · General ============ */
 const GROUPS = E.STRUCTURE.filter(n => n.type === 'group');
@@ -2415,6 +2462,25 @@ function kpiHtml(tm){
 }
 /* en filas de total/subtotal no se muestra responsable */
 function postTM(tm){
+  if (tm && !tm._tipo){
+    tm._tipo = true;
+    const fl = tipoLabel(); if (fl && tm.sub) tm.sub += ' · ' + fl;
+    if (fl && tm.note) tm.note += ' Filtro por tipo de SL: ' + fl.replace(/^Filtro: /, '').toLowerCase() + '.';
+    if (state.tipoCol && tm.cols && !tm.cols.some(c => c.k === 'TIPO')){
+      tm.cols = [{ k: 'TIPO', label: 'Tipo', grp: null, kind: 'text', tone: 'aux' }].concat(tm.cols);
+      (tm.rows || []).forEach(r => {
+        if (!r.cells) return;
+        const sls = r.drill && r.drill.sls ? r.drill.sls : null;
+        let t = '';
+        if (sls && sls.length && !['total','sub','grand'].includes(r.style)){
+          const u = [...new Set(sls.map(x => tipoOf(x)).filter(x => x !== 'otro'))];
+          t = u.length === 1 ? TIPO_LBL[u[0]] : u.length === 2 ? u.map(x => TIPO_LBL[x]).join(' / ') : u.length ? 'Mixto' : '';
+          if (u.length > 1 && !u.includes('og')) t = u.length === 2 ? t : 'Proyectos';
+        }
+        r.cells.TIPO = { t, cls: 'resp' };
+      });
+    }
+  }
   (tm.rows || []).forEach(r => { if (r.cells && r.cells.RESP && ['total','sub','grand'].includes(r.style)) r.cells.RESP = { t: '', cls: 'resp' }; });
   return tm;
 }
@@ -2544,7 +2610,14 @@ function renderChecks(){
   $('#checks').innerHTML = (own.length ? `<li style="display:block"><span class="ph" style="margin:0">Este cuadro</span></li>` + own.map(checkLi).join('') + `<li style="display:block;margin-top:6px"><span class="ph" style="margin:0">Archivo</span></li>` : '') + base.map(checkLi).join('');
 }
 function renderAll(full){
-  if (full) state.res = state.ds ? E.compute(state.ds) : null;
+  if (full){
+    if (state.ds && state.ds !== state._view) state.dsFull = state.ds;
+    state.ds = viewDs(state.dsFull); state._view = state.ds;
+    state.res = state.ds ? E.compute(state.ds) : null;
+    if (state.res && state.ds.filtered) state.res.rows.forEach(r => { if (r.v){ r.v.R25 = null; r.v.A84 = null; } }); // sin apertura por SL: no se muestran con filtro
+    if (state.res && state.ds.filtered) state.res.checks.unshift({ label: 'Filtro por tipo de SL activo', ok: false, warn: true, count: 1, detail: [state.ds.filtered + '. Los controles contra el Excel y el cruce con su Cuadro General no aplican mientras el filtro esté activo; en el Cuadro General, PPTO 2026 y aterrizaje 9+3 se recalculan desde los SL.'] });
+  }
+  renderTipo();
   renderSlidesList(); renderViews(); renderColGrid(); renderCuadroOpts(); renderFiles(); renderChecks(); renderSlide();
   if (state.drill) renderDrill();
   $('#optKpi').checked = state.kpis; $('#optSem').checked = state.sem;
@@ -2656,6 +2729,22 @@ $('#cuadroOpts').onchange = e => {
 };
 $('#optKpi').onchange = e => { state.kpis = e.target.checked; persist(); renderSlide(); };
 $('#optSem').onchange = e => { state.sem = e.target.checked; persist(); renderSlide(); };
+function renderTipo(){
+  const sel = state.tipoSel || TIPOS.map(([k]) => k);
+  $('#tipoChips').innerHTML = TIPOS.map(([k, l]) => `<button type="button" data-t="${k}" aria-pressed="${sel.includes(k)}">${l}</button>`).join('');
+  const q = tipoAll() ? 'all' : (sel.length === 1 && sel[0] === 'og') ? 'og' : (!sel.includes('og') && ['curso','extra','fin','sin'].every(k => sel.includes(k))) ? 'pr' : '';
+  $('#tipoQuick').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.q === q)));
+  $('#optTipoCol').checked = state.tipoCol;
+  $('#tipoNote').textContent = tipoAll() ? 'Todos los SL. Elegí on going o proyectos para que los cuadros sumen solo esos.' : tipoLabel() + '. Totales y controles calculados solo con estos SL.';
+}
+function setTipo(sel){ state.tipoSel = sel; persist(); renderAll(true); }
+$('#tipoQuick').onclick = e => { const b = e.target.closest('button'); if (!b) return;
+  setTipo(b.dataset.q === 'og' ? ['og'] : b.dataset.q === 'pr' ? ['curso','extra','fin','sin'] : null); };
+$('#tipoChips').onclick = e => { const b = e.target.closest('button'); if (!b) return;
+  const sel = new Set(state.tipoSel || TIPOS.map(([k]) => k)); sel.has(b.dataset.t) ? sel.delete(b.dataset.t) : sel.add(b.dataset.t);
+  if (!sel.size){ toast('Dejá al menos un tipo.'); return; }
+  setTipo(TIPOS.every(([k]) => sel.has(k)) ? null : [...sel]); };
+$('#optTipoCol').onchange = e => { state.tipoCol = e.target.checked; persist(); renderSlide(); };
 $('#optUnit').onchange = e => { state.unit = e.target.value; persist(); renderSlide(); renderDrill(); };
 $('#optPct').onchange = e => { state.pctDec = +e.target.value; persist(); renderSlide(); };
 $('#optDec').onchange = e => { state.dec = +e.target.value; persist(); renderSlide(); if (state.drill) renderDrill(); };
