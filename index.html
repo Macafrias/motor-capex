@@ -433,7 +433,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 28/10/2026 16:57</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 29/10/2026 14:24</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1870,6 +1870,198 @@ const Me = {
   }
 };
 
+/* ============ CUADRO 05 · Logística ============ */
+/* universo: categoría general Logística + Otros proyectos de logística (Masterplan, se expone aparte como en el Cuadro General) */
+const LOG_PAGES = [
+  { kind: 'resumen', label: 'Resumen' },
+  { kind: 'og', label: 'On going' },
+  { kind: 'pr', label: 'Proyectos' }
+];
+const LOG_EST = [
+  { k: 'curso', label: 'Proyectos en curso' },
+  { k: 'sin', label: 'Proyectos sin aprobación' },
+  { k: 'fin', label: 'Proyectos finalizados' }
+];
+const Log = {
+  id: 'log', name: 'Logística', blurb: 'On going · proyectos en curso, sin aprobación y finalizados · Masterplan aparte',
+  kind(page){ return page.split('|')[1] || 'resumen'; },
+  views(page){
+    const k = this.kind(page);
+    const V = {
+      resumen: { completo: { label: 'Completo', cols: ['SL','P26','FC','P27','DABS','DPCT'] }, real: { label: 'Con real 2026', cols: ['SL','P26','REAL','FC','P27','DPCT'] }, corto: { label: 'Corto', cols: ['FC','P27','DPCT'] } },
+      og: { completo: { label: 'Completo', cols: ['SL','P26','FC','P27','DABS','DPCT'] }, real: { label: 'Con real 2026', cols: ['SL','P26','REAL','FC','P27','DPCT'] }, resp: { label: 'Con responsable', cols: ['SL','RESP','FC','P27','DPCT'] } },
+      pr: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR'] }, aprob: { label: 'Saldo aprobado', cols: ['SL','APR','CONS','SALDO','P27','SAL27'] }, ppto: { label: 'Presupuesto', cols: ['SL','P26','REAL','FC','P27','DPCT'] }, vent: { label: 'Con ventana 2027', cols: ['SL','RESP','P27','VENT'] } }
+    };
+    return V[k];
+  },
+  colDefs(){
+    return [
+      { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
+      { k: 'RESP', label: 'Responsable', grp: null, kind: 'text', tone: 'aux' },
+      { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto' },
+      { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: '2026', kind: 'amt', tone: 'real' },
+      { k: 'FC', label: 'Aterrizaje 9+3', grp: '2026', kind: 'amt', tone: 'ater', strong: true },
+      { k: 'P27', label: 'PPTO 2027', grp: '2027', kind: 'amt', tone: 'ppto', hero: true },
+      { k: 'VENT', label: 'Ventana 2027', grp: '2027', kind: 'text', tone: 'aux' },
+      { k: 'DABS', label: 'Δ $', grp: 'Incremento vs aterrizaje', kind: 'delta', tone: 'var' },
+      { k: 'DPCT', label: 'Δ %', grp: 'Incremento vs aterrizaje', kind: 'var', tone: 'var' },
+      { k: 'APR', label: 'Aprobado total', grp: 'Aprobación', kind: 'amt', tone: 'var', strong: true },
+      { k: 'CONS', label: 'Consumido total', grp: 'Aprobación', kind: 'amt', tone: 'var' },
+      { k: 'SALDO', label: 'Saldo aprobado', grp: 'Aprobación', kind: 'delta', tone: 'var' },
+      { k: 'SAL27', label: 'Saldo luego de PPTO 27', grp: 'Aprobación', kind: 'delta', tone: 'var' }
+    ];
+  },
+  defaults(){ return { zoomAll: false, hideEmpty: true, logMp: true, byPage: {} }; },
+  colState(page, o){
+    const k = this.kind(page), bp = o.byPage || (o.byPage = {}), V = this.views(page);
+    const st = bp[k] || (bp[k] = { view: 'completo', cols: V.completo.cols.slice() });
+    if (st.view !== 'custom' && V[st.view]) st.cols = V[st.view].cols.slice();
+    if (!(st.cols instanceof Set)) st.cols = new Set(st.cols);
+    return st;
+  },
+  pages(){ return LOG_PAGES.map(p => ({ key: p.kind === 'resumen' ? 'log' : 'log|' + p.kind, label: p.label })); },
+  optsHtml(o){
+    return `<div class="field"><span class="lab">Zoom por SL</span><div class="seg" data-opt="zoomAll"><button type="button" data-v="0" aria-pressed="${!o.zoomAll}">Solo jerarquías</button><button type="button" data-v="1" aria-pressed="${!!o.zoomAll}">Abrir todos</button></div></div>
+      <div class="field"><label class="tg" for="logMp"><input type="checkbox" id="logMp" data-opt="logMp" ${o.logMp ? 'checked' : ''}>Mostrar Otros proyectos de logística (Masterplan, aparte)</label></div>
+      <div class="field"><label class="tg" for="logEmpty"><input type="checkbox" id="logEmpty" data-opt="hideEmpty" ${o.hideEmpty ? 'checked' : ''}>Ocultar SL sin montos</label></div>
+      <p class="empty" style="font-size:11.5px;padding:0">On going y proyectos según el tipo de SL de PPTO27; estado del proyecto según PPTO27 y aprobación desde 08_PROYECTOS. Agrupado por jerarquización de exposición presupuestaria.</p>`;
+  },
+  data(){
+    const U = 1e6, prm = state.ds.pr || {}, items = [];
+    state.ds.rows.forEach(r => {
+      const g = E.norm(r.gral), pt = E.norm(r.part);
+      const isOpl = g.startsWith('otros proyectos de log') || pt.startsWith('otros proyectos de log');
+      if (g !== 'logistica' && !isOpl) return;
+      const p = prm[E.slKey(r.sl)], tipo = E.norm(r.tipo), ep = E.norm(r.estado);
+      const isPr = tipo === 'proyectos';
+      const cat = !isPr ? 'og' : ep.startsWith('finaliz') ? 'fin' : ep === 'en curso' ? 'curso' : 'sin';
+      const v = { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U,
+        APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null };
+      v.SAL27 = v.SALDO != null ? v.SALDO - v.P27 : null;
+      items.push({ r, p, v, cat, opl: isOpl, isPr, desde: p ? p.desde : null, hasta: p ? p.hasta : null });
+    });
+    return { items, log: items.filter(x => !x.opl), opl: items.filter(x => x.opl) };
+  },
+  sumV(list){
+    const s = { P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0 };
+    list.forEach(x => { for (const k in s) s[k] += x.v[k] || 0; });
+    s.SAL27 = s.SALDO - s.P27; s.RESPT = E.respOf(list.map(x => x.r)); return s;
+  },
+  fmtCell(c, v, slTxt, it){
+    if (c.kind === 'sl') return { t: slTxt || '', cls: 'slc' };
+    if (c.k === 'RESP') return { t: it ? E.respOf([it.r]) : (v.RESPT || ''), cls: 'resp' };
+    if (c.k === 'DABS') return fDelta(v.P27 - v.FC);
+    if (c.k === 'DPCT') return fVar(vr(v.P27, v.FC));
+    if (c.k === 'VENT') return { t: it ? ItPr.ventana(it) : '', cls: 'aux' };
+    if (c.k === 'SALDO' || c.k === 'SAL27'){ const x = v[c.k]; if (x == null) return { t: '–', cls: 'na' }; const f = fAmt(x); if (f.cls === 'na') return f; return { t: f.t, cls: x < 0 ? 'vn' : '' }; }
+    return fAmt(v[c.k]);
+  },
+  /* filas por jerarquización (con zoom por SL) */
+  jerRows(rows, L, page, tag, o, cells){
+    const mz = curMz(), G = {};
+    L.forEach(x => {
+      let j = String((E.jerOf(mz, x.r) || {}).jer || '').trim();
+      if (!j || j === '-' || /^n\/?a$/i.test(j)) j = x.r.part || 'Sin jerarquización';
+      (G[E.norm(j)] = G[E.norm(j)] || { jer: j, items: [] }).items.push(x);
+    });
+    Object.values(G).map(g => { g.items.sort((a, b) => b.v.P27 - a.v.P27 || b.v.FC - a.v.FC); g.v = this.sumV(g.items); return g; })
+      .sort((a, b) => b.v.P27 - a.v.P27 || b.v.FC - a.v.FC).forEach(g => {
+        if (g.items.length === 1){ const x = g.items[0]; rows.push({ label: g.jer, style: 'jer', cells: cells(g.v, String(x.r.sl), x), drill: { title: g.jer, sls: [x.r] } }); return; }
+        const zk = page + '|' + tag + '|' + g.jer, open = !!o.zoomAll || state.zoom.has(zk);
+        rows.push({ label: g.jer, style: 'jer', cells: cells(g.v, g.items.length + ' SL'), drill: { title: g.jer, sls: g.items.map(x => x.r) }, zoom: zk, open });
+        if (open) g.items.forEach(x => rows.push({ label: x.r.nom || String(x.r.sl), style: 'sl', cells: cells(x.v, String(x.r.sl), x), drill: { title: x.r.nom, sls: [x.r] } }));
+      });
+  },
+  build(page, o){
+    const k = this.kind(page), st = this.colState(page, o);
+    const cols = this.colDefs(page).filter(c => st.cols.has(c.k));
+    const D = this.data(), p = state.ds.params || {}, rows = [];
+    const cells = (v, sl, it) => { const out = {}; cols.forEach(c => out[c.k] = this.fmtCell(c, v, sl, it)); return out; };
+    const empty = x => ['P26','REAL','FC','P27','APR','CONS'].every(q => !x.v[q] || Math.abs(x.v[q]) < 0.005);
+    const keep = L => L.filter(x => !(o.hideEmpty && empty(x)));
+    const og = keep(D.log.filter(x => x.cat === 'og')), pr = keep(D.log.filter(x => x.isPr)), opl = keep(D.opl);
+    const tOg = this.sumV(og), tPr = this.sumV(pr), tLog = this.sumV(og.concat(pr)), tOpl = this.sumV(opl);
+    const estLbl = c => ({ curso: 'en curso', sin: 'sin aprobación', fin: 'finalizado' })[c] || '';
+    let kpis, title, sub, note, totV = tLog;
+    if (k === 'resumen'){
+      title = 'Logística · On going y proyectos';
+      sub = 'Composición por jerarquización de exposición presupuestaria · on going y proyectos por separado';
+      rows.push({ label: 'On going', style: 'blockhead', cells: {} });
+      this.jerRows(rows, og, page, 'og', o, cells);
+      rows.push({ label: 'Sub total on going', style: 'sub', cells: cells(tOg, og.length + ' SL'), drill: { title: 'Logística · on going', sls: og.map(x => x.r) } });
+      rows.push({ spacer: true }, { label: 'Proyectos', style: 'blockhead', cells: {} });
+      LOG_EST.forEach(e => {
+        const L = pr.filter(x => x.cat === e.k); if (!L.length) return;
+        const v = this.sumV(L);
+        rows.push({ label: e.label, style: 'jer', cells: cells(v, L.length + ' SL'), drill: { title: 'Logística · ' + e.label.toLowerCase(), sls: L.map(x => x.r) }, goto: 'log|pr' });
+      });
+      rows.push({ label: 'Sub total proyectos', style: 'sub', cells: cells(tPr, pr.length + ' SL'), drill: { title: 'Logística · proyectos', sls: pr.map(x => x.r) } });
+      rows.push({ spacer: true }, { label: 'Total Logística', sub: 'cruza con el Cuadro General', style: 'grand', cells: cells(tLog, (og.length + pr.length) + ' SL'), drill: { title: 'Logística', sls: og.concat(pr).map(x => x.r) } });
+      if (o.logMp && opl.length) rows.push({ spacer: true }, { label: 'Otros proyectos de logística', sub: 'Masterplan · se expone aparte', style: 'masterplan', cells: cells(tOpl, opl.length + ' SL'), drill: { title: 'Otros proyectos de logística', sls: opl.map(x => x.r) } });
+      const d = fVar(vr(tLog.P27, tLog.FC));
+      kpis = [{ k: 'PPTO 2027 · Logística', v: '$' + fAmt(tLog.P27).t + unitShort(), d: (d.t || '') + ' vs aterrizaje 9+3', up: d.up, hero: true, tone: 'ppto' },
+              { k: 'On going / proyectos', tone: 'ater', plain: true, v: (tLog.P27 ? nf(0).format(tOg.P27 / tLog.P27 * 100) : '–') + '% / ' + (tLog.P27 ? nf(0).format(tPr.P27 / tLog.P27 * 100) : '–') + '%', d: 'participación en el PPTO 2027' }];
+      note = 'On going y proyectos según el tipo de SL de PPTO27. Total Logística cruza con Logística del Cuadro General; Otros proyectos de logística (Masterplan) se exponen aparte y no suman.';
+    } else if (k === 'og'){
+      title = 'Logística · On going';
+      sub = 'Inversión recurrente por jerarquización de exposición presupuestaria';
+      this.jerRows(rows, og, page, 'og', o, cells);
+      rows.push({ spacer: true }, { label: 'Total on going', style: 'total', cells: cells(tOg, og.length + ' SL'), drill: { title: 'Logística · on going', sls: og.map(x => x.r) } });
+      totV = tOg;
+      const d = fVar(vr(tOg.P27, tOg.FC));
+      kpis = [{ k: 'PPTO 2027 · on going', v: '$' + fAmt(tOg.P27).t + unitShort(), d: (d.t || '') + ' vs aterrizaje 9+3', up: d.up, hero: true, tone: 'ppto' },
+              { k: 'Aterrizaje 2026 9+3', tone: 'ater', plain: true, v: '$' + fAmt(tOg.FC).t + unitShort(), d: 'PPTO 2026 $' + fAmt(tOg.P26).t + unitShort() }];
+      note = 'SL de Logística con tipo ON GOING en PPTO27. Montos 2026 desde 06_FCTS26 (aterrizaje 9+3) y PPTO 2027 desde PPTO27.';
+    } else {
+      title = 'Logística · Proyectos';
+      sub = 'Proyectos por estado · aprobación y saldo según 08_PROYECTOS';
+      const blocks = LOG_EST.map(e => ({ e, L: pr.filter(x => x.cat === e.k) })).filter(b => b.L.length);
+      blocks.forEach((b, bi) => {
+        if (bi) rows.push({ spacer: true });
+        rows.push({ label: b.e.label, style: 'blockhead', cells: {} });
+        this.jerRows(rows, b.L, page, b.e.k, o, cells);
+        if (blocks.length > 1) rows.push({ label: 'Sub total ' + estLbl(b.e.k), style: 'sub', cells: cells(this.sumV(b.L), b.L.length + ' SL'), drill: null });
+      });
+      rows.push({ spacer: true }, { label: 'Total proyectos de Logística', style: 'total', cells: cells(tPr, pr.length + ' SL'), drill: { title: 'Logística · proyectos', sls: pr.map(x => x.r) } });
+      if (o.logMp && opl.length){
+        rows.push({ spacer: true }, { label: 'Otros proyectos de logística · Masterplan', style: 'blockhead', cells: {} });
+        this.jerRows(rows, opl, page, 'opl', o, cells);
+        rows.push({ label: 'Total Masterplan', sub: 'se expone aparte · no suma a Logística', style: 'masterplan', cells: cells(tOpl, opl.length + ' SL'), drill: { title: 'Otros proyectos de logística', sls: opl.map(x => x.r) } });
+      }
+      totV = tPr;
+      const sinV = this.sumV(pr.filter(x => x.cat === 'sin')).P27 + (o.logMp ? this.sumV(opl.filter(x => x.cat === 'sin')).P27 : 0);
+      kpis = [{ k: 'PPTO 2027 · proyectos', v: '$' + fAmt(tPr.P27).t + unitShort(), d: 'en curso $' + fAmt(this.sumV(pr.filter(x => x.cat === 'curso')).P27).t + unitShort(), plain: true, hero: true, tone: 'ppto' },
+              { k: 'A aprobar (sin aprobación)', tone: 'ater', plain: true, v: '$' + fAmt(sinV).t + unitShort(), d: o.logMp && opl.length ? 'incluye Masterplan' : 'proyectos futuros' }];
+      note = 'Estado según PPTO27 (tipo PROYECTOS). Aprobado, consumido y saldo desde 08_PROYECTOS; Saldo luego de PPTO 27 = Saldo aprobado − PPTO 2027.' + (o.logMp && opl.length ? ' Masterplan (Otros proyectos de logística) se expone aparte, como en el Cuadro General.' : '');
+    }
+    return {
+      eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · Logística`, title, sub: `En ${unitLbl()} · ${sub}`, note,
+      labelHead: k === 'resumen' ? 'Detalle' : 'Jerarquización · SL', cols, kpis,
+      rows: rows.length ? rows : [{ label: 'Sin SL en esta categoría', style: 'cfnc', cells: {} }]
+    };
+  },
+  checks(page, o){
+    const D = this.data(), f2 = v => nf(2).format(v), out = [], mz = curMz();
+    const sinJ = D.items.filter(x => !((E.jerOf(mz, x.r) || {}).jer));
+    out.push({ label: 'SL sin jerarquización', ok: !sinJ.length, warn: true, count: sinJ.length, detail: sinJ.map(x => `${x.r.sl} · ${x.r.nom} (se agrupa por "${x.r.part}")`), okTxt: 'todos tienen jerarquía' });
+    const no08 = D.items.filter(x => x.isPr && !x.p);
+    out.push({ label: 'Proyectos sin dato en 08_PROYECTOS', ok: !no08.length, warn: true, count: no08.length, detail: no08.map(x => `${x.r.sl} · ${x.r.nom}`) });
+    const res = state.res ? state.res.rows : [], gl = res.find(r => r.id === 'LOG');
+    const sum = (L, key) => L.reduce((a, x) => a + (x.v[key] || 0), 0), lines = [];
+    if (gl){
+      if (Math.abs(sum(D.log, 'P27') - (gl.v.P27 || 0)) > 0.005) lines.push(`PPTO 2027: acá ${f2(sum(D.log, 'P27'))} vs Cuadro General ${f2(gl.v.P27 || 0)}`);
+      if (gl.v.P27O != null && Math.abs(sum(D.log.filter(x => x.cat === 'og'), 'P27') - gl.v.P27O) > 0.005) lines.push(`On going 2027: acá ${f2(sum(D.log.filter(x => x.cat === 'og'), 'P27'))} vs Cuadro General ${f2(gl.v.P27O)}`);
+      if (gl.v.A93 != null && Math.abs(sum(D.log, 'FC') - gl.v.A93) > 0.5) lines.push(`Aterrizaje 9+3: acá ${f2(sum(D.log, 'FC'))} vs Cuadro General ${f2(gl.v.A93)}`);
+    } else lines.push('No se encontró la fila Logística en el Cuadro General');
+    out.push({ label: 'Total Logística vs Cuadro General', ok: !lines.length, count: lines.length, detail: lines, okTxt: 'cruza (sin Masterplan)' });
+    const fin = D.items.filter(x => x.cat === 'fin' && Math.abs(x.v.P27) >= 0.005);
+    out.push({ label: 'Finalizados con PPTO 2027', ok: !fin.length, count: fin.length, detail: fin.map(x => `${x.r.sl} · ${x.r.nom}: ${f2(x.v.P27)}`) });
+    const exc = D.items.filter(x => x.cat === 'curso' && x.v.SAL27 != null && x.v.SAL27 < -0.005);
+    out.push({ label: 'En curso con PPTO 2027 mayor al saldo', ok: !exc.length, warn: true, count: exc.length, detail: exc.map(x => `${x.r.sl} · ${x.r.nom}: excede ${f2(-x.v.SAL27)} (¿aprobación extra?)`) });
+    return out;
+  }
+};
+
 Me.checksOfi = function(o){
   const D = this.ofi(o || optsOf(this)), f2 = v => nf(2).format(v), out = [];
   out.push({ label: `SL ${OFI_SL} en PPTO27`, ok: !!D.row, count: D.row ? 0 : 1, detail: D.row ? [] : [`No se encontró el SL ${OFI_SL} en la hoja de presupuesto`], okTxt: D.row ? D.row.nom : '' });
@@ -1880,7 +2072,7 @@ Me.checksOfi = function(o){
   }
   return out;
 };
-const CUADROS = [General, ItOg, ItPr, Me];
+const CUADROS = [General, ItOg, ItPr, Me, Log];
 const cuadroOf = key => CUADROS.find(c => key === c.id || key.startsWith(c.id + '|'));
 function optsOf(c){
   let o = state.opts[c.id];
