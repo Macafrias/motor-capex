@@ -438,7 +438,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 13:33</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 13:36</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -2717,8 +2717,9 @@ function renderDrill(){
   const jer = s => { const x = E.jerOf(curMz(), s); return x && x.jer ? x.jer : '—'; };
   el.hidden = false;
   el.innerHTML = `<div class="drawer-head"><h2>${esc(d.title)}</h2><span class="muted">${sls.length} SL · montos en ${unitLbl()}</span><button class="btn" type="button" id="drClose">Cerrar</button></div>
-    ${sls.length ? `<div class="tscroll"><table class="dt"><thead><tr><th>SL</th><th>Nombre</th><th>Jerarquización</th><th>Tipo</th><th class="n">PPTO 2026</th><th class="n">Real 2026</th><th class="n">FCTS 2026</th><th class="n">PPTO 2027</th></tr></thead><tbody>
-    ${sls.map(s => `<tr><td class="n" style="text-align:left">${esc(s.sl)}</td><td>${esc(s.nom)}</td><td>${esc(jer(s))}</td><td>${pill(s)}</td><td class="n">${m(s.p26)}</td><td class="n">${m(s.real26)}</td><td class="n">${m(s.fc26)}</td><td class="n">${m(s.p27)}</td></tr>`).join('')}
+    ${sls.length ? `<div class="tscroll"><table class="dt"><thead><tr><th>SL</th><th>Nombre</th><th>Jerarquización</th><th>Tipo</th><th class="n">Real 2025</th><th class="n">PPTO 2026</th><th class="n">Real 2026</th><th class="n">FCTS 2026</th><th class="n">PPTO 2027</th></tr></thead><tbody>
+    ${sls.length > 1 ? (() => { const t = k => sls.reduce((a, s) => a + (s[k] || 0), 0); return `<tr class="dtot"><td colspan="4" style="font-weight:700">Total ${sls.length} SL</td>${['r25','p26','real26','fc26','p27'].map(k => `<td class="n" style="font-weight:700">${m(t(k))}</td>`).join('')}</tr>`; })() : ''}
+    ${sls.map(s => `<tr><td class="n" style="text-align:left">${esc(s.sl)}</td><td>${esc(s.nom)}</td><td>${esc(jer(s))}</td><td>${pill(s)}</td><td class="n">${m(s.r25)}</td><td class="n">${m(s.p26)}</td><td class="n">${m(s.real26)}</td><td class="n">${m(s.fc26)}</td><td class="n">${m(s.p27)}</td></tr>`).join('')}
     </tbody></table></div>` : '<p class="empty">Sin SL asociados.</p>'}`;
   $('#drClose').onclick = () => { state.drill = null; el.hidden = true; };
 }
