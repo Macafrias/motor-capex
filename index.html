@@ -469,7 +469,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 16:11</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 16:20</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -3332,25 +3332,32 @@ function addSlide(pptx, tm, tx){
   const cols = tm.cols;
   // tamaño de letra: el menor entre lo que permite el alto (filas) y el ancho (texto más largo por columna), sin cortes de línea
   const hasNote = cols.some(c => c.kind === 'note');
-  const avail = 7.5 - 1.35 - 0.5; let rh = Math.min(hasNote ? 0.5 : 0.3, avail / (maxLen + 2.2));
+  const avail = 7.5 - 1.35 - 0.5; let rh = Math.min(hasNote ? 0.5 : 0.36, avail / (maxLen + 2.2));
   let noteW = hasNote ? partW * 0.42 : 0;
   const totW = partW - noteW, hasSl = cols.some(c => c.kind === 'sl'), numCols = cols.filter(c => c.kind !== 'sl' && c.kind !== 'note');
-  const numLen = Math.max(4, ...rows.flatMap(r => numCols.map(c => ((r.cells[c.k] || {}).t || '').length + ((r.cells[c.k] || {}).arrow ? 1 : 0))));
-  const labLen = Math.max(8, ...rows.map(r => ((ROWSTYLE[r.style] || {}).indent ? 4 : 0) + r.label.length + (r.sub ? r.sub.length + 3 : 0)));
+  // columnas de texto (formato, responsable, ventana…) con ancho propio; el resto son números
+  const txtCols = numCols.filter(c => c.kind === 'text'), numOnly = numCols.filter(c => c.kind !== 'text');
+  const txtLen = {}; txtCols.forEach(c => { txtLen[c.k] = Math.min(40, Math.max(c.label.length * 0.8, ...rows.map(r => ((r.cells[c.k] || {}).t || '').length))); });
+  const numLen = Math.max(4, ...rows.flatMap(r => numOnly.map(c => ((r.cells[c.k] || {}).t || '').length + ((r.cells[c.k] || {}).arrow ? 1 : 0))));
+  const txtW = {};
+  const labLen = Math.max(8, ...rows.map(r => ((ROWSTYLE[r.style] || {}).indent ? 4 : 0) + r.label.length + (r.sub ? Math.min(r.sub.length, 22) + 3 : 0)));
   const CH = 0.5 / 72, PAD = 0.1;   // ancho medio de un carácter Calibri (pulgadas por punto) y márgenes de celda
   const FSK = 52; // tamaño de letra relativo al alto de renglón (márgenes verticales mínimos)
-  let fs = Math.min(11, rh * FSK), labW, slW, cw;
+  const FSMAX = hasNote ? 11 : 13.5;
+  let fs = Math.min(FSMAX, rh * FSK), labW, slW, cw;
   const sizeAll = () => { for (let k = 0; k < 3; k++){
-    labW = Math.min(4.2, Math.max(1.6, labLen * fs * CH + PAD + 0.1));
+    labW = Math.min(4.6, Math.max(1.6, labLen * fs * CH + PAD + 0.1));
     slW = hasSl ? Math.max(0.85, 9.5 * fs * CH + PAD + 0.1) : 0;
-    cw = (totW - labW - slW) / Math.max(1, numCols.length);
-    fs = Math.max(5.5, Math.min(11, rh * FSK, (cw - PAD) / (numLen * CH)));
+    txtCols.forEach(c => { txtW[c.k] = Math.min(3.2, Math.max(0.7, txtLen[c.k] * Math.max(6, fs - 1.5) * CH * 1.2 + PAD + 0.05)); });
+    const tw = txtCols.reduce((a, c) => a + txtW[c.k], 0);
+    cw = (totW - labW - slW - tw) / Math.max(1, numOnly.length);
+    fs = Math.max(5.5, Math.min(FSMAX, rh * FSK, (cw - PAD) / (numLen * CH)));
   } };
   sizeAll();
   // encabezados que ocupan 2-3 renglones: se descuenta su alto real para que la tabla no se pase del pie
   for (let k = 0; k < 3; k++){
-    const fh = Math.min(11, fs + 1), lines = (txt, w) => Math.max(1, Math.ceil(String(txt || '').length * fh * CH * 1.05 / Math.max(0.3, w - PAD)));
-    const l2 = Math.max(1, ...cols.map(c => lines(c.label, c.kind === 'sl' ? slW : c.kind === 'note' ? (noteW || cw) : cw)));
+    const fh = Math.min(FSMAX, fs + 1), lines = (txt, w) => Math.max(1, Math.ceil(String(txt || '').length * fh * CH * 1.05 / Math.max(0.3, w - PAD)));
+    const l2 = Math.max(1, ...cols.map(c => lines(c.label, c.kind === 'sl' ? slW : c.kind === 'note' ? (noteW || cw) : c.kind === 'text' ? (txtW[c.k] || cw) : cw)));
     let l1 = 1, i0 = 0; while (i0 < cols.length){ let j = i0; while (j + 1 < cols.length && cols[j + 1].grp === cols[i0].grp) j++; if (cols[i0].grp) l1 = Math.max(l1, lines(cols[i0].grp.toUpperCase(), cw * (j - i0 + 1))); i0 = j + 1; }
     const hh = l => Math.max(rh, l * fh * 1.22 / 72 + 0.03), need = hh(l1) + hh(l2) + maxLen * rh;
     if (need <= avail + 0.01) break;
@@ -3358,22 +3365,22 @@ function addSlide(pptx, tm, tx){
   }
   // pocas columnas: no estirar los números a todo el ancho; la tabla queda más compacta y centrada
   let xOff = 0;
-  const CWMAX = 1.45;
-  if (!hasNote && parts.length === 1 && cw > CWMAX){ labW = Math.max(labW, Math.min(3.4, labW + 0.6)); const used = labW + slW + CWMAX * numCols.length; if (used < totW){ xOff = (totW - used) / 2; cw = CWMAX; } }
+  const CWMAX = Math.max(1.45, numLen * fs * CH + PAD + 0.25);
+  if (!hasNote && parts.length === 1 && cw > CWMAX){ labW = Math.max(labW, Math.min(3.4, labW + 0.6)); const used = labW + slW + txtCols.reduce((a, c) => a + txtW[c.k], 0) + CWMAX * numOnly.length; if (used < totW){ xOff = (totW - used) / 2; cw = CWMAX; } }
   if (hasNote){ // columnas numéricas acotadas; el sobrante va al texto de obras y a la etiqueta
-    labW = Math.max(labW, 2.6); const rest = totW - labW - slW, ncw = Math.min(1.25, rest / Math.max(1, numCols.length));
-    noteW += rest - ncw * numCols.length; cw = ncw;
+    labW = Math.max(labW, 2.6); const rest = totW - labW - slW - txtCols.reduce((a, c) => a + txtW[c.k], 0), ncw = Math.min(1.25, rest / Math.max(1, numOnly.length));
+    noteW += rest - ncw * numOnly.length; cw = ncw;
   }
   const head1 = [{ text: '', options: { fill: { color: 'FFFFFF' } } }];
   let i = 0;
   while (i < cols.length){ let j = i; while (j + 1 < cols.length && cols[j + 1].grp === cols[i].grp) j++;
     const g = cols[i].grp, tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var')), tn = TN[cols[i].gtone || (tones.size === 1 ? [...tones][0] : 'mix')];
-    head1.push(g ? { text: g.toUpperCase(), options: { colspan: j - i + 1, fill: { color: tn.h }, color: tn.ht, bold: true, align: 'center', fontSize: Math.min(10.5, fs + 0.5), fontFace: 'Calibri', border: [null, { pt: 1.5, color: 'FFFFFF' }, null, { pt: 1.5, color: 'FFFFFF' }] } }
+    head1.push(g ? { text: g.toUpperCase(), options: { colspan: j - i + 1, fill: { color: tn.h }, color: tn.ht, bold: true, align: 'center', fontSize: Math.min(FSMAX - 1, fs), fontFace: 'Calibri', border: [null, { pt: 1.5, color: 'FFFFFF' }, null, { pt: 1.5, color: 'FFFFFF' }] } }
                : { text: '', options: { colspan: j - i + 1, fill: { color: 'FFFFFF' } } });
     i = j + 1; }
   const bHead = [null, null, { pt: 1.25, color: '9AA3BA' }, null];
   const head2 = [{ text: tm.labelHead, options: { bold: true, color: PX.INK2, align: 'left', border: bHead, fontFace: 'Calibri' } }]
-    .concat(cols.map(c => ({ text: c.label, options: { bold: true, fontSize: Math.min(11, fs + 1), color: c.tone && TN[c.tone] && c.tone !== 'var' && c.tone !== 'aux' ? TN[c.tone].ht : (c.tone === 'aux' ? TN.aux.ht : PX.SLATE), align: 'center', valign: 'middle', border: bHead, fontFace: 'Calibri' } })));
+    .concat(cols.map(c => ({ text: c.label, options: { bold: true, fontSize: Math.min(FSMAX, fs + 1), color: c.tone && TN[c.tone] && c.tone !== 'var' && c.tone !== 'aux' ? TN[c.tone].ht : (c.tone === 'aux' ? TN.aux.ht : PX.SLATE), align: 'center', valign: 'middle', border: bHead, fontFace: 'Calibri' } })));
   const body = rows.map(r => {
     const st = ROWSTYLE[r.style] || ROWSTYLE.child;
     const isSub = r.style === 'sub', border = [st.top ? { pt: st.strong ? 1.75 : isSub ? 1.5 : 1, color: st.top } : null, null, { pt: st.bottom ? (isSub ? 1 : 1.75) : 0.5, color: st.bottom || PX.LINE }, null];
@@ -3388,6 +3395,7 @@ function addSlide(pptx, tm, tx){
       const fill = r.style === 'blockhead' ? 'FFFFFF' : (st.strong || r.style === 'sub') ? tn.t : tn.c;
       const o = { fill: { color: fill }, bold: st.bold, color: st.color, border, align: (c.kind === 'sl' || c.kind === 'text' || c.kind === 'note') ? 'left' : 'right', fontFace: face, fontSize: size };
       if (c.kind === 'sl' || c.tone === 'aux') { o.color = c.tone === 'aux' ? '8A91A6' : PX.INK2; o.bold = false; o.fontFace = 'Calibri Light'; }
+      if (c.kind === 'text') o.fontSize = Math.max(6, size - 1.5);
       if (c.kind === 'note') { o.color = '5E6680'; o.fontSize = Math.max(7, size - 1.5); o.valign = 'middle'; }
       if (state.sem && /vp/.test(f.cls)) o.color = '3E9B6A';
       if (state.sem && /vn/.test(f.cls)) o.color = 'C9584A';
@@ -3396,7 +3404,7 @@ function addSlide(pptx, tm, tx){
       return { text: f.t || '', options: o };
     }));
   });
-  const colW = [labW].concat(cols.map(c => c.kind === 'sl' ? slW : c.kind === 'note' ? noteW : cw));
+  const colW = [labW].concat(cols.map(c => c.kind === 'sl' ? slW : c.kind === 'note' ? noteW : c.kind === 'text' ? txtW[c.k] : cw));
   s.addTable([head1, head2].concat(body), { x: 0.4 + pi * (partW + GAP) + xOff, y: 1.35, w: colW.reduce((a, b) => a + b, 0), colW, rowH: rh, fontSize: fs, fontFace: 'Calibri Light', valign: 'middle', margin: [0.01, 0.05, 0.01, 0.05], autoPage: false });
   });
   s.addText(tx.note, { x: 0.45, y: 7.02, w: 10.5, h: 0.32, fontSize: 8, color: PX.INK2, fontFace: 'Calibri Light' });
