@@ -469,7 +469,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 15:48</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 15:58</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -2260,8 +2260,8 @@ const Log = {
         if (c.k === 'P27') out[c.k] = fAmt(amt);
         else if (c.k === 'PCT') out[c.k] = base ? { t: nf(state.pctDec).format(amt / base * 100) + '%', cls: Math.abs(amt) < 0.005 ? 'na' : '' } : { t: '', cls: '' };
         else if (c.k === 'FC') out[c.k] = opts && opts.fc != null ? fAmt(opts.fc) : { t: '', cls: '' };
-        else if (c.k === 'DPCT') out[c.k] = opts && opts.fc != null ? fVar(vr(amt, opts.fc)) : { t: '', cls: '' };
-        else if (c.k === 'DABS') out[c.k] = opts && opts.fc != null ? fDelta(amt - opts.fc) : { t: '', cls: '' };
+        else if (c.k === 'DPCT') out[c.k] = opts && opts.fc != null ? fVar(vr(opts.base != null ? opts.base : amt, opts.fc)) : { t: '', cls: '' };
+        else if (c.k === 'DABS') out[c.k] = opts && opts.fc != null ? fDelta((opts.base != null ? opts.base : amt) - opts.fc) : { t: '', cls: '' };
         else if (c.k === 'MON') out[c.k] = { t: opts && opts.mon ? opts.mon : '', cls: 'resp' };
         else out[c.k] = { t: '', cls: '' };
       }); return out; };
@@ -2279,7 +2279,8 @@ const Log = {
         if (open) c.items.forEach(it => rows.push({ label: it.det, style: 'sl', cells: ccell(it.v, ppto, { mon: it.mon }) })); }
       if (otherSl) rows.push({ label: 'Otros SL on going', sub: 'sin detalle en 07_ON GOING', style: 'jer', cells: ccell(otherSl, ppto), drill: { title: 'On going sin detalle', sls: noDet.map(x => x.r) } });
       rows.push({ label: 'PPTO 2027 sin pase de año', sub: 'vs aterrizaje 2026 9+3', style: 'sub', cells: ccell(ppto, ppto, { fc }), drill: null });
-      rows.push({ spacer: true }, { label: 'Total PPTO 2027 · on going', sub: 'incluye pase de año', style: 'total', cells: ccell(totP27, totP27, { fc: null }), drill: { title: 'Logística · on going', sls: OG.map(x => x.r) } });
+      // en el total se muestra el aterrizaje y la variación calculada sin el pase de año
+      rows.push({ spacer: true }, { label: 'Total PPTO 2027 · on going', sub: 'incluye pase de año · variación sin pase de año', style: 'total', cells: ccell(totP27, totP27, { fc, base: ppto }), drill: { title: 'Logística · on going', sls: OG.map(x => x.r) } });
       totV = { P27: totP27, FC: fc };
       const d = fVar(vr(ppto, fc));
       const dd = ppto - fc;
