@@ -438,7 +438,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 13:02</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 13:33</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -601,8 +601,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     const jerCands = names.filter(n => /subledger|matriz|03_sl|jerarq/i.test(norm(n)));
     const prName = names.find(n => /^08/.test(n.trim()) && /proyecto/i.test(n)) || names.find(n => /base.*proyecto|proyectos/i.test(n) && !/ppto/i.test(n));
     const ogName = names.find(n => /^07/.test(n.trim()) && /on\s*going/i.test(n)) || names.find(n => /on\s*going/i.test(n));
+    const realName = names.find(n => /^05/.test(n.trim()) && /real/i.test(n)) || names.find(n => /consolidado.*real/i.test(norm(n)));
     if (!pptoName) throw new Error('No encontré la hoja PPTO27 en el archivo.');
-    const wb = XLSX.read(data, { type: 'array', sheets: [pptoName, parName, fctsName, ogName, ...jerCands, ...cuadroCands].filter(Boolean), dense: false, sheetRows: 6000 });
+    const wb = XLSX.read(data, { type: 'array', sheets: [pptoName, parName, fctsName, ogName, realName, ...jerCands, ...cuadroCands].filter(Boolean), dense: false, sheetRows: 6000 });
     const aoa = n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null, blankrows: true });
 
     /* PPTO27 */
@@ -761,11 +762,26 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         og.__cols = { h26: 'AN ' + (raw[iH26] || '(sin título)'), hfc: 'AP ' + (raw[iHfc] || '(sin título)'), h27: 'T ' + (raw[iH27] || '(sin título)') };
       }
     }
+    /* 05_Consolidado_REAL: real 2025 por SL (columna REAL 2025) */
+    let r25Src = null, r25Out = [];
+    if (realName) {
+      const R = aoa(realName);
+      const rh = R.findIndex(r => r && r.some(x => norm(x) === 'subledger') && r.some(x => norm(x) === 'real 2025'));
+      if (rh >= 0) {
+        const RH = Array.from(R[rh], norm), iS = RH.indexOf('subledger'), iR = RH.indexOf('real 2025'), m = {};
+        for (let i = rh + 1; i < R.length; i++) { const r = R[i]; if (!r || r[iS] == null || r[iS] === '') continue; const k = slKey(r[iS]); m[k] = (m[k] || 0) + num(r[iR]); }
+        rows.forEach(r => { r.r25 = m[slKey(r.sl)] || 0; });
+        const inP = new Set(rows.map(r => slKey(r.sl))), names = {};
+        for (let i = rh + 1; i < R.length; i++) { const r = R[i]; if (r && r[iS] != null) names[slKey(r[iS])] = r[RH.indexOf('nombre subledger')] || ''; }
+        r25Out = Object.keys(m).filter(k => !inP.has(k) && Math.abs(m[k]) >= 1).map(k => ({ sl: k, nom: names[k], v: m[k] })).sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
+        r25Src = realName + ' · col. ' + XLSX.utils.encode_col(iR + (wb.Sheets[realName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[realName]['!ref']).s.c : 0));
+      }
+    }
     const pr = {}; // 08_PROYECTOS se lee aparte, en streaming (readProyectos)
     let mzInside = null;
     for (const n of jerCands) { mzInside = jerFromAoA(aoa(n), n); if (mzInside) break; }
     const jerCol = c.jer >= 0 ? XLSX.utils.encode_col(c.jer + (wb.Sheets[pptoName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[pptoName]['!ref']).s.c : 0)) : null;
-    return { rows, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
+    return { rows, r25Src, r25Out, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
   }
 
   /* ---------- Cálculo ---------- */
@@ -888,6 +904,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       { label: 'PPTO 2027 · cuadro vs PPTO27', a: tot.P27, b: totalP27, ok: Math.abs(tot.P27 - totalP27) < 0.5 },
       { label: 'Real 2026 · cuadro + bajas vs PPTO27', a: tot.RACU + bajasReal, b: totalReal, ok: Math.abs(tot.RACU + bajasReal - totalReal) < 0.5 },
       { label: 'Categorías sin mapear', count: Object.keys(unmapped).length, ok: Object.keys(unmapped).length === 0, detail: unmapped },
+      ...(ds.r25Src ? [{ label: 'Real 2025 de SL que no están en PPTO27', warn: true, count: (ds.r25Out || []).length, ok: !(ds.r25Out || []).length,
+        detail: (ds.r25Out || []).slice(0, 40).map(x => `${x.sl} · ${x.nom} · ${(x.v / 1e6).toLocaleString('es-AR', { maximumFractionDigits: 2 })} M`).concat((ds.r25Out || []).length > 40 ? ['… y ' + ((ds.r25Out || []).length - 40) + ' más'] : []),
+        okTxt: 'todos los SL de 05_Consolidado_REAL están en PPTO27' }] : []),
       { label: 'SL con estado fuera de regla (con PPTO 27)', count: offRule.length, ok: offRule.length === 0, detail: offRule.map(r => `${r.sl} · ${r.nom} · ${r.tipo}/${r.estado}`) }
     ];
     // contraste con lo que tenía calculado el Excel
@@ -990,20 +1009,20 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         const g = groups[norm(jer)] || (groups[norm(jer)] = { jer, sls: [] });
         g.sls.push(r);
       });
-      const val = r => ({ P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U });
+      const val = r => ({ R25: (r.r25 || 0) / U, P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U });
       const add = (a, b) => { for (const k in b) a[k] = (a[k] || 0) + b[k]; return a; };
       const gl = Object.values(groups).map(g => {
         g.sls.sort((a, b) => b.p27 - a.p27);
-        g.v = g.sls.reduce((acc, r) => add(acc, val(r)), { P26: 0, REAL: 0, FC: 0, P27: 0 });
+        g.v = g.sls.reduce((acc, r) => add(acc, val(r)), { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0 });
         g.v.RESPT = respOf(g.sls);
         g.items = g.sls.map(r => ({ r, v: Object.assign(val(r), { RESPT: respOf([r]) }) }));
         return g;
       }).sort((a, b) => (a.jer === 'Sin jerarquización') - (b.jer === 'Sin jerarquización') || b.v.P27 - a.v.P27);
-      const v = gl.reduce((acc, g) => { const { RESPT, ...num } = g.v; return add(acc, num); }, { P26: 0, REAL: 0, FC: 0, P27: 0 });
+      const v = gl.reduce((acc, g) => { const { RESPT, ...num } = g.v; return add(acc, num); }, { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0 });
       v.RESPT = respOf(sls);
       blocks.push({ part, groups: gl, v, n: sls.length });
     });
-    const total = blocks.reduce((acc, b) => { ['P26','REAL','FC','P27'].forEach(k => acc[k] += b.v[k]); return acc; }, { P26: 0, REAL: 0, FC: 0, P27: 0 });
+    const total = blocks.reduce((acc, b) => { ['R25','P26','REAL','FC','P27'].forEach(k => acc[k] += b.v[k] || 0); return acc; }, { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0 });
     total.RESPT = '';
     return { blocks, total, noJer, noFc };
   }
@@ -1132,7 +1151,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       if (cat === 'curso' && e8.includes('extra')) cat = 'extra';
       const cat08 = p ? prCat(p.estado, '') : null;
       if (cat08 && cat08 !== cat && !(cat === 'curso' && cat08 === 'curso')) mism.push({ r, cat, cat08, estado08: p.estado });
-      const v = { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U,
+      const v = { R25: (r.r25 || 0) / U, P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U,
         APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null };
       v.PEJ = v.APR ? v.CONS / v.APR : null;
       v.SAL27 = v.SALDO != null ? v.SALDO - v.P27 : null;
@@ -1248,8 +1267,8 @@ function viewDs(full){
   rows.forEach(r => {
     const t = tipoOf(r, full), k = E.norm(r.part);
     [k, 'opl|' + k].forEach(key => {
-      const o = snap[key] || (snap[key] = { R25: null, A84: null, P26: 0, P26O: 0, P26P: 0, P26F: 0, A93: 0, A93O: 0, A93P: 0 });
-      o.P26 += r.p26 / U; o.A93 += r.fc26 / U;
+      const o = snap[key] || (snap[key] = { R25: 0, A84: null, P26: 0, P26O: 0, P26P: 0, P26F: 0, A93: 0, A93O: 0, A93P: 0 });
+      o.P26 += r.p26 / U; o.A93 += r.fc26 / U; o.R25 += (r.r25 || 0) / U;
       if (t === 'og'){ o.P26O += r.p26 / U; o.A93O += r.fc26 / U; }
       else if (t === 'sin'){ o.P26F += r.p26 / U; o.A93P += r.fc26 / U; }
       else { o.P26P += r.p26 / U; o.A93P += r.fc26 / U; }
@@ -1374,6 +1393,7 @@ const ItOg = {
     return [
       { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
       { k: 'RESP', label: 'Responsable', grp: null, kind: 'text', tone: 'aux' },
+      { k: 'R25', label: 'Real 2025', grp: '2025', kind: 'amt', tone: 'real' },
       { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto' },
       { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: '2026', kind: 'amt', tone: 'real' },
       { k: 'FC', label: 'FCTS 9+3', grp: '2026', kind: 'amt', strong: true, tone: 'ater' },
@@ -1460,13 +1480,13 @@ const ItOg = {
   ecomData(){
     const U = 1e6, mz = curMz(), map = (mz && mz.map) || {}, og = state.ds.og || {};
     const isOn = r => E.norm(r.tipo) === 'on going';
-    const val = r => { const g = og[E.slKey(r.sl)]; return { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U, HS: g ? g.qty : 0, USD: g ? g.val : 0, H26: g && g.h26 != null ? g.h26 : null, HFC: g && g.hfc != null ? g.hfc : null, H27: g && g.h27 != null ? g.h27 : null, mon: g ? g.mon : '', hasOg: !!g, imp: g ? g.imp / U : 0 }; };
+    const val = r => { const g = og[E.slKey(r.sl)]; return { R25: (r.r25 || 0) / U, P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U, HS: g ? g.qty : 0, USD: g ? g.val : 0, H26: g && g.h26 != null ? g.h26 : null, HFC: g && g.hfc != null ? g.hfc : null, H27: g && g.h27 != null ? g.h27 : null, mon: g ? g.mon : '', hasOg: !!g, imp: g ? g.imp / U : 0 }; };
     const own = state.ds.rows.filter(r => E.norm(r.part) === 'ecom' && isOn(r)).map(r => ({ r, v: val(r) })).sort((a, b) => b.v.P27 - a.v.P27);
     const aparte = state.ds.rows.filter(r => E.norm(r.part) !== 'ecom' && isOn(r) && E.norm((E.jerOf(mz, r) || {}).jer) === 'ecom').map(r => ({ r, v: val(r) }));
     const sum = arr => arr.reduce((a, x) => {
-      ['P26','REAL','FC','P27','HS','USD'].forEach(k => a[k] += x.v[k]);
+      ['R25','P26','REAL','FC','P27','HS','USD'].forEach(k => a[k] += x.v[k] || 0);
       ['H26','HFC','H27'].forEach(k => { if (x.v[k] != null) a[k] = (a[k] || 0) + x.v[k]; });
-      return a; }, { P26: 0, REAL: 0, FC: 0, P27: 0, HS: 0, USD: 0, H26: null, HFC: null, H27: null });
+      return a; }, { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, HS: 0, USD: 0, H26: null, HFC: null, H27: null });
     return { own, aparte, sum };
   },
   buildEcom(page, o, cols0, cellsOf0){
@@ -1586,6 +1606,7 @@ const ItPr = {
     return [
       { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
       { k: 'RESP', label: 'Responsable', grp: null, kind: 'text', tone: 'aux' },
+      { k: 'R25', label: 'Real 2025', grp: '2025', kind: 'amt', tone: 'real' },
       { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto' },
       { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: '2026', kind: 'amt', tone: 'real' },
       { k: 'FC', label: 'FCTS 9+3', grp: '2026', kind: 'amt', tone: 'ater', strong: true },
@@ -1644,7 +1665,7 @@ const ItPr = {
     return a && z ? (a === z ? a : a + ' – ' + z) : '';
   },
   sumV(list){
-    const s = { P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, EXC: 0, CUB: 0, AAP: 0 };
+    const s = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, EXC: 0, CUB: 0, AAP: 0 };
     list.forEach(x => { for (const k in s) s[k] += x.v[k] || 0; });
     s.SAL27 = s.SALDO - s.P27; s.PEJ = s.APR ? s.CONS / s.APR : null; s.RESPT = E.respOf(list.map(x => x.r)); return s;
   },
@@ -1819,6 +1840,7 @@ const Me = {
     return [
       { k: 'FMT', label: 'Formato', grp: null, kind: 'text', tone: 'aux' },
       { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
+      { k: 'R25', label: 'Real 2025', grp: '2025', kind: 'amt', tone: 'real' },
       { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto' },
       { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: '2026', kind: 'amt', tone: 'real' },
       { k: 'FC', label: 'Aterrizaje 9+3', grp: '2026', kind: 'amt', strong: true, tone: 'ater' },
@@ -1892,8 +1914,8 @@ const Me = {
   },
   calc(){
     const U = 1e6, mz = curMz(), used = new Set();
-    const val = r => ({ P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U });
-    const sum = rs => rs.reduce((a, r) => { const v = val(r); for (const k in v) a[k] += v[k]; return a; }, { P26: 0, REAL: 0, FC: 0, P27: 0 });
+    const val = r => ({ R25: (r.r25 || 0) / U, P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U });
+    const sum = rs => rs.reduce((a, r) => { const v = val(r); for (const k in v) a[k] += v[k]; return a; }, { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0 });
     const jerN = r => E.norm((E.jerOf(mz, r) || {}).jer);
     const isTfm = r => E.norm(r.gral) === 'tfm';
     // universo: categoría general Mejoras Edilicias + TFM con jerarquía de reformas
@@ -1930,7 +1952,7 @@ const Me = {
     if (hT.length) C.lines.push({ block: 2, det: 'Otros TFM · sin línea asignada', fmt: 'The food Market', jer: '(sin línea)', sls: hT, v: C.sum(hT), other: true, tfm: true });
     blocks.forEach((bk, bi) => {
       if (bi) rows.push({ spacer: true });
-      let prev = null; const t = { P26: 0, REAL: 0, FC: 0, P27: 0 };
+      let prev = null; const t = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0 };
       C.lines.filter(l => l.block === bk).forEach(l => {
         add(t, l.v);
         rows.push({ label: l.det === prev ? '' : l.det, style: l.det === prev ? 'mecont' : 'meline', cells: cellsOf(l.v, l.tfm ? l.fmt + ' · se expone en TFM' : l.fmt, l.sls.length + ' SL'), drill: { title: [].concat(l.jer)[0], sls: l.sls } });
@@ -1939,9 +1961,9 @@ const Me = {
       bt[bk] = t;
       rows.push({ label: 'Sub total', style: 'sub', cells: cellsOf(t, '', ''), drill: null });
     });
-    const tot = add(add({ P26: 0, REAL: 0, FC: 0, P27: 0 }, bt[1]), bt[2]);
-    const tfm = C.lines.filter(l => l.tfm).reduce((a, l) => add(a, l.v), { P26: 0, REAL: 0, FC: 0, P27: 0 });
-    const net = { P26: tot.P26 - tfm.P26, REAL: tot.REAL - tfm.REAL, FC: tot.FC - tfm.FC, P27: tot.P27 - tfm.P27 };
+    const tot = add(add({ R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0 }, bt[1]), bt[2]);
+    const tfm = C.lines.filter(l => l.tfm).reduce((a, l) => add(a, l.v), { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0 });
+    const net = { R25: tot.R25 - tfm.R25, P26: tot.P26 - tfm.P26, REAL: tot.REAL - tfm.REAL, FC: tot.FC - tfm.FC, P27: tot.P27 - tfm.P27 };
     rows.push({ spacer: true }, { label: 'Total', style: 'total', cells: cellsOf(tot, '', ''), drill: { title: 'Total', sls: C.lines.flatMap(l => l.sls) } });
     rows.push({ spacer: true }, { label: 'Total Reformas y mejoras', sub: 'sin The food Market · cruza con Mejoras Edilicias', style: 'grand', cells: cellsOf(net, '', ''), drill: { title: 'Total Reformas y mejoras (sin TFM)', sls: C.lines.filter(l => !l.tfm).flatMap(l => l.sls) } });
     const d = fVar(vr(net.P27, net.FC));
@@ -2006,6 +2028,7 @@ const Log = {
     return [
       { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
       { k: 'RESP', label: 'Responsable', grp: null, kind: 'text', tone: 'aux' },
+      { k: 'R25', label: 'Real 2025', grp: '2025', kind: 'amt', tone: 'real' },
       { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto' },
       { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: '2026', kind: 'amt', tone: 'real' },
       { k: 'FC', label: 'Aterrizaje 9+3', grp: '2026', kind: 'amt', tone: 'ater', strong: true },
@@ -2043,7 +2066,7 @@ const Log = {
       const isPr = tipo === 'proyectos';
       const og = pt === 'capex varios';
       const cat = og ? 'og' : ep.startsWith('finaliz') ? 'fin' : ep === 'en curso' ? 'curso' : 'sin';
-      const v = { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U,
+      const v = { R25: (r.r25 || 0) / U, P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U,
         APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null };
       v.SAL27 = v.SALDO != null ? v.SALDO - v.P27 : null;
       items.push({ r, p, v, cat, opl: isOpl, isPr: !og, desde: p ? p.desde : null, hasta: p ? p.hasta : null });
@@ -2051,7 +2074,7 @@ const Log = {
     return { items, log: items.filter(x => !x.opl), opl: items.filter(x => x.opl) };
   },
   sumV(list){
-    const s = { P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0 };
+    const s = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0 };
     list.forEach(x => { for (const k in s) s[k] += x.v[k] || 0; });
     s.SAL27 = s.SALDO - s.P27; s.RESPT = E.respOf(list.map(x => x.r)); return s;
   },
@@ -2222,6 +2245,7 @@ const Oi = {
     const m = [
       { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
       { k: 'RESP', label: 'Responsable', grp: null, kind: 'text', tone: 'aux' },
+      { k: 'R25', label: 'Real 2025', grp: rod ? 'Montos' : '2025', kind: 'amt', tone: 'real' },
       { k: 'P26', label: 'PPTO 2026', grp: rod ? 'Montos' : '2026', kind: 'amt', tone: 'ppto' },
       { k: 'REAL', label: 'Real acum. ' + mesCorto(), grp: rod ? 'Montos' : '2026', kind: 'amt', tone: 'real' },
       { k: 'FC', label: 'Aterrizaje 9+3', grp: rod ? 'Montos' : '2026', kind: 'amt', tone: 'ater', strong: true },
@@ -2253,12 +2277,12 @@ const Oi = {
     const U = 1e6, prm = state.ds.pr || {};
     return state.ds.rows.filter(r => E.norm(r.gral) === 'otras inversiones').map(r => {
       const p = prm[E.slKey(r.sl)], ep = E.norm(r.estado);
-      const v = { P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U, APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null };
+      const v = { R25: (r.r25 || 0) / U, P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U, APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null };
       return { r, p, v, cat: ep.startsWith('finaliz') ? 'fin' : ep === 'en curso' ? 'curso' : 'sin', desde: p ? p.desde : null, hasta: p ? p.hasta : null };
     });
   },
   sumV(list){
-    const s = { P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0 };
+    const s = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0 };
     list.forEach(x => { for (const k in s) s[k] += x.v[k] || 0; });
     s.RESPT = E.respOf(list.map(x => x.r)); return s;
   },
@@ -2668,7 +2692,7 @@ function renderAll(full){
     if (state.ds && state.ds !== state._view) state.dsFull = state.ds;
     state.ds = viewDs(state.dsFull); state._view = state.ds;
     state.res = state.ds ? E.compute(state.ds) : null;
-    if (state.res && state.ds.filtered) state.res.rows.forEach(r => { if (r.v){ r.v.R25 = null; r.v.A84 = null; } }); // sin apertura por SL: no se muestran con filtro
+    if (state.res && state.ds.filtered) state.res.rows.forEach(r => { if (r.v){ r.v.A84 = null; if (!state.ds.r25Src) r.v.R25 = null; } }); // 8+4 no tiene apertura por SL
     if (state.res && state.ds.filtered) state.res.checks.unshift({ label: 'Filtro por tipo de SL activo', ok: false, warn: true, count: 1, detail: [state.ds.filtered + '. Los controles contra el Excel y el cruce con su Cuadro General no aplican mientras el filtro esté activo; en el Cuadro General, PPTO 2026 y aterrizaje 9+3 se recalculan desde los SL.'] });
   }
   renderTipo();
