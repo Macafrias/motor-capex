@@ -442,7 +442,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:26</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:33</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1289,7 +1289,14 @@ const SUMS = new Set(['SUB','TC','TCT','TOT']);
 /* cuadros generales preestablecidos: columnas, aperturas y filtros fijos (se exportan tal cual); "Personalizado" conserva todas las opciones */
 const GEN_PRESETS = [
   { id: 'ejec26', label: 'Ejecución 2026', title: 'Ejecución 2026', cols: ['P26','RACU','A93','VAT'], open: 'all', hideZero: true,
-    sub: 'PPTO 2026, real acumulado y aterrizaje 9+3' }
+    sub: 'PPTO 2026, real acumulado y aterrizaje 9+3', real: true },
+  { id: 'ppto27', label: 'PPTO 2027 resumido', title: 'Presupuesto 2027 · resumen', cols: ['P26','A93O','P27O','VO','A93P','P27P','P27F','A93','P27','V27'], open: 'none', hideZero: true,
+    sub: 'On going, proyectos on going y proyectos futuros',
+    relabel: { P26: ['PPTO 2026', 'Total'], A93O: ['On going', '9+3'], P27O: ['On going', 'PPTO 2027'], VO: ['On going', 'Variación'],
+      A93P: ['Proyectos on going', '9+3'], P27P: ['Proyectos on going', 'PPTO 2027'], P27F: ['Proyectos futuros', 'PPTO 2027'],
+      A93: ['9+3', 'Aterrizaje 2026'], P27: ['PPTO 2027', 'Total'], V27: ['Variación', 'PPTO 2027 vs aterrizaje 2026'] },
+    gtone: { 'PPTO 2026': 'ppto', 'On going': 'ater', 'Proyectos on going': 'real', 'Proyectos futuros': 'ppto', '9+3': 'ater', 'PPTO 2027': 'ppto', 'Variación': 'var' },
+    strong: ['P27'] }
 ];
 const presetOf = page => { const id = String(page || '').split('|')[1]; return GEN_PRESETS.find(p => p.id === id) || null; };
 const General = {
@@ -1308,8 +1315,9 @@ const General = {
     const P = presetOf(page);
     if (!P) return this.buildCore(page, o);
     const tm = this.buildCore(page, this.presetOpts(P));
+    if (P.relabel) tm.cols = tm.cols.map(c => P.relabel[c.k] ? Object.assign({}, c, { grp: P.relabel[c.k][0], label: P.relabel[c.k][1], gtone: (P.gtone || {})[P.relabel[c.k][0]] || null, hero: (P.strong || []).includes(c.k), strong: (P.strong || []).includes(c.k) || c.kind === 'var' && false }) : c);
     if (P.title) tm.title = P.title;
-    if (P.sub) tm.sub = `En ${unitLbl()} · ${P.sub} · Real acumulado a ${mesTxt()}`;
+    if (P.sub) tm.sub = `En ${unitLbl()} · ${P.sub}` + (P.real ? ` · Real acumulado a ${mesTxt()}` : '');
     return tm;
   },
   optsHtml(o){
