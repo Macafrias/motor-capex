@@ -433,7 +433,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 29/10/2026 16:11</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 12:10</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -2646,7 +2646,7 @@ function renderDrill(){
 }
 
 /* ============ carga de archivos ============ */
-function toast(t){ const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), 3600); }
+function toast(t, ms){ const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), ms || 3600); }
 function busy(on, t){ $('#busy').hidden = !on; if (t) $('#busyTxt').textContent = t; }
 async function loadFiles(list, from){
   const files = [...(list || [])].filter(f => /\.xls[xm]?$/i.test(f.name));
@@ -2661,8 +2661,14 @@ async function loadFiles(list, from){
       const out = await E.readAnyAsync(XLSX, window.JSZip, new Uint8Array(await f.arrayBuffer()));
       if (out.kind === 'ppto'){ state.ds = out.ds; state.dsSrc = 'file'; state.dsName = f.name; msgs.push('presupuesto'); }
       else { state.mz = out.mz; state.mzSrc = 'live'; state.mzName = f.name; ls.set(LSMZ, { mz: out.mz, name: f.name }); msgs.push('matriz (' + out.mz.count + ' SL)'); }
-    }catch(e){ console.error(e); toast(f.name + ': ' + (e.message || e)); busy(false); return; }
+    }catch(e){
+      console.error(e);
+      const locked = e && (e.name === 'NotReadableError' || e.name === 'NotFoundError' || /could not be read|not readable/i.test(e.message || ''));
+      const msg = f.name + ': ' + (locked ? 'no se pudo leer el archivo. Si está abierto en Excel o sincronizándose (OneDrive), cerralo o esperá y volvé a "Actualizar".' : (e.message || String(e)));
+      state.lastErr = msg; toast(msg, 12000); busy(false); renderFiles(); if (typeof renderFolder === 'function') renderFolder(); return;
+    }
   }
+  state.lastErr = null;
   state.drill = null;
   renderAll(true); busy(false);
   const bad = state.res.checks.filter(c => !c.ok && !c.warn).length;
@@ -2967,7 +2973,8 @@ function renderFolder(){
   if (!state.dir){ el.innerHTML = `<button class="btn wide-btn" type="button" id="fPick">Conectar carpeta</button>`; }
   else el.innerHTML = `<div class="fbox"><span class="tag">Carpeta conectada</span><b>${esc(state.dirName)}</b>
       <div class="fbtns"><button class="btn primary" type="button" id="fSync">Actualizar</button><button class="btn" type="button" id="fPick">Cambiar</button></div>
-      ${state.lastSync ? `<span class="st">${esc(state.lastSync)}</span>` : ''}</div>`;
+      ${state.lastSync ? `<span class="st">${esc(state.lastSync)}</span>` : ''}
+      ${state.lastErr ? `<span class="st" style="color:#C9584A;font-weight:600">⚠ ${esc(state.lastErr)}</span>` : ''}</div>`;
   const p = $('#fPick'), s = $('#fSync');
   if (p) p.onclick = pickFolder; if (s) s.onclick = () => syncFolder(true);
 }
@@ -2986,7 +2993,7 @@ async function syncFolder(ask){
   try{
     let perm = await dir.queryPermission({ mode: 'read' });
     if (perm !== 'granted' && ask) perm = await dir.requestPermission({ mode: 'read' });
-    if (perm !== 'granted'){ renderFolder(); return; }
+    if (perm !== 'granted'){ state.lastErr = ask ? 'El navegador no dio permiso para leer la carpeta. Apretá "Actualizar" y aceptá el permiso, o usá "Cambiar" para elegirla de nuevo.' : null; renderFolder(); return; }
     const cands = [];
     for await (const [name, h] of dir.entries()){
       if (h.kind !== 'file' || name.startsWith('~$') || !/\.xls[xm]$/i.test(name)) continue;
@@ -3001,11 +3008,12 @@ async function syncFolder(ask){
         try{ E.readMatriz(XLSX, new Uint8Array(await f.arrayBuffer())); mz = f; break; }catch(e){}
       }
     }
-    if (!ppto && !mz){ toast(`No encontré en "${dir.name}" archivos con "PPTO … CAPEX" ni "Subledger/Matriz" en el nombre.`); return; }
+    if (!ppto && !mz){ state.lastErr = `No encontré en "${dir.name}" archivos .xlsx con "PPTO" y "CAPEX" (ni "Subledger/Matriz") en el nombre. ${cands.length ? 'Excel en la carpeta: ' + cands.map(f => f.name).join(', ') : 'La carpeta no tiene archivos Excel (¿están en una subcarpeta?)'}.`; toast(state.lastErr, 12000); renderFolder(); return; }
+    if (!ppto) state.lastErr = `No encontré el PPTO en "${dir.name}": el nombre del archivo tiene que incluir "PPTO" y "CAPEX".`;
     const when = f => new Date(f.lastModified).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     state.lastSync = [ppto && `PPTO: ${ppto.name} (${when(ppto)})`, mz && `Matriz: ${mz.name} (${when(mz)})`].filter(Boolean).join(' · ');
     await loadFiles([mz, ppto].filter(Boolean), true);
-  }catch(e){ console.error(e); toast('No pude leer la carpeta: ' + (e.message || e)); }
+  }catch(e){ console.error(e); state.lastErr = 'No pude leer la carpeta: ' + (e.message || e); toast(state.lastErr, 12000); renderFolder(); }
 }
 (async () => {
   if (!FS_OK) return;
