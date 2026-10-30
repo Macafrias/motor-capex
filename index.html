@@ -469,7 +469,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 15:58</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 16:11</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -548,6 +548,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     <section class="panel">
       <h2 class="ph">Exportar</h2>
       <div class="exp">
+        <div class="field" style="grid-column:1 / -1;margin:0 0 4px"><label for="pptTitle">Título de la presentación</label><input id="pptTitle" type="text" maxlength="80" placeholder="Presupuesto CAPEX 2027"></div>
+        <div class="field" style="grid-column:1 / -1;margin:0 0 6px"><label for="pptSub">Bajada (opcional)</label><input id="pptSub" type="text" maxlength="120" placeholder="Ej.: Comité de Dirección · noviembre 2026"></div>
+        <label class="tg" for="pptCover" style="grid-column:1 / -1;margin-bottom:6px"><input type="checkbox" id="pptCover" checked>Portada con el título</label>
         <button class="btn primary wide" id="xPptxAll" type="button"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="12" height="9" rx="1"/><path d="M5 14h6M8 12v2"/></svg><span id="xAllTxt">PowerPoint · todas</span></button>
         <button class="btn wide" id="xPptx" type="button">PowerPoint · esta slide</button>
         <button class="btn" id="xPng" type="button">Imagen PNG</button>
@@ -1252,7 +1255,8 @@ const state = {
   unit: saved.unit || 'M', pctDec: +(saved.pctDec || 0), dec: saved.dec == null ? 2 : +saved.dec, kpis: saved.kpis !== false, sem: saved.sem !== false,
   texts: saved.texts || {}, opts: saved.opts || {}, drill: null, res: null, zoom: new Set(),
   tipoSel: Array.isArray(saved.tipoSel) ? saved.tipoSel : null, tipoCol: !!saved.tipoCol, dsFull: null, _view: null,
-  ver: Object.assign({ on: false, exp: false, note: false, sel: ['xl'] }, saved.ver || {}), _noVer: false
+  ver: Object.assign({ on: false, exp: false, note: false, sel: ['xl'] }, saved.ver || {}), _noVer: false,
+  ppt: Object.assign({ title: '', sub: '', cover: true }, saved.ppt || {})
 };
 function persist(){
   const opts = {};
@@ -1261,7 +1265,7 @@ function persist(){
     if (o.byPage){ const bp = {}; for (const p in o.byPage){ const x = Object.assign({}, o.byPage[p]); if (x.cols instanceof Set) x.cols = [...x.cols]; bp[p] = x; } o.byPage = bp; }
     opts[k] = o;
   }
-  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts, tipoSel: state.tipoSel, tipoCol: state.tipoCol, ver: state.ver });
+  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts, tipoSel: state.tipoSel, tipoCol: state.tipoCol, ver: state.ver, ppt: state.ppt });
 }
 
 /* ============ formato ============ */
@@ -3328,18 +3332,29 @@ function addSlide(pptx, tm, tx){
   const cols = tm.cols;
   // tamaño de letra: el menor entre lo que permite el alto (filas) y el ancho (texto más largo por columna), sin cortes de línea
   const hasNote = cols.some(c => c.kind === 'note');
-  const avail = 7.5 - 1.4 - 0.55 - 0.3, rh = Math.min(hasNote ? 0.5 : 0.26, avail / (maxLen + 2));
+  const avail = 7.5 - 1.35 - 0.5; let rh = Math.min(hasNote ? 0.5 : 0.3, avail / (maxLen + 2.2));
   let noteW = hasNote ? partW * 0.42 : 0;
   const totW = partW - noteW, hasSl = cols.some(c => c.kind === 'sl'), numCols = cols.filter(c => c.kind !== 'sl' && c.kind !== 'note');
   const numLen = Math.max(4, ...rows.flatMap(r => numCols.map(c => ((r.cells[c.k] || {}).t || '').length + ((r.cells[c.k] || {}).arrow ? 1 : 0))));
   const labLen = Math.max(8, ...rows.map(r => ((ROWSTYLE[r.style] || {}).indent ? 4 : 0) + r.label.length + (r.sub ? r.sub.length + 3 : 0)));
   const CH = 0.5 / 72, PAD = 0.1;   // ancho medio de un carácter Calibri (pulgadas por punto) y márgenes de celda
-  let fs = Math.min(10, rh * 40), labW, slW, cw;
-  for (let k = 0; k < 3; k++){
+  const FSK = 52; // tamaño de letra relativo al alto de renglón (márgenes verticales mínimos)
+  let fs = Math.min(11, rh * FSK), labW, slW, cw;
+  const sizeAll = () => { for (let k = 0; k < 3; k++){
     labW = Math.min(4.2, Math.max(1.6, labLen * fs * CH + PAD + 0.1));
     slW = hasSl ? Math.max(0.85, 9.5 * fs * CH + PAD + 0.1) : 0;
     cw = (totW - labW - slW) / Math.max(1, numCols.length);
-    fs = Math.max(5.5, Math.min(10, rh * 40, (cw - PAD) / (numLen * CH)));
+    fs = Math.max(5.5, Math.min(11, rh * FSK, (cw - PAD) / (numLen * CH)));
+  } };
+  sizeAll();
+  // encabezados que ocupan 2-3 renglones: se descuenta su alto real para que la tabla no se pase del pie
+  for (let k = 0; k < 3; k++){
+    const fh = Math.min(11, fs + 1), lines = (txt, w) => Math.max(1, Math.ceil(String(txt || '').length * fh * CH * 1.05 / Math.max(0.3, w - PAD)));
+    const l2 = Math.max(1, ...cols.map(c => lines(c.label, c.kind === 'sl' ? slW : c.kind === 'note' ? (noteW || cw) : cw)));
+    let l1 = 1, i0 = 0; while (i0 < cols.length){ let j = i0; while (j + 1 < cols.length && cols[j + 1].grp === cols[i0].grp) j++; if (cols[i0].grp) l1 = Math.max(l1, lines(cols[i0].grp.toUpperCase(), cw * (j - i0 + 1))); i0 = j + 1; }
+    const hh = l => Math.max(rh, l * fh * 1.22 / 72 + 0.03), need = hh(l1) + hh(l2) + maxLen * rh;
+    if (need <= avail + 0.01) break;
+    rh = Math.max(0.12, (avail - hh(l1) - hh(l2)) / maxLen); fs = Math.min(fs, rh * FSK); sizeAll();
   }
   // pocas columnas: no estirar los números a todo el ancho; la tabla queda más compacta y centrada
   let xOff = 0;
@@ -3382,7 +3397,7 @@ function addSlide(pptx, tm, tx){
     }));
   });
   const colW = [labW].concat(cols.map(c => c.kind === 'sl' ? slW : c.kind === 'note' ? noteW : cw));
-  s.addTable([head1, head2].concat(body), { x: 0.4 + pi * (partW + GAP) + xOff, y: 1.4, w: colW.reduce((a, b) => a + b, 0), colW, rowH: rh, fontSize: fs, fontFace: 'Calibri Light', valign: 'middle', margin: [0.01, 0.05, 0.01, 0.05], autoPage: false });
+  s.addTable([head1, head2].concat(body), { x: 0.4 + pi * (partW + GAP) + xOff, y: 1.35, w: colW.reduce((a, b) => a + b, 0), colW, rowH: rh, fontSize: fs, fontFace: 'Calibri Light', valign: 'middle', margin: [0.01, 0.05, 0.01, 0.05], autoPage: false });
   });
   s.addText(tx.note, { x: 0.45, y: 7.02, w: 10.5, h: 0.32, fontSize: 8, color: PX.INK2, fontFace: 'Calibri Light' });
   s.addText('FARMACITY · PCG', { x: 11, y: 7.02, w: 1.9, h: 0.32, fontSize: 8, bold: true, color: PX.SLATE, align: 'right', fontFace: 'Calibri' });
@@ -3400,17 +3415,35 @@ const LIBS = {
   JSZip: ['lib/jszip.min.js', 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', 'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js'],
   XLSX: ['lib/xlsx.full.min.js', 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js']
 };
+const pptTitle = () => (state.ppt.title || '').trim() || `Presupuesto CAPEX ${(state.ds && state.ds.params && state.ds.params.anioPpto) || 2027}`;
+/* portada: título, bajada y fecha, con la misma estética de las slides */
+function addCover(pptx){
+  const s = pptx.addSlide(); s.background = { color: 'FFFFFF' };
+  [['DED3F3', 0], ['C9DDF5', 2.5], ['F9D9B8', 5]].forEach(([c, y]) => s.addShape(pptx.ShapeType.rect, { x: 0, y, w: 0.18, h: 2.5, fill: { color: c }, line: { color: c } }));
+  s.addText('FARMACITY · PRESUPUESTO, CONTROL Y GESTIÓN', { x: 0.9, y: 2.3, w: 11, h: 0.3, fontSize: 11, bold: true, color: TN.ppto.ht, fontFace: 'Calibri', charSpacing: 3 });
+  s.addText(pptTitle(), { x: 0.9, y: 2.65, w: 11.6, h: 1.1, fontSize: 44, color: PX.SLATE, fontFace: 'Calibri Light', valign: 'top' });
+  const sub = (state.ppt.sub || '').trim();
+  if (sub) s.addText(sub, { x: 0.9, y: 3.75, w: 11.6, h: 0.45, fontSize: 18, color: PX.INK2, fontFace: 'Calibri Light' });
+  s.addShape(pptx.ShapeType.line, { x: 0.9, y: sub ? 4.35 : 3.9, w: 2.2, h: 0, line: { color: 'B9A6E3', width: 2 } });
+  const d = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+  s.addText(`En ${unitLbl()} · Real acumulado a ${mesTxt()} · ${d}`, { x: 0.9, y: sub ? 4.5 : 4.05, w: 11.6, h: 0.35, fontSize: 12, color: PX.INK2, fontFace: 'Calibri Light' });
+}
 async function exportPptx(all){
   if (!(await ensureLib('PptxGenJS', LIBS.PptxGenJS))){ toast('No se pudo cargar la librería de PowerPoint. Revisá la conexión o probá en otra red.'); return; }
-  const pptx = new PptxGenJS(); pptx.layout = 'LAYOUT_WIDE'; pptx.title = 'Presupuesto CAPEX';
+  const pptx = new PptxGenJS(); pptx.layout = 'LAYOUT_WIDE'; pptx.title = pptTitle(); pptx.company = 'Farmacity';
   const pages = all ? allPages() : [currentPage()];
+  if (all && state.ppt.cover !== false) addCover(pptx);
   pages.forEach(p => { const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p, true); addSlide(pptx, tm, textsFor(p.key, tm)); });
   try{
     const blob = await pptx.write({ outputType: 'blob' });
-    await saveFile(all ? `Presupuesto_CAPEX_${stamp()}.pptx` : `${slug(textsFor(state.page, TM).title)}_${stamp()}.pptx`, blob);
+    await saveFile(all ? `${slug(pptTitle())}_${stamp()}.pptx` : `${slug(textsFor(state.page, TM).title)}_${stamp()}.pptx`, blob);
   }catch(e){ console.error(e); toast('No se pudo armar el PowerPoint.'); }
 }
 $('#xPptxAll').onclick = () => exportPptx(true);
+$('#pptTitle').value = state.ppt.title || ''; $('#pptSub').value = state.ppt.sub || ''; $('#pptCover').checked = state.ppt.cover !== false;
+$('#pptTitle').oninput = e => { state.ppt.title = e.target.value; persist(); };
+$('#pptSub').oninput = e => { state.ppt.sub = e.target.value; persist(); };
+$('#pptCover').onchange = e => { state.ppt.cover = e.target.checked; persist(); };
 $('#xPptx').onclick = () => exportPptx(false);
 $('#xPng').onclick = async () => {
   if (!(await ensureLib('html2canvas', LIBS.html2canvas))){ toast('No se pudo cargar la librería de imagen.'); return; }
