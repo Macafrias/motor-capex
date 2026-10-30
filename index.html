@@ -450,7 +450,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:36</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:42</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -2532,7 +2532,10 @@ function oneTable(tm, rowsIn){
     let j = i; while (j + 1 < cols.length && cols[j + 1].grp === cols[i].grp) j++;
     const grp = cols[i].grp, span = j - i + 1;
     if (!grp) g += `<th class="gap" colspan="${span}"></th>`;
-    else { const tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var')); g += `<th colspan="${span}" class="t-${cols[i].gtone || (tones.size === 1 ? [...tones][0] : 'mix')}">${esc(grp)}</th>`; }
+    else { const tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var'));
+      // grupo de una sola columna con título largo: el título va en dos renglones para no ensanchar la columna
+      const wrap = span === 1 && grp.length > 9 ? ' style="white-space:normal;max-width:96px;line-height:1.15"' : '';
+      g += `<th colspan="${span}" class="t-${cols[i].gtone || (tones.size === 1 ? [...tones][0] : 'mix')}"${wrap}>${esc(grp)}</th>`; }
     i = j + 1;
   }
   g += '</tr>';
