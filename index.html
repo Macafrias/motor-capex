@@ -413,6 +413,14 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .ct.dense tbody td{height:15px;line-height:1.05}
 .ct.dense tr.grand td,.ct.dense tr.total td{height:17px}
 .ct.dense tr.spacer td{height:4px}
+/* proyectos futuros: verde pastel (distinto de presupuesto) */
+:root{--fut-h:#CFE8D6;--fut-ht:#2F6B45;--fut-c:#F2F9F4;--fut-t:#E1F1E6}
+.ct thead th.h-fut,.ct thead tr.g th.t-fut{color:var(--fut-ht)}
+.ct thead tr.g th.t-fut{background:var(--fut-h)}
+.ct td.t-fut,.ct tr.group td.t-fut,.ct tr.jer td.t-fut,.ct tr.aparte td.t-fut{background:var(--fut-c)}
+.ct tr.sub td.t-fut,.ct tr.total td.t-fut,.ct tr.grand td.t-fut{background:var(--fut-t)}
+.ct tr.blockhead td.t-fut{background:transparent}
+.kpi.k-fut .k{color:var(--fut-ht)}
 </style>
 
 <header class="top">
@@ -442,7 +450,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:33</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:36</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1238,7 +1246,7 @@ const mesTxt = () => { const m = state.res ? state.res.lastReal : -1; return m >
 const mesCorto = () => { const m = state.res ? state.res.lastReal : -1; return m >= 0 ? E.MES[m].toLowerCase() + '-' + String(anio()).slice(2) : ''; };
 
 /* tono pastel por concepto: real = azul · presupuesto = lila · aterrizaje/FCTS = naranja */
-const TONE = { R25: 'real', RACU: 'real', P26O: 'ppto', P26P: 'ppto', P26F: 'ppto', P26: 'ppto', P27O: 'ppto', P27P: 'ppto', P27F: 'ppto', P27: 'ppto',
+const TONE = { R25: 'real', RACU: 'real', P26O: 'ppto', P26P: 'ppto', P26F: 'fut', P26: 'ppto', P27O: 'ppto', P27P: 'ppto', P27F: 'fut', P27: 'ppto',
   A84: 'ater', A93O: 'ater', A93P: 'ater', A93: 'ater', VO: 'var', VO26: 'var', VP: 'var', V26: 'var', VAT: 'var', V27: 'var' };
 const curMz = () => state.mz || (state.ds && state.ds.mzInside) || null;
 
@@ -1295,9 +1303,12 @@ const GEN_PRESETS = [
     relabel: { P26: ['PPTO 2026', 'Total'], A93O: ['On going', '9+3'], P27O: ['On going', 'PPTO 2027'], VO: ['On going', 'Variación'],
       A93P: ['Proyectos on going', '9+3'], P27P: ['Proyectos on going', 'PPTO 2027'], P27F: ['Proyectos futuros', 'PPTO 2027'],
       A93: ['9+3', 'Aterrizaje 2026'], P27: ['PPTO 2027', 'Total'], V27: ['Variación', 'PPTO 2027 vs aterrizaje 2026'] },
-    gtone: { 'PPTO 2026': 'ppto', 'On going': 'ater', 'Proyectos on going': 'real', 'Proyectos futuros': 'ppto', '9+3': 'ater', 'PPTO 2027': 'ppto', 'Variación': 'var' },
-    strong: ['P27'] }
+    gtone: { 'PPTO 2026': 'ppto', 'On going': 'ater', 'Proyectos on going': 'real', 'Proyectos futuros': 'fut', '9+3': 'ater', 'PPTO 2027': 'ppto', 'Variación': 'var' },
+    strong: ['P27'] },
+  { id: 'ppto27a', label: 'PPTO 2027 abierto', title: 'Presupuesto 2027 · composición', cols: ['P26','A93O','P27O','VO','A93P','P27P','P27F','A93','P27','V27'], open: 'all', hideZero: true,
+    sub: 'On going, proyectos on going y proyectos futuros · con aperturas', relabelFrom: 'ppto27' }
 ];
+GEN_PRESETS.forEach(P => { if (P.relabelFrom){ const B = GEN_PRESETS.find(x => x.id === P.relabelFrom); ['relabel','gtone','strong'].forEach(k => { if (P[k] == null) P[k] = B[k]; }); } });
 const presetOf = page => { const id = String(page || '').split('|')[1]; return GEN_PRESETS.find(p => p.id === id) || null; };
 const General = {
   id: 'general', name: 'Cuadro General CAPEX', blurb: 'Cuadros preestablecidos · personalizado',
@@ -1342,7 +1353,7 @@ const General = {
         P26: ['Total','PPTO 2026'], A93: ['Total','Aterrizaje 9+3'], P27: ['Total','PPTO 2027'], V27: ['Total','vs 9+3'] };
       defs = defs.map(c => T[c.k] ? Object.assign({}, c, { grp: T[c.k][0], label: T[c.k][1] }) : c);
     }
-    const cols = defs.map(c => { const d = E.COLS.find(x => x.k === c.k); return { k: c.k, label: c.label, grp: c.grp, kind: d.src === 'var' ? 'var' : 'amt', hero: byType ? c.k === 'P27' : d.hero, strong: byType ? ['P27O','P27P','P27F','P27'].includes(c.k) : d.strong, tone: TONE[c.k], gtone: byType ? ({ 'On going': 'ater', 'Proyectos on going': 'real', 'Proyectos futuros': 'ppto' })[c.grp] : null }; });
+    const cols = defs.map(c => { const d = E.COLS.find(x => x.k === c.k); return { k: c.k, label: c.label, grp: c.grp, kind: d.src === 'var' ? 'var' : 'amt', hero: byType ? c.k === 'P27' : d.hero, strong: byType ? ['P27O','P27P','P27F','P27'].includes(c.k) : d.strong, tone: TONE[c.k], gtone: byType ? ({ 'On going': 'ater', 'Proyectos on going': 'real', 'Proyectos futuros': 'fut' })[c.grp] : null }; });
     const amtCols = cols.filter(c => c.kind === 'amt');
     const isZero = r => amtCols.every(c => r.v[c.k] == null || Math.abs(r.v[c.k]) < 0.5);
     const rows = [], all = CATS.every(([id]) => o.cats.includes(id)), sel = new Set(o.cats);
@@ -2990,6 +3001,7 @@ const PX = { SLATE: '2B3452', INK: '3A4360', INK2: '6B7390', RULE: 'DDE1EA', TOT
 const TN = {
   real: { h: 'C9DDF5', ht: '1F4E86', c: 'F1F6FD', t: 'DCE9F9' },
   ppto: { h: 'DED3F3', ht: '4B3A86', c: 'F7F3FD', t: 'EAE1F8' },
+  fut: { h: 'CFE8D6', ht: '2F6B45', c: 'F2F9F4', t: 'E1F1E6' },
   ater: { h: 'F9D9B8', ht: '8A4B12', c: 'FEF6EE', t: 'FCE6CF' },
   var:  { h: 'E6E9F0', ht: '47506A', c: 'FFFFFF', t: 'EEF0F5' },
   aux:  { h: 'F1F2F6', ht: '8A91A6', c: 'FFFFFF', t: 'F3F4F7' },
