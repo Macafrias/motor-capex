@@ -404,6 +404,8 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .ct tr.ofi td{border-top:1px solid #E3E6EE;padding-top:7px;padding-bottom:7px}
 .ct tr.ofi td.lbl{font-family:var(--f-display);font-weight:600;color:var(--navy);background:#F6F7FA;white-space:nowrap}
 .ct tbody tr td.note{text-align:left;font-family:var(--f-light);font-weight:400;font-size:11.5px;color:#5E6680;white-space:normal;min-width:380px;max-width:470px;line-height:1.3}
+.ct tr[data-i] .chev{cursor:pointer}
+.ct tr.group .chev,.ct tr.masterplan .chev{color:var(--navy)}
 </style>
 
 <header class="top">
@@ -433,7 +435,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 12:33</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 12:48</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1267,6 +1269,8 @@ const General = {
   optsHtml(o){
     return `<div class="field"><span class="lab">Categorías</span><div class="chips" data-opt="cats">${CATS.map(([id, l]) => `<button type="button" data-c="${id}" aria-pressed="${o.cats.includes(id)}">${l}</button>`).join('')}</div>
         <div class="chips" data-opt="catsAll" style="margin-top:2px"><button type="button" data-v="all">Todas</button></div></div>
+      <div class="field"><span class="lab">Armado rápido</span><div class="seg" data-opt="genPreset">${(() => { const allO = GROUPS.every(g => o.expand[g.id]), allC = GROUPS.every(g => !o.expand[g.id]); const cur = allC ? 'cerrado' : allO ? (o.hideZero ? 'abierto' : 'completo') : ''; return [['cerrado','Solo categorías'],['abierto','Abierto'],['completo','Composición completa']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${cur === v}">${l}</button>`).join(''); })()}</div>
+        <span class="empty" style="font-size:11.5px;padding:0">También podés abrir o cerrar cada sección con la flecha ▸ de su fila.</span></div>
       <div class="field"><span class="lab">Aperturas visibles</span><div class="chips" data-opt="expand">${GROUPS.map(g => `<button type="button" data-g="${g.id}" aria-pressed="${!!o.expand[g.id]}">${g.label}</button>`).join('')}</div></div>
       <div class="field"><label class="tg" for="gZero"><input type="checkbox" id="gZero" data-opt="hideZero" ${o.hideZero ? 'checked' : ''}>Ocultar aperturas en cero</label></div>`;
   },
@@ -1297,7 +1301,8 @@ const General = {
       if (r.hasKids) res.rows.filter(x => x.parent === r.id).forEach(k => sls = sls.concat(k.sls || []));
       const cells = {};
       cols.forEach(c => { const f = c.kind === 'var' ? fVar(r.v[c.k]) : fAmt(r.v[c.k]); if (r.diff && r.diff[c.k] != null) f.cls += ' diff'; cells[c.k] = f; });
-      rows.push({ label: r.label, style: r.style, level: r.level, cells, drill: sls.length ? { title: r.label, sls } : null });
+      const gExp = r.hasKids && GROUPS.some(g => g.id === r.id) ? r.id : null;
+      rows.push({ label: r.label, style: r.style, level: r.level, cells, drill: sls.length ? { title: r.label, sls } : null, expandId: gExp, open: gExp ? !!o.expand[gExp] : undefined });
     });
     const p = state.ds.params || {};
     let t = res.rows.find(r => r.id === 'TCT').v, kLbl = `PPTO ${p.anioPpto || 2027} c/ TFM`, title = 'Cuadro General CAPEX';
@@ -2463,7 +2468,7 @@ function oneTable(tm, rowsIn){
   rowsIn.forEach(r => {
     const ri = tm.rows.indexOf(r);
     if (r.spacer){ b += `<tr class="spacer"><td colspan="${cols.length + 1}"></td></tr>`; return; }
-    b += `<tr class="${r.style}${r.zoom ? ' zoomable' : ''}"${r.drill || r.zoom || r.goto ? ` data-i="${ri}"` : ''}><td class="lbl">${r.zoom ? `<span class="chev">${r.open ? '▾' : '▸'}</span>` : ''}${esc(r.label)}${r.goto ? '<span class="goto">ver detalle →</span>' : ''}${r.sub ? `<span class="sub">${esc(r.sub)}</span>` : ''}</td>`;
+    b += `<tr class="${r.style}${r.zoom ? ' zoomable' : ''}"${r.drill || r.zoom || r.goto || r.expandId ? ` data-i="${ri}"` : ''}><td class="lbl">${r.zoom || r.expandId ? `<span class="chev">${r.open ? '▾' : '▸'}</span>` : ''}${esc(r.label)}${r.goto ? '<span class="goto">ver detalle →</span>' : ''}${r.sub ? `<span class="sub">${esc(r.sub)}</span>` : ''}</td>`;
     cols.forEach(c => {
       const f = r.cells[c.k] || { t: '', cls: '' };
       let cls = f.cls || '';
@@ -2739,6 +2744,7 @@ $('#cuadroOpts').onclick = e => {
   }
   if (opt === 'split'){ o.split = b.dataset.v === '1'; }
   if (opt === 'topN') o.topN = +b.dataset.v;
+  if (opt === 'genPreset'){ const v = b.dataset.v; GROUPS.forEach(g => o.expand[g.id] = v !== 'cerrado'); o.hideZero = v !== 'completo'; }
   if (opt === 'ofiSort') o.ofiSort = b.dataset.v;
   if (opt === 'prParts'){
     const p = b.dataset.p, has = o.parts.includes(p);
@@ -2788,6 +2794,7 @@ $('#sFit').onclick = e => {
   const tr = e.target.closest('tr[data-i]'); if (!tr || !TM) return;
   const r = TM.rows[+tr.dataset.i]; if (!r) return;
   if (r.zoom){ state.zoom.has(r.zoom) ? state.zoom.delete(r.zoom) : state.zoom.add(r.zoom); renderSlide(); return; }
+  if (r.expandId && (e.target.closest('.chev') || !r.drill)){ const o = optsOf(currentPage().cuadro); o.expand[r.expandId] = !o.expand[r.expandId]; persist(); renderSlide(); renderCuadroOpts(); return; }
   if (r.goto){ state.page = r.goto; state.drill = null; $('#drawer').hidden = true; rerender(); return; }
   if (!r.drill) return;
   state.drill = r.drill; renderDrill();
