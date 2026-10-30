@@ -435,7 +435,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 12:48</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 12:54</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1256,7 +1256,7 @@ function viewDs(full){
 }
 
 /* ============ CUADRO 01 · General ============ */
-const GROUPS = E.STRUCTURE.filter(n => n.type === 'group');
+const GROUPS = E.STRUCTURE.filter(n => n.type === 'group' && n.id !== 'OPL');
 /* categorías generales filtrables del Cuadro General */
 const CATS = [['IT','IT'],['CB','Crecimiento Brick'],['ME','Mejoras Edilicias'],['LOG','Logística'],['OI','Otras Inversiones'],['CFNC','CFNC'],['TFM','TFM'],['OPL','Otros proy. logística']];
 const SUMS = new Set(['SUB','TC','TCT','TOT']);
@@ -1294,15 +1294,18 @@ const General = {
     const rows = [], all = CATS.every(([id]) => o.cats.includes(id)), sel = new Set(o.cats);
     res.rows.forEach(r => {
       if (!all){ if (SUMS.has(r.id)) return; if (!sel.has(r.parent || r.id)) return; }
-      if (r.parent && !o.expand[r.parent]) return;
+      // Otros proyectos de logística: sin fila de grupo; Farmacia Rio negro y Neuquen y Otros proyectos de logística van como ítems del mismo nivel
+      if (r.id === 'OPL') return;
+      const oplKid = r.parent === 'OPL';
+      if (r.parent && !oplKid && !o.expand[r.parent]) return;
       if (r.parent && o.hideZero && isZero(r) && !r.keep) return;
-      if ((r.style === 'masterplan' && rows.length) || r.id === 'TOT') rows.push({ spacer: true });
+      if ((oplKid && rows.length && !rows[rows.length - 1].oplKid) || r.id === 'TOT') rows.push({ spacer: true });
       let sls = r.sls || [];
       if (r.hasKids) res.rows.filter(x => x.parent === r.id).forEach(k => sls = sls.concat(k.sls || []));
       const cells = {};
       cols.forEach(c => { const f = c.kind === 'var' ? fVar(r.v[c.k]) : fAmt(r.v[c.k]); if (r.diff && r.diff[c.k] != null) f.cls += ' diff'; cells[c.k] = f; });
       const gExp = r.hasKids && GROUPS.some(g => g.id === r.id) ? r.id : null;
-      rows.push({ label: r.label, style: r.style, level: r.level, cells, drill: sls.length ? { title: r.label, sls } : null, expandId: gExp, open: gExp ? !!o.expand[gExp] : undefined });
+      rows.push({ label: r.label, style: oplKid ? 'masterplan' : r.style, level: oplKid ? 0 : r.level, oplKid, cells, drill: sls.length ? { title: r.label, sls } : null, expandId: gExp, open: gExp ? !!o.expand[gExp] : undefined });
     });
     const p = state.ds.params || {};
     let t = res.rows.find(r => r.id === 'TCT').v, kLbl = `PPTO ${p.anioPpto || 2027} c/ TFM`, title = 'Cuadro General CAPEX';
