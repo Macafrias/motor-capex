@@ -421,6 +421,12 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .ct tr.sub td.t-fut,.ct tr.total td.t-fut,.ct tr.grand td.t-fut{background:var(--fut-t)}
 .ct tr.blockhead td.t-fut{background:transparent}
 .kpi.k-fut .k{color:var(--fut-ht)}
+/* subtotales remarcados */
+.ct tr.sub td{border-top:2px solid #3D4663;border-bottom:1.5px solid #9AA3BA;font-weight:700}
+.ct tr.sub td.lbl{color:#1F2747}
+.ct tr.sub td.lbl{background:#E4E8F0}
+.ct tr.sub td:not([class*="t-"]),.ct tr.sub td.t-var,.ct tr.sub td.t-mix{background:#EEF1F6}
+.ct.dense tr.sub td{height:17px}
 </style>
 
 <header class="top">
@@ -450,7 +456,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:42</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:46</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1368,7 +1374,7 @@ const General = {
       let sls = r.sls || [];
       if (r.hasKids) res.rows.filter(x => x.parent === r.id).forEach(k => sls = sls.concat(k.sls || []));
       const cells = {};
-      cols.forEach(c => { const f = c.kind === 'var' ? fVar(r.v[c.k]) : fAmt(r.v[c.k]); if (r.diff && r.diff[c.k] != null) f.cls += ' diff'; cells[c.k] = f; });
+      cols.forEach(c => { const f = c.kind === 'var' ? fVar(r.v[c.k]) : fAmt(r.v[c.k]); cells[c.k] = f; });
       const gExp = !presetOf(page) && r.hasKids && GROUPS.some(g => g.id === r.id) ? r.id : null;
       rows.push({ label: r.label, style: oplKid ? 'masterplan' : r.style, level: oplKid ? 0 : r.level, oplKid, cells, drill: sls.length ? { title: r.label, sls } : null, expandId: gExp, open: gExp ? !!o.expand[gExp] : undefined });
     });
@@ -3017,7 +3023,7 @@ const ROWSTYLE = {
   child: { bold: false, color: PX.INK2, indent: true, light: true },
   sl: { bold: false, color: PX.INK2, indent: true, light: true },
   cfnc: { bold: false, color: PX.INK, light: true },
-  sub: { bold: true, color: PX.SLATE, top: '8F98B0', labFill: 'F6F7FA' },
+  sub: { bold: true, color: PX.SLATE, top: '3D4663', bottom: '9AA3BA', labFill: 'E4E8F0' },
   total: { bold: true, color: PX.SLATE, top: PX.SLATE, bottom: PX.SLATE, labFill: PX.TOT, strong: true },
   grand: { bold: true, color: PX.SLATE, top: PX.SLATE, bottom: PX.SLATE, labFill: PX.GRAND, strong: true, big: true },
   masterplan: { bold: true, color: '8A4B12', labFill: 'FFF8EE', top: 'E7B987' },
@@ -3080,7 +3086,7 @@ function addSlide(pptx, tm, tx){
     .concat(cols.map(c => ({ text: c.label, options: { bold: true, fontSize: Math.min(11, fs + 1), color: c.tone && TN[c.tone] && c.tone !== 'var' && c.tone !== 'aux' ? TN[c.tone].ht : (c.tone === 'aux' ? TN.aux.ht : PX.SLATE), align: 'center', valign: 'middle', border: bHead, fontFace: 'Calibri' } })));
   const body = rows.map(r => {
     const st = ROWSTYLE[r.style] || ROWSTYLE.child;
-    const border = [st.top ? { pt: st.strong ? 1.75 : 1, color: st.top } : null, null, { pt: st.bottom ? 1.75 : 0.5, color: st.bottom || PX.LINE }, null];
+    const isSub = r.style === 'sub', border = [st.top ? { pt: st.strong ? 1.75 : isSub ? 1.5 : 1, color: st.top } : null, null, { pt: st.bottom ? (isSub ? 1 : 1.75) : 0.5, color: st.bottom || PX.LINE }, null];
     const face = st.bold ? 'Calibri' : 'Calibri Light', size = st.big ? fs + 0.5 : fs;
     const labTxt = (st.indent ? '    ' : '') + r.label;
     const labO = { fill: { color: st.labFill || 'FFFFFF' }, bold: st.bold, color: st.color, border, align: 'left', fontFace: face, fontSize: size };
