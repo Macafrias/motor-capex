@@ -433,7 +433,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 12:27</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 12:33</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -538,10 +538,13 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     { id:'TC', label:'TOTAL CAPEX', type:'sum', of:['SUB','CFNC'], style:'total' },
     { id:'TFM', label:'TFM', type:'leafTop', key:'TFM' },
     { id:'TCT', label:'TOTAL CAPEX C/ TFM', type:'sum', of:['TC','TFM'], style:'total' },
-    { id:'OPL', label:'Otros proyectos de logística', type:'group', children:['Farmacias del Pueblo','Otros proyectos de logística'], style:'masterplan', sumInto:false },
+    { id:'OPL', label:'Otros proyectos de logística', type:'group', children:['Farmacia Rio negro y Neuquen','Otros proyectos de logística'], style:'masterplan', sumInto:false, keep:true },
     { id:'TOT', label:'TOTAL CAPEX', type:'sum', of:['TCT','OPL'], style:'grand' }
   ];
 
+  // nombres alternativos de una categoría particular (en PPTO27 o en la hoja del cuadro 2026)
+  const ALIAS = { 'farmacia rio negro y neuquen': ['farmacias rio negro y neuquen', 'farmacia rio negro y neuquén', 'farmacias del pueblo', 'farmacia del pueblo', 'rio negro y neuquen'] };
+  const keysOf = k => [norm(k)].concat((ALIAS[norm(k)] || []).map(norm));
   /* ---------- Columnas ---------- */
   // src: 'snap' = valor congelado del cuadro 2026 · 'calc' = calculado desde PPTO27 · 'var' = variación
   const COLS = [
@@ -770,7 +773,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     const leafCalc = (key, filterOPL) => {
       const o = { P27O: 0, P27P: 0, P27F: 0, RACU: 0, ALL: 0, n: 0, sls: [] };
       ds.rows.forEach(r => {
-        if (norm(r.part) !== norm(key)) return;
+        if (!keysOf(key).includes(norm(r.part))) return;
         o.RACU += r.real26 / U; o.ALL += r.p27 / U; o.n++;
         o.sls.push(r);
         if (isOn(r.tipo)) o.P27O += r.p27 / U;
@@ -784,8 +787,8 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       return o;
     };
     const snapOf = (label, opl) => {
-      const k = (opl ? 'opl|' : '') + norm(label);
-      return ds.snap[k] || ds.snap[norm(label)] || {};
+      for (const n of keysOf(label)) { const v = ds.snap[(opl ? 'opl|' : '') + n] || ds.snap[n]; if (v) return v; }
+      return {};
     };
     const SN = ['R25','P26O','P26P','P26F','P26','A84','A93O','A93P','A93'];
     const out = []; const byId = {}; const snapWarn = [];
@@ -803,7 +806,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
           const vals = { P27O: c.P27O, P27P: c.P27P, P27F: c.P27F, P27: c.P27, RACU: c.RACU };
           fillSnap(vals, snapOf(ch, opl));
           if (vals.P26 == null && [vals.P26O, vals.P26P, vals.P26F].some(x => x != null)) vals.P26 = num(vals.P26O) + num(vals.P26P) + num(vals.P26F);
-          return { id: node.id + '|' + ch, label: ch, level: 1, style: opl ? 'masterplan-child' : 'child', v: vals, parent: node.id, n: c.n, sls: c.sls };
+          return { id: node.id + '|' + ch, label: ch, level: 1, style: opl ? 'masterplan-child' : 'child', v: vals, parent: node.id, n: c.n, sls: c.sls, keep: !!node.keep };
         });
         const gv = {};
         ['P27O','P27P','P27F','P27','RACU'].forEach(k => gv[k] = kids.reduce((a, r) => a + num(r.v[k]), 0));
@@ -861,7 +864,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     const totalReal = ds.rows.reduce((a, r) => a + r.real26, 0) / U;
     const bajasReal = ds.rows.filter(r => norm(r.tipo) === 'bajas').reduce((a, r) => a + r.real26, 0) / U;
     const known = new Set();
-    STRUCTURE.forEach(n => { if (n.children) n.children.forEach(c => known.add(norm(c))); if (n.key) known.add(norm(n.key)); });
+    STRUCTURE.forEach(n => { if (n.children) n.children.forEach(c => keysOf(c).forEach(x => known.add(x))); if (n.key) known.add(norm(n.key)); });
     const unmapped = {};
     ds.rows.forEach(r => {
       const k = norm(r.part); if (known.has(k) || norm(r.tipo) === 'bajas') return;
@@ -886,7 +889,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     let diffs = 0, compared = 0;
     out.forEach(r => {
       const key = r.id === 'TOT' ? 'total capex|grand' : (r.parent === 'OPL' ? 'opl|' + norm(r.label) : norm(r.label));
-      const cc = ds.cached && ds.cached[key]; if (!cc) return;
+      let cc = ds.cached && ds.cached[key];
+      if (!cc && ds.cached && r.parent) for (const n of keysOf(r.label)) { cc = ds.cached[(r.parent === 'OPL' ? 'opl|' : '') + n]; if (cc) break; }
+      if (!cc) return;
       ['P27O','P27P','P27F','P27','RACU'].forEach(k => {
         if (cc[k] == null) return; compared++;
         if (Math.abs(num(r.v[k]) - cc[k]) > 0.5) { diffs++; (r.diff = r.diff || {})[k] = cc[k]; }
@@ -1286,7 +1291,7 @@ const General = {
     res.rows.forEach(r => {
       if (!all){ if (SUMS.has(r.id)) return; if (!sel.has(r.parent || r.id)) return; }
       if (r.parent && !o.expand[r.parent]) return;
-      if (r.parent && o.hideZero && isZero(r)) return;
+      if (r.parent && o.hideZero && isZero(r) && !r.keep) return;
       if ((r.style === 'masterplan' && rows.length) || r.id === 'TOT') rows.push({ spacer: true });
       let sls = r.sls || [];
       if (r.hasKids) res.rows.filter(x => x.parent === r.id).forEach(k => sls = sls.concat(k.sls || []));
