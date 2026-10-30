@@ -469,7 +469,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 15:36</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 15:48</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -2106,7 +2106,7 @@ const Log = {
     const k = this.kind(page);
     const V = {
       resumen: { completo: { label: 'Completo', cols: ['SL','P26','FC','P27','DABS','DPCT'] }, real: { label: 'Con real 2026', cols: ['SL','P26','REAL','FC','P27','DPCT'] }, corto: { label: 'Corto', cols: ['FC','P27','DPCT'] } },
-      ogc: { completo: { label: 'Composición', cols: ['P27','PCT'] }, ater: { label: 'Con aterrizaje', cols: ['FC','P27','DPCT','PCT'] }, mon: { label: 'Con moneda', cols: ['MON','P27','PCT'] } },
+      ogc: { completo: { label: 'Con variación vs 9+3', cols: ['FC','P27','DABS','DPCT','PCT'] }, comp: { label: 'Solo composición', cols: ['P27','PCT'] }, mon: { label: 'Con moneda', cols: ['MON','P27','PCT'] } },
       og: { completo: { label: 'Completo', cols: ['SL','P26','FC','P27','DABS','DPCT'] }, real: { label: 'Con real 2026', cols: ['SL','P26','REAL','FC','P27','DPCT'] }, resp: { label: 'Con responsable', cols: ['SL','RESP','FC','P27','DPCT'] } },
       mp: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR'] }, ppto: { label: 'Presupuesto', cols: ['SL','P26','REAL','FC','P27','DPCT'] }, vent: { label: 'Con ventana 2027', cols: ['SL','RESP','P27','VENT'] } },
       pr: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR'] }, aprob: { label: 'Saldo aprobado', cols: ['SL','APR','CONS','SALDO','P27','SAL27'] }, ppto: { label: 'Presupuesto', cols: ['SL','P26','REAL','FC','P27','DPCT'] }, vent: { label: 'Con ventana 2027', cols: ['SL','RESP','P27','VENT'] } }
@@ -2261,6 +2261,7 @@ const Log = {
         else if (c.k === 'PCT') out[c.k] = base ? { t: nf(state.pctDec).format(amt / base * 100) + '%', cls: Math.abs(amt) < 0.005 ? 'na' : '' } : { t: '', cls: '' };
         else if (c.k === 'FC') out[c.k] = opts && opts.fc != null ? fAmt(opts.fc) : { t: '', cls: '' };
         else if (c.k === 'DPCT') out[c.k] = opts && opts.fc != null ? fVar(vr(amt, opts.fc)) : { t: '', cls: '' };
+        else if (c.k === 'DABS') out[c.k] = opts && opts.fc != null ? fDelta(amt - opts.fc) : { t: '', cls: '' };
         else if (c.k === 'MON') out[c.k] = { t: opts && opts.mon ? opts.mon : '', cls: 'resp' };
         else out[c.k] = { t: '', cls: '' };
       }); return out; };
@@ -2281,7 +2282,8 @@ const Log = {
       rows.push({ spacer: true }, { label: 'Total PPTO 2027 · on going', sub: 'incluye pase de año', style: 'total', cells: ccell(totP27, totP27, { fc: null }), drill: { title: 'Logística · on going', sls: OG.map(x => x.r) } });
       totV = { P27: totP27, FC: fc };
       const d = fVar(vr(ppto, fc));
-      kpis = [{ k: 'PPTO 2027 sin pase de año', v: '$' + fAmt(ppto).t + unitShort(), d: (d.t || '–') + ' vs aterrizaje 9+3 ($' + fAmt(fc).t + unitShort() + ')', up: d.up, hero: true, tone: 'ppto' },
+      const dd = ppto - fc;
+      kpis = [{ k: 'PPTO 2027 sin pase de año', v: '$' + fAmt(ppto).t + unitShort(), d: (dd < 0 ? '−$' : '+$') + fAmt(Math.abs(dd)).t + unitShort() + ' (' + (d.t || '–') + ') vs aterrizaje 9+3', up: d.up, hero: true, tone: 'ppto' },
               { k: 'Pase de año', tone: 'ater', plain: true, v: '$' + fAmt(pase).t + unitShort(), d: totP27 ? nf(0).format(pase / totP27 * 100) + '% del PPTO 2027 total' : '' }];
       note = 'Composición del on going de Logística según 07_ON GOING (importe 2027 por renglón, col. AL). El pase de año se muestra aparte y no entra en el incremento: PPTO 2027 sin pase de año vs aterrizaje 2026 9+3. Conceptos agrupados por descripción del renglón.';
     } else if (k === 'pr'){
