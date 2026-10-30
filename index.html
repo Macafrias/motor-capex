@@ -433,7 +433,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 12:12</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 12:27</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -554,8 +554,10 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     { k:'A93O', label:'Aterrizaje 9+3', grp:'On going', src:'snap' },
     { k:'P27O', label:'PPTO 2027', grp:'On going', src:'calc' },
     { k:'VO',   label:'Var. %', grp:'On going', src:'var', num:'P27O', den:'A93O' },
+    { k:'VO26', label:'vs PPTO 26', grp:'On going', src:'var', num:'P27O', den:'P26O', extra:true },
     { k:'A93P', label:'Aterrizaje 9+3', grp:'Proy. on going', src:'snap' },
     { k:'P27P', label:'PPTO 2027', grp:'Proy. on going', src:'calc' },
+    { k:'VP',   label:'Var. %', grp:'Proy. on going', src:'var', num:'P27P', den:'A93P', extra:true },
     { k:'P27F', label:'PPTO 2027', grp:'Proy. futuros', src:'calc' },
     { k:'RACU', label:'Real acum.', grp:'Ejecución 2026', src:'calc' },
     { k:'A93',  label:'Aterrizaje 9+3', grp:'Ejecución 2026', src:'snap', strong:true },
@@ -566,7 +568,8 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
   ];
 
   const VIEWS = {
-    completo:  { label:'Completo', cols: COLS.map(c=>c.k).filter(k => k !== 'A84') },
+    completo:  { label:'Completo', cols: COLS.filter(c => !c.extra).map(c=>c.k).filter(k => k !== 'A84') },
+    tipo:      { label:'Por tipo', cols:['P26O','A93O','P27O','VO','P26P','A93P','P27P','VP','P26F','P27F','P26','A93','P27','V27'], byType:true },
     ejecutivo: { label:'Ejecutivo', cols:['R25','P26','A93','RACU','P27','VAT','V27'] },
     apertura:  { label:'Apertura 2027', cols:['A93O','P27O','VO','A93P','P27P','P27F','A93','P27','V27'] },
     ppto26:    { label:'Cierre 2026', cols:['R25','P26O','P26P','P26F','P26','RACU','A93','V26','VAT'] }
@@ -1203,7 +1206,7 @@ const mesCorto = () => { const m = state.res ? state.res.lastReal : -1; return m
 
 /* tono pastel por concepto: real = azul · presupuesto = lila · aterrizaje/FCTS = naranja */
 const TONE = { R25: 'real', RACU: 'real', P26O: 'ppto', P26P: 'ppto', P26F: 'ppto', P26: 'ppto', P27O: 'ppto', P27P: 'ppto', P27F: 'ppto', P27: 'ppto',
-  A84: 'ater', A93O: 'ater', A93P: 'ater', A93: 'ater', VO: 'var', V26: 'var', VAT: 'var', V27: 'var' };
+  A84: 'ater', A93O: 'ater', A93P: 'ater', A93: 'ater', VO: 'var', VO26: 'var', VP: 'var', V26: 'var', VAT: 'var', V27: 'var' };
 const curMz = () => state.mz || (state.ds && state.ds.mzInside) || null;
 
 /* ============ filtro global por tipo de SL (on going / proyectos por estado) ============ */
@@ -1263,8 +1266,20 @@ const General = {
       <div class="field"><label class="tg" for="gZero"><input type="checkbox" id="gZero" data-opt="hideZero" ${o.hideZero ? 'checked' : ''}>Ocultar aperturas en cero</label></div>`;
   },
   build(page, o){
-    const res = state.res, defs = this.colDefs().filter(c => o.cols.has(c.k));
-    const cols = defs.map(c => { const d = E.COLS.find(x => x.k === c.k); return { k: c.k, label: c.label, grp: c.grp, kind: d.src === 'var' ? 'var' : 'amt', hero: d.hero, strong: d.strong, tone: TONE[c.k] }; });
+    const res = state.res; let defs = this.colDefs().filter(c => o.cols.has(c.k));
+    // vista "Por tipo": cada bloque (on going / proyectos on going / futuros / total) con su PPTO 2026, aterrizaje 9+3 y PPTO 2027
+    if (o.view !== 'custom') o._tipo = o.view === 'tipo';
+    const byType = !!o._tipo;
+    if (byType){
+      const ord = E.VIEWS.tipo.cols;
+      defs = defs.slice().sort((a, b) => (ord.indexOf(a.k) < 0 ? 99 : ord.indexOf(a.k)) - (ord.indexOf(b.k) < 0 ? 99 : ord.indexOf(b.k)));
+      const T = { P26O: ['On going','PPTO 2026'], A93O: ['On going','Aterrizaje 9+3'], P27O: ['On going','PPTO 2027'], VO: ['On going','vs 9+3'], VO26: ['On going','vs PPTO 26'],
+        P26P: ['Proyectos on going','PPTO 2026'], A93P: ['Proyectos on going','Aterrizaje 9+3'], P27P: ['Proyectos on going','PPTO 2027'], VP: ['Proyectos on going','vs 9+3'],
+        P26F: ['Proyectos futuros','PPTO 2026'], P27F: ['Proyectos futuros','PPTO 2027'],
+        P26: ['Total','PPTO 2026'], A93: ['Total','Aterrizaje 9+3'], P27: ['Total','PPTO 2027'], V27: ['Total','vs 9+3'] };
+      defs = defs.map(c => T[c.k] ? Object.assign({}, c, { grp: T[c.k][0], label: T[c.k][1] }) : c);
+    }
+    const cols = defs.map(c => { const d = E.COLS.find(x => x.k === c.k); return { k: c.k, label: c.label, grp: c.grp, kind: d.src === 'var' ? 'var' : 'amt', hero: byType ? c.k === 'P27' : d.hero, strong: byType ? ['P27O','P27P','P27F','P27'].includes(c.k) : d.strong, tone: TONE[c.k], gtone: byType ? ({ 'On going': 'ater', 'Proyectos on going': 'real', 'Proyectos futuros': 'ppto' })[c.grp] : null }; });
     const amtCols = cols.filter(c => c.kind === 'amt');
     const isZero = r => amtCols.every(c => r.v[c.k] == null || Math.abs(r.v[c.k]) < 0.5);
     const rows = [], all = CATS.every(([id]) => o.cats.includes(id)), sel = new Set(o.cats);
@@ -2434,7 +2449,7 @@ function oneTable(tm, rowsIn){
     let j = i; while (j + 1 < cols.length && cols[j + 1].grp === cols[i].grp) j++;
     const grp = cols[i].grp, span = j - i + 1;
     if (!grp) g += `<th class="gap" colspan="${span}"></th>`;
-    else { const tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var')); g += `<th colspan="${span}" class="t-${tones.size === 1 ? [...tones][0] : 'mix'}">${esc(grp)}</th>`; }
+    else { const tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var')); g += `<th colspan="${span}" class="t-${cols[i].gtone || (tones.size === 1 ? [...tones][0] : 'mix')}">${esc(grp)}</th>`; }
     i = j + 1;
   }
   g += '</tr>';
@@ -2860,7 +2875,7 @@ function addSlide(pptx, tm, tx){
   const head1 = [{ text: '', options: { fill: { color: 'FFFFFF' } } }];
   let i = 0;
   while (i < cols.length){ let j = i; while (j + 1 < cols.length && cols[j + 1].grp === cols[i].grp) j++;
-    const g = cols[i].grp, tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var')), tn = TN[tones.size === 1 ? [...tones][0] : 'mix'];
+    const g = cols[i].grp, tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var')), tn = TN[cols[i].gtone || (tones.size === 1 ? [...tones][0] : 'mix')];
     head1.push(g ? { text: g.toUpperCase(), options: { colspan: j - i + 1, fill: { color: tn.h }, color: tn.ht, bold: true, align: 'center', fontSize: Math.min(10.5, fs + 0.5), fontFace: 'Calibri', border: [null, { pt: 1.5, color: 'FFFFFF' }, null, { pt: 1.5, color: 'FFFFFF' }] } }
                : { text: '', options: { colspan: j - i + 1, fill: { color: 'FFFFFF' } } });
     i = j + 1; }
