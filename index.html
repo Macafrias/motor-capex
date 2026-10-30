@@ -427,6 +427,19 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .ct tr.sub td.lbl{background:#E4E8F0}
 .ct tr.sub td:not([class*="t-"]),.ct tr.sub td.t-var,.ct tr.sub td.t-mix{background:#EEF1F6}
 .ct.dense tr.sub td{height:17px}
+/* versiones */
+.ver-list{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.ver-item{display:flex;align-items:flex-start;gap:6px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.ver-item .tg{flex:1;align-items:flex-start;margin:0}
+.ver-item .tg span{display:flex;flex-direction:column;gap:1px}
+.ver-item small{font-size:10.5px;color:var(--muted);font-weight:400}
+.btn.mini{height:24px;padding:0 8px;font-size:11px}
+.btn.mini.danger{border-color:#C9584A;color:#C9584A}
+.ver-save{display:flex;gap:6px}.ver-save input{flex:1;min-width:0}
+.why-in{width:100%;min-width:220px;resize:vertical;font:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
+.dt tr.why-zero td{color:var(--muted)}
+.why-h{font-size:13px;margin:14px 0 6px;color:var(--fg)}.why-h small{font-weight:400;color:var(--muted);margin-left:6px}
+.dt td.vn{color:#C9584A}.dt td.vp{color:#3E9B6A}
 </style>
 
 <header class="top">
@@ -456,7 +469,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:46</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 15:22</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -516,6 +529,21 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         <div class="field"><label for="optDec">Decimales montos</label><select id="optDec"><option value="2">2 decimales</option><option value="1">1 decimal</option><option value="0">Sin decimales</option></select></div>
         <div class="field" style="margin-top:0"><label for="optPct">Decimales %</label><select id="optPct"><option value="0">Sin decimales</option><option value="1">1 decimal</option><option value="2">2 decimales</option></select></div>
       </div>
+    </section>
+    <section class="panel ver-panel">
+      <h2 class="ph">Versiones · análisis</h2>
+      <label class="tg" for="verOn"><input type="checkbox" id="verOn">Comparar con versiones</label>
+      <div id="verList" class="ver-list"></div>
+      <div id="verOpts">
+        <label class="tg" for="verNote"><input type="checkbox" id="verNote">Columna de justificación</label>
+        <label class="tg" for="verExp"><input type="checkbox" id="verExp">Incluir en las exportaciones</label>
+      </div>
+      <button class="btn wide-btn" type="button" id="verWhy" style="margin-top:6px">¿Qué se movió? · justificar cambios</button>
+      <div class="field" style="margin-top:10px"><label for="verName">Guardar el estado actual como versión</label>
+        <div class="ver-save"><input id="verName" type="text" placeholder="Ej.: Comité 05.11" maxlength="40"><button class="btn primary" type="button" id="verSave">Guardar</button></div></div>
+      <div class="fbtns" style="margin-top:8px"><button class="btn" type="button" id="verExport">Exportar historial</button><button class="btn" type="button" id="verImport">Importar</button></div>
+      <input type="file" id="verFile" accept=".json,application/json" hidden>
+      <p class="empty" style="font-size:11.5px;padding:0;margin-top:6px">Solo para análisis: por defecto no sale en PowerPoint, imagen ni Excel. Las versiones guardadas y las justificaciones quedan en este navegador; con "Exportar historial" las pasás a otra computadora.</p>
     </section>
     <section class="panel">
       <h2 class="ph">Exportar</h2>
@@ -711,6 +739,22 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     }
     if (!snap) throw new Error('No encontré la hoja Cuadro_Capex con la columna REAL 2025 (valores 2026 congelados).');
 
+    /* versión enviada pegada a valor en Cuadro_Capex, columna AX (PPTO 2027 por línea del cuadro) */
+    let verX = null;
+    const vName = names.find(n => norm(n) === 'cuadro_capex') || cuadroCands.find(n => !/\(/.test(n));
+    if (vName && wb.Sheets[vName] && wb.Sheets[vName]['!ref']) {
+      const S = aoa(vName), off = XLSX.utils.decode_range(wb.Sheets[vName]['!ref']).s.c, iX = XLSX.utils.decode_col('AX') - off;
+      const hr = S.findIndex(r => r && r.some(x => norm(x) === 'concepto'));
+      if (hr >= 0 && iX >= 0) {
+        const lab = S[hr].findIndex(x => norm(x) === 'concepto');
+        let title = null;
+        for (let i = 0; i <= hr + 1 && i < S.length; i++) { const x = S[i] && S[i][iX]; if (x != null && x !== '' && typeof x !== 'number') title = (title ? title + ' ' : '') + String(x).trim(); else if (typeof x === 'number' && x > 40000 && x < 60000) title = (title ? title + ' ' : '') + new Date(Math.round((x - 25569) * 864e5)).toISOString().slice(0, 10); }
+        const vr = [];
+        for (let i = hr + 1; i < S.length; i++) { const r = S[i]; if (!r) continue; const label = r[lab]; if (label == null || label === '') continue; vr.push({ label: String(label).trim(), ctx: r[lab - 1] != null ? String(r[lab - 1]) : '', v: typeof r[iX] === 'number' ? r[iX] : null }); }
+        if (vr.some(x => x.v != null)) verX = { sheet: vName, col: 'AX', title, rows: vr };
+      }
+    }
+
     /* 06_FCTS26: PPTO 2026 y último FCTS por SL (misma fuente que los valores 2026 del cuadro) */
     const fc26 = {}; let fcLabel = null;
     if (fctsName) {
@@ -799,7 +843,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     let mzInside = null;
     for (const n of jerCands) { mzInside = jerFromAoA(aoa(n), n); if (mzInside) break; }
     const jerCol = c.jer >= 0 ? XLSX.utils.encode_col(c.jer + (wb.Sheets[pptoName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[pptoName]['!ref']).s.c : 0)) : null;
-    return { rows, r25Src, r25Out, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
+    return { rows, r25Src, r25Out, verX, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
   }
 
   /* ---------- Cálculo ---------- */
@@ -1207,7 +1251,8 @@ const state = {
   page: saved.page || 'general',
   unit: saved.unit || 'M', pctDec: +(saved.pctDec || 0), dec: saved.dec == null ? 2 : +saved.dec, kpis: saved.kpis !== false, sem: saved.sem !== false,
   texts: saved.texts || {}, opts: saved.opts || {}, drill: null, res: null, zoom: new Set(),
-  tipoSel: Array.isArray(saved.tipoSel) ? saved.tipoSel : null, tipoCol: !!saved.tipoCol, dsFull: null, _view: null
+  tipoSel: Array.isArray(saved.tipoSel) ? saved.tipoSel : null, tipoCol: !!saved.tipoCol, dsFull: null, _view: null,
+  ver: Object.assign({ on: false, exp: false, note: false, sel: ['xl'] }, saved.ver || {}), _noVer: false
 };
 function persist(){
   const opts = {};
@@ -1216,7 +1261,7 @@ function persist(){
     if (o.byPage){ const bp = {}; for (const p in o.byPage){ const x = Object.assign({}, o.byPage[p]); if (x.cols instanceof Set) x.cols = [...x.cols]; bp[p] = x; } o.byPage = bp; }
     opts[k] = o;
   }
-  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts, tipoSel: state.tipoSel, tipoCol: state.tipoCol });
+  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts, tipoSel: state.tipoSel, tipoCol: state.tipoCol, ver: state.ver });
 }
 
 /* ============ formato ============ */
@@ -1376,7 +1421,7 @@ const General = {
       const cells = {};
       cols.forEach(c => { const f = c.kind === 'var' ? fVar(r.v[c.k]) : fAmt(r.v[c.k]); cells[c.k] = f; });
       const gExp = !presetOf(page) && r.hasKids && GROUPS.some(g => g.id === r.id) ? r.id : null;
-      rows.push({ label: r.label, style: oplKid ? 'masterplan' : r.style, level: oplKid ? 0 : r.level, oplKid, cells, drill: sls.length ? { title: r.label, sls } : null, expandId: gExp, open: gExp ? !!o.expand[gExp] : undefined });
+      rows.push({ label: r.label, style: oplKid ? 'masterplan' : r.style, level: oplKid ? 0 : r.level, oplKid, cells, gid: r.id, cur: r.v.P27, drill: sls.length ? { title: r.label, sls } : null, expandId: gExp, open: gExp ? !!o.expand[gExp] : undefined });
     });
     const p = state.ds.params || {};
     let t = res.rows.find(r => r.id === 'TCT').v, kLbl = `PPTO ${p.anioPpto || 2027} c/ TFM`, title = 'Cuadro General CAPEX';
@@ -2569,6 +2614,138 @@ function kpiHtml(tm){
   return tm.kpis.map(k => `<div class="kpi${k.hero ? ' hero' : ''} k-${k.tone || 'var'}"><div class="k">${esc(k.k)}</div><div class="v">${esc(k.v)}</div><div class="d ${k.plain ? '' : (k.up ? 'up' : 'dn')}" ${k.plain ? 'style="color:var(--ink-2)"' : ''}>${esc(k.d || '')}</div></div>`).join('');
 }
 /* en filas de total/subtotal no se muestra responsable */
+/* ============ versiones (solo análisis) ============ */
+const LSV = 'capex-motor-versiones', LSN = 'capex-motor-justif';
+let SAVED_VERS = ls.get(LSV) || [], NOTES = ls.get(LSN) || {};
+const VER_ALIAS = { 'otros (cctv, celulares, otros)': 'otros (seguridad y telefonia)', 'oficina estomba': 'infraestructura corporativa', 'farmacias del pueblo': 'farmacia rio negro y neuquen' };
+let XL_VER = null;
+/* la columna AX de Cuadro_Capex se asocia a las líneas del cuadro en orden (resuelve "TOTAL CAPEX" repetido) */
+function buildExcelVersion(){
+  XL_VER = null;
+  const vx = state.dsFull && state.dsFull.verX; if (!vx) return;
+  const full = state.dsFull === state.ds ? state.res : E.compute(state.dsFull);
+  if (!full) return;
+  const R = full.rows, vals = {}, unmatched = [];
+  const big = vx.rows.some(x => x.v != null && Math.abs(x.v) > 1e7), k = big ? 1e6 : 1;
+  let ptr = 0;
+  vx.rows.forEach(x => {
+    const n = E.norm(x.label), want = VER_ALIAS[n] || n;
+    let j = -1;
+    for (let i = ptr; i < R.length; i++) if (E.norm(R[i].label) === want){ j = i; break; }
+    if (j < 0){ if (x.v != null && Math.abs(x.v) >= 0.005) unmatched.push(x.label); return; }
+    ptr = j + 1; if (x.v != null) vals[R[j].id] = { P27: x.v / k };
+  });
+  // grupos sin valor propio: suma de sus aperturas
+  R.forEach(r => { if (!vals[r.id] && r.hasKids){ const kids = R.filter(c => c.parent === r.id && vals[c.id]); if (kids.length) vals[r.id] = { P27: kids.reduce((a, c) => a + vals[c.id].P27, 0) }; } });
+  // subtotales y totales que la columna no trae: se arman como en el cuadro (Sub total, TOTAL CAPEX, c/ TFM, total final)
+  E.STRUCTURE.filter(n => n.type === 'sum').forEach(n => { if (!vals[n.id] && n.of.every(id => vals[id])) vals[n.id] = { P27: n.of.reduce((a, id) => a + vals[id].P27, 0) }; });
+  const t = vx.title ? String(vx.title).replace(/\s+/g, ' ').trim() : '';
+  XL_VER = { id: 'xl', name: t || 'Versión enviada', short: (t || 'Enviada').replace(/^versi[oó]n\s*/i, '').slice(0, 18), src: 'excel', where: vx.sheet + ' · col. ' + vx.col, vals, unmatched };
+}
+const allVers = () => (XL_VER ? [XL_VER] : []).concat(SAVED_VERS);
+const verById = id => allVers().find(v => v.id === id);
+const selVers = () => (state.ver.sel || []).map(verById).filter(Boolean).slice(0, 3);
+function verValue(ver, r){
+  if (r.gid && ver.vals && ver.vals[r.gid]) return ver.vals[r.gid].P27;
+  if (r.gid && ver.src === 'excel') return null;
+  const sls = r.drill && r.drill.sls && r.drill.sls.length ? r.drill.sls : null;
+  if (sls && ver.sls) return sls.reduce((a, x) => a + ((ver.sls[E.slKey(x.sl)] || {}).p27 || 0), 0);
+  return null;
+}
+function curValue(r){
+  if (r.gid) return r.cur != null ? r.cur : null;
+  const sls = r.drill && r.drill.sls && r.drill.sls.length ? r.drill.sls : null;
+  return sls ? sls.reduce((a, x) => a + (x.p27 || 0), 0) / 1e6 : null;
+}
+const noteKey = (ver, pg, r) => ver.id + '|' + (r.gid || (pg ? pg.key : '') + '|' + r.label);
+function addVerCols(tm, pg){
+  const vs = selVers(); if (!vs.length || !tm.cols) return;
+  const add = [];
+  vs.forEach(v => {
+    add.push({ k: 'VER_' + v.id, label: v.short || v.name, grp: 'Versiones · análisis', kind: 'amt', tone: 'aux', vref: v });
+    add.push({ k: 'VDD_' + v.id, label: 'Δ vs ' + (v.short || v.name), grp: 'Versiones · análisis', kind: 'delta', tone: 'var', vref: v, delta: true });
+  });
+  if (state.ver.note) add.push({ k: 'VNOTE', label: 'Justificación (' + (vs[0].short || vs[0].name) + ')', grp: 'Versiones · análisis', kind: 'note', tone: 'aux' });
+  // si ninguna versión tiene datos para las filas de esta slide (p. ej. versión a nivel cuadro general en un cuadro particular), no se agregan columnas
+  const has = vs.filter(v => (tm.rows || []).some(r => r.cells && !r.spacer && verValue(v, r) != null));
+  if (!has.length){ tm.note = (tm.note ? tm.note + ' ' : '') + 'Las versiones elegidas son a nivel Cuadro General: no tienen detalle para esta slide.'; return; }
+  const use = add.filter(c => !c.vref || has.includes(c.vref));
+  tm.cols = tm.cols.concat(use);
+  (tm.rows || []).forEach(r => {
+    if (!r.cells || r.spacer) return;
+    const cur = curValue(r);
+    use.forEach(c => {
+      if (c.k === 'VNOTE'){ r.cells[c.k] = { t: NOTES[noteKey(vs[0], pg, r)] || '', cls: 'note' }; return; }
+      const vv = verValue(c.vref, r);
+      if (vv == null || r.style === 'blockhead'){ r.cells[c.k] = { t: '', cls: '' }; return; }
+      r.cells[c.k] = c.delta ? (cur == null ? { t: '', cls: '' } : fDelta(cur - vv)) : fAmt(vv);
+    });
+  });
+  tm.note = (tm.note ? tm.note + ' ' : '') + 'Comparación con ' + has.map(v => '"' + v.name + '"').join(', ') + ' (solo análisis).';
+}
+function saveVersion(name){
+  const full = state.dsFull || state.ds; if (!full){ toast('Primero cargá el presupuesto.'); return; }
+  const res = full === state.ds ? state.res : E.compute(full);
+  const vals = {}; res.rows.forEach(r => { vals[r.id] = { P27: r.v.P27, P27O: r.v.P27O, P27P: r.v.P27P, P27F: r.v.P27F, A93: r.v.A93, P26: r.v.P26 }; });
+  const sls = {}; full.rows.forEach(r => { const k = E.slKey(r.sl); if (!k) return; const o = sls[k] || (sls[k] = { p27: 0, nom: r.nom, part: r.part }); o.p27 += (r.p27 || 0) / 1e6; });
+  const d = new Date(), id = 'v' + d.getTime().toString(36);
+  const nm = (name || '').trim() || 'Versión ' + d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+  SAVED_VERS.push({ id, name: nm, short: nm.slice(0, 18), src: 'saved', date: d.toISOString(), file: state.dsName, vals, sls });
+  ls.set(LSV, SAVED_VERS); persist();
+  toast('Versión guardada: ' + nm); renderVer(); renderSlide();
+}
+function copyExcelVersion(){
+  if (!XL_VER) return;
+  const d = new Date(), id = 'v' + d.getTime().toString(36);
+  SAVED_VERS.push({ id, name: XL_VER.name, short: XL_VER.short, src: 'saved', from: 'excel', date: d.toISOString(), file: state.dsName, vals: JSON.parse(JSON.stringify(XL_VER.vals)) });
+  ls.set(LSV, SAVED_VERS); toast('Copia guardada: queda aunque cambie la columna AX.'); renderVer();
+}
+let VER_DEL = null;
+function renderVer(){
+  const vs = allVers(), sel = new Set(state.ver.sel || []);
+  $('#verOn').checked = !!state.ver.on; $('#verNote').checked = !!state.ver.note; $('#verExp').checked = !!state.ver.exp;
+  $('#verOpts').style.display = state.ver.on ? '' : 'none';
+  const f = iso => iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+  $('#verList').innerHTML = vs.length ? vs.map(v => `<div class="ver-item">
+      <label class="tg" for="vs_${v.id}"><input type="checkbox" id="vs_${v.id}" data-v="${v.id}" ${sel.has(v.id) ? 'checked' : ''}><span><b>${esc(v.name)}</b><small>${v.src === 'excel' ? esc(v.where) + ' · desde el Excel' + (v.unmatched && v.unmatched.length ? ' · ' + v.unmatched.length + ' línea(s) sin asociar' : '') : 'Guardada ' + f(v.date) + (v.from === 'excel' ? ' · copia de la columna AX' : v.sls ? ' · con detalle por SL' : '')}</small></span></label>
+      ${v.src === 'excel' ? `<button class="btn mini" type="button" data-vcopy="1" title="Guardar una copia fija">Fijar copia</button>` : `<button class="btn mini${VER_DEL === v.id ? ' danger' : ''}" type="button" data-vdel="${v.id}">${VER_DEL === v.id ? '¿Borrar?' : 'Borrar'}</button>`}
+    </div>`).join('') : '<p class="empty" style="font-size:11.5px;padding:0">No hay versiones: cargá el Excel con la columna AX de Cuadro_Capex o guardá el estado actual.</p>';
+}
+function renderWhy(){
+  const el = $('#drawer'), vs = selVers(), v = vs[0] || allVers()[0];
+  if (!v){ toast('No hay versiones para comparar.'); return; }
+  state.drill = null; el.hidden = false;
+  const full = state.dsFull || state.ds, res = full === state.ds ? state.res : E.compute(full);
+  const rows = res.rows.filter(r => r.id !== 'OPL' && v.vals && v.vals[r.id] != null).map(r => ({ r, a: v.vals[r.id].P27, b: r.v.P27, d: r.v.P27 - v.vals[r.id].P27 }));
+  const tot = rows.find(x => x.r.id === 'TOT') || rows.find(x => x.r.id === 'TCT');
+  const nk = id => v.id + '|' + id;
+  let slHtml = '';
+  if (v.sls){
+    const now = {}; full.rows.forEach(r => { const k = E.slKey(r.sl); if (!k) return; const o = now[k] || (now[k] = { p27: 0, nom: r.nom, part: r.part }); o.p27 += (r.p27 || 0) / 1e6; });
+    const keys = [...new Set(Object.keys(now).concat(Object.keys(v.sls)))];
+    const mv = keys.map(k => { const a = (v.sls[k] || {}).p27 || 0, b = (now[k] || {}).p27 || 0; return { k, nom: (now[k] || v.sls[k]).nom, part: (now[k] || v.sls[k]).part, a, b, d: b - a, nuevo: !v.sls[k], baja: !now[k] }; })
+      .filter(x => Math.abs(x.d) >= 0.005).sort((x, y) => Math.abs(y.d) - Math.abs(x.d));
+    slHtml = `<h3 class="why-h">SL que explican el cambio <small>${mv.length} con diferencia</small></h3>
+      <div class="tscroll"><table class="dt"><thead><tr><th>SL</th><th>Nombre</th><th>Categoría</th><th class="n">${esc(v.short || v.name)}</th><th class="n">Hoy</th><th class="n">Δ</th><th>Justificación</th></tr></thead><tbody>
+      ${mv.slice(0, 60).map(x => `<tr><td class="n" style="text-align:left">${esc(x.k)}</td><td>${esc(x.nom || '')}${x.nuevo ? ' <span class="pill pc">nuevo</span>' : x.baja ? ' <span class="pill">ya no está</span>' : ''}</td><td>${esc(x.part || '')}</td><td class="n">${fAmt(x.a).t}</td><td class="n">${fAmt(x.b).t}</td><td class="n ${x.d < 0 ? 'vn' : 'vp'}">${fDelta(x.d).t}</td><td><textarea class="why-in" rows="1" data-nk="${esc(nk('sl:' + x.k))}" placeholder="¿Por qué cambió?">${esc(NOTES[nk('sl:' + x.k)] || '')}</textarea></td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  el.innerHTML = `<div class="drawer-head"><h2>¿Qué se movió? · vs ${esc(v.name)}</h2><span class="muted">PPTO 2027 en ${unitLbl()}${tot ? ' · total ' + fDelta(tot.d).t : ''} · las justificaciones se guardan solas</span><button class="btn" type="button" id="drClose">Cerrar</button></div>
+    <div class="tscroll"><table class="dt"><thead><tr><th>Línea del cuadro</th><th class="n">${esc(v.short || v.name)}</th><th class="n">Hoy</th><th class="n">Δ</th><th>Justificación</th></tr></thead><tbody>
+    ${rows.map(x => { const lvl = x.r.parent ? 'padding-left:18px;color:var(--ink-2)' : 'font-weight:600'; const zero = Math.abs(x.d) < 0.005;
+      return `<tr${zero ? ' class="why-zero"' : ''}><td style="${lvl}">${esc(x.r.label)}</td><td class="n">${fAmt(x.a).t}</td><td class="n">${fAmt(x.b).t}</td><td class="n ${zero ? '' : x.d < 0 ? 'vn' : 'vp'}">${zero ? '–' : fDelta(x.d).t}</td><td>${zero ? '' : `<textarea class="why-in" rows="1" data-nk="${esc(nk(x.r.id))}" placeholder="¿Por qué cambió?">${esc(NOTES[nk(x.r.id)] || '')}</textarea>`}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    ${slHtml || `<p class="empty" style="font-size:12px">Esta versión está a nivel cuadro (sin detalle por SL). Las versiones que guardes desde el motor traen también el detalle por SL.</p>`}
+    ${v.unmatched && v.unmatched.length ? `<p class="empty" style="font-size:12px">Líneas de la columna AX que no se pudieron asociar: ${esc(v.unmatched.join(', '))}</p>` : ''}`;
+  $('#drClose').onclick = () => { el.hidden = true; };
+  el.querySelectorAll('.why-in').forEach(t => {
+    const fit = () => { t.style.height = 'auto'; t.style.height = Math.min(120, t.scrollHeight) + 'px'; }; fit();
+    t.oninput = () => { const k = t.dataset.nk, val = t.value.trim(); if (val) NOTES[k] = t.value; else delete NOTES[k]; ls.set(LSN, NOTES); fit(); };
+    t.onchange = () => { if (state.ver.on && state.ver.note) renderSlide(); };
+  });
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 /* columnas disponibles en todas las slides: se calculan desde los SL de cada fila (detalle) cuando el cuadro no las trae */
 const UNI_COLS = [
   { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
@@ -2652,8 +2829,9 @@ function addUniCols(tm, pg){
     sel.forEach(c => { r.cells[c.k] = (sls && r.style !== 'blockhead') ? uniCell(c, v, sls, den) : { t: '', cls: '' }; });
   });
 }
-function postTM(tm, pg){
+function postTM(tm, pg, forExport){
   if (tm && !tm._uni){ tm._uni = true; addUniCols(tm, pg); }
+  if (tm && !tm._ver){ tm._ver = true; if (state.ver.on && (!(forExport || state._noVer) || state.ver.exp)) addVerCols(tm, pg); }
   if (tm && !tm._tipo){
     tm._tipo = true;
     const fl = tipoLabel(); if (fl && tm.sub) tm.sub += ' · ' + fl;
@@ -2820,6 +2998,8 @@ function renderAll(full){
     if (state.res && state.ds.filtered) state.res.checks.unshift({ label: 'Filtro por tipo de SL activo', ok: false, warn: true, count: 1, detail: [state.ds.filtered + '. Los controles contra el Excel y el cruce con su Cuadro General no aplican mientras el filtro esté activo; en el Cuadro General, PPTO 2026 y aterrizaje 9+3 se recalculan desde los SL.'] });
   }
   renderTipo();
+  if (full) buildExcelVersion();
+  renderVer();
   renderSlidesList(); renderViews(); renderColGrid(); renderCuadroOpts(); renderFiles(); renderChecks(); renderSlide();
   if (state.drill) renderDrill();
   $('#optKpi').checked = state.kpis; $('#optSem').checked = state.sem;
@@ -2962,6 +3142,31 @@ $('#tipoChips').onclick = e => { const b = e.target.closest('button'); if (!b) r
   if (!sel.size){ toast('Dejá al menos un tipo.'); return; }
   setTipo(TIPOS.every(([k]) => sel.has(k)) ? null : [...sel]); };
 $('#optTipoCol').onchange = e => { state.tipoCol = e.target.checked; persist(); renderSlide(); };
+$('#verOn').onchange = e => { state.ver.on = e.target.checked; if (state.ver.on && !selVers().length && allVers().length) state.ver.sel = [allVers()[0].id]; persist(); renderVer(); renderSlide(); };
+$('#verNote').onchange = e => { state.ver.note = e.target.checked; persist(); renderSlide(); };
+$('#verExp').onchange = e => { state.ver.exp = e.target.checked; persist(); };
+$('#verList').addEventListener('change', e => { const id = e.target.dataset.v; if (!id) return;
+  let sel = (state.ver.sel || []).filter(x => x !== id); if (e.target.checked){ sel.push(id); if (sel.length > 3){ sel = sel.slice(-3); toast('Se comparan hasta 3 versiones a la vez.'); } }
+  state.ver.sel = sel; persist(); renderVer(); renderSlide(); });
+$('#verList').addEventListener('click', e => {
+  const c = e.target.closest('[data-vcopy]'); if (c){ copyExcelVersion(); return; }
+  const d = e.target.closest('[data-vdel]'); if (!d) return; const id = d.dataset.vdel;
+  if (VER_DEL !== id){ VER_DEL = id; renderVer(); setTimeout(() => { if (VER_DEL === id){ VER_DEL = null; renderVer(); } }, 4000); return; }
+  VER_DEL = null; SAVED_VERS = SAVED_VERS.filter(v => v.id !== id); ls.set(LSV, SAVED_VERS);
+  state.ver.sel = (state.ver.sel || []).filter(x => x !== id); persist(); renderVer(); renderSlide(); toast('Versión borrada.');
+});
+$('#verSave').onclick = () => { saveVersion($('#verName').value); $('#verName').value = ''; };
+$('#verName').onkeydown = e => { if (e.key === 'Enter'){ e.preventDefault(); $('#verSave').click(); } };
+$('#verWhy').onclick = () => renderWhy();
+$('#verExport').onclick = () => saveFile(`versiones_capex_${stamp()}.json`, new Blob([JSON.stringify({ app: 'motor-capex', versiones: SAVED_VERS, justificaciones: NOTES }, null, 1)], { type: 'application/json' }));
+$('#verImport').onclick = () => $('#verFile').click();
+$('#verFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try{ const j = JSON.parse(await f.text()); if (!j || j.app !== 'motor-capex') throw new Error('formato');
+    const ids = new Set(SAVED_VERS.map(v => v.id)); (j.versiones || []).forEach(v => { if (!ids.has(v.id)) SAVED_VERS.push(v); });
+    Object.assign(NOTES, j.justificaciones || {}); ls.set(LSV, SAVED_VERS); ls.set(LSN, NOTES); renderVer(); renderSlide(); toast('Historial importado.');
+  }catch(err){ toast('No es un historial del motor (.json exportado desde "Exportar historial").'); }
+};
 $('#optUnit').onchange = e => { state.unit = e.target.value; persist(); renderSlide(); renderDrill(); };
 $('#optPct').onchange = e => { state.pctDec = +e.target.value; persist(); renderSlide(); };
 $('#optDec').onchange = e => { state.dec = +e.target.value; persist(); renderSlide(); if (state.drill) renderDrill(); };
@@ -3127,7 +3332,7 @@ async function exportPptx(all){
   if (!(await ensureLib('PptxGenJS', LIBS.PptxGenJS))){ toast('No se pudo cargar la librería de PowerPoint. Revisá la conexión o probá en otra red.'); return; }
   const pptx = new PptxGenJS(); pptx.layout = 'LAYOUT_WIDE'; pptx.title = 'Presupuesto CAPEX';
   const pages = all ? allPages() : [currentPage()];
-  pages.forEach(p => { const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p); addSlide(pptx, tm, textsFor(p.key, tm)); });
+  pages.forEach(p => { const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p, true); addSlide(pptx, tm, textsFor(p.key, tm)); });
   try{
     const blob = await pptx.write({ outputType: 'blob' });
     await saveFile(all ? `Presupuesto_CAPEX_${stamp()}.pptx` : `${slug(textsFor(state.page, TM).title)}_${stamp()}.pptx`, blob);
@@ -3137,18 +3342,21 @@ $('#xPptxAll').onclick = () => exportPptx(true);
 $('#xPptx').onclick = () => exportPptx(false);
 $('#xPng').onclick = async () => {
   if (!(await ensureLib('html2canvas', LIBS.html2canvas))){ toast('No se pudo cargar la librería de imagen.'); return; }
+  const hideVer = state.ver.on && !state.ver.exp;
+  if (hideVer){ state._noVer = true; renderSlide(); }
   try{
     const cv = await html2canvas($('#slide'), { scale: 2, backgroundColor: '#FFFFFF', logging: false,
       onclone: d => { const si = d.getElementById('stageInner'); if (si) si.style.transform = 'none'; d.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable')); } });
     const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
     await saveFile(`${slug(textsFor(state.page, TM).title)}_${stamp()}.png`, blob);
   }catch(e){ console.error(e); toast('No se pudo generar la imagen.'); }
+  finally{ if (hideVer){ state._noVer = false; renderSlide(); } }
 };
 $('#xXlsx').onclick = async () => {
   if (!(await ensureLib('XLSX', LIBS.XLSX))){ toast('No se pudo cargar la librería de Excel.'); return; }
   const wb = XLSX.utils.book_new();
   allPages().forEach((p, n) => {
-    const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p), rows = tm.rows.filter(r => !r.spacer);
+    const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p, true), rows = tm.rows.filter(r => !r.spacer);
     const aoa = [[tm.labelHead].concat(tm.cols.map(c => (c.grp ? c.grp + ' · ' : '') + c.label))];
     rows.forEach(r => aoa.push([(ROWSTYLE[r.style] && ROWSTYLE[r.style].indent ? '   ' : '') + r.label + (r.sub ? ' · ' + r.sub : '')].concat(tm.cols.map(c => (r.cells[c.k] || {}).t || ''))));
     const ws = XLSX.utils.aoa_to_sheet(aoa);
