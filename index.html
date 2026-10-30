@@ -433,7 +433,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 12:10</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 12:12</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -3000,8 +3000,16 @@ async function syncFolder(ask){
       cands.push(await h.getFile());
     }
     const newest = arr => arr.sort((a, b) => b.lastModified - a.lastModified)[0];
-    const ppto = newest(cands.filter(f => /ppto/i.test(f.name) && /capex/i.test(f.name)));
-    let mz = newest(cands.filter(f => /subledger|matriz|jerarq/i.test(f.name)));
+    // PPTO: primero el nombre exacto "PPTO 2027 - CAPEX", después el más nuevo; se valida que tenga la hoja PPTO27
+    if (!(await ensureLib('XLSX', LIBS.XLSX))){ toast('No se pudo cargar la librería para leer Excel.'); return; }
+    const exact = f => /^ppto\s*20\d\d\s*[-–]\s*capex(\s*\(\d+\))?\.xls[xm]?$/i.test(f.name.trim()) ? 0 : 1;
+    const pcands = cands.filter(f => /ppto/i.test(f.name) && /capex/i.test(f.name)).sort((a, b) => exact(a) - exact(b) || b.lastModified - a.lastModified);
+    let ppto = null; const skipped = [];
+    for (const f of pcands){
+      try{ const wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), { type: 'array', bookSheets: true }); if (wb.SheetNames.some(n => E.norm(n) === 'ppto27' || /ppto\s*2?7/i.test(n))){ ppto = f; break; } skipped.push(f.name); }
+      catch(e){ skipped.push(f.name + ' (no se pudo abrir)'); }
+    }
+    let mz = newest(cands.filter(f => f !== ppto && /subledger|matriz|jerarq/i.test(f.name)));
     if (!mz && !state.mz){
       // sin nombre reconocible: busca la columna de jerarquización en los demás Excel livianos
       for (const f of cands.filter(f => f !== ppto && f.size < 20e6).sort((a, b) => a.size - b.size)){
@@ -3009,7 +3017,8 @@ async function syncFolder(ask){
       }
     }
     if (!ppto && !mz){ state.lastErr = `No encontré en "${dir.name}" archivos .xlsx con "PPTO" y "CAPEX" (ni "Subledger/Matriz") en el nombre. ${cands.length ? 'Excel en la carpeta: ' + cands.map(f => f.name).join(', ') : 'La carpeta no tiene archivos Excel (¿están en una subcarpeta?)'}.`; toast(state.lastErr, 12000); renderFolder(); return; }
-    if (!ppto) state.lastErr = `No encontré el PPTO en "${dir.name}": el nombre del archivo tiene que incluir "PPTO" y "CAPEX".`;
+    if (!ppto) state.lastErr = `No encontré el PPTO en "${dir.name}": tiene que ser un Excel con "PPTO" y "CAPEX" en el nombre y la hoja PPTO27.${skipped.length ? ' Descarté: ' + skipped.join(', ') + '.' : ''} Si es otra carpeta, usá "Cambiar".`;
+    else state.lastErr = null;
     const when = f => new Date(f.lastModified).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     state.lastSync = [ppto && `PPTO: ${ppto.name} (${when(ppto)})`, mz && `Matriz: ${mz.name} (${when(mz)})`].filter(Boolean).join(' · ');
     await loadFiles([mz, ppto].filter(Boolean), true);
