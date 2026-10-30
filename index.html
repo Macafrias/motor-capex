@@ -438,7 +438,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 13:36</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:24</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -2536,7 +2536,91 @@ function kpiHtml(tm){
   return tm.kpis.map(k => `<div class="kpi${k.hero ? ' hero' : ''} k-${k.tone || 'var'}"><div class="k">${esc(k.k)}</div><div class="v">${esc(k.v)}</div><div class="d ${k.plain ? '' : (k.up ? 'up' : 'dn')}" ${k.plain ? 'style="color:var(--ink-2)"' : ''}>${esc(k.d || '')}</div></div>`).join('');
 }
 /* en filas de total/subtotal no se muestra responsable */
-function postTM(tm){
+/* columnas disponibles en todas las slides: se calculan desde los SL de cada fila (detalle) cuando el cuadro no las trae */
+const UNI_COLS = [
+  { k: 'SL', label: 'SL', grp: null, kind: 'sl' },
+  { k: 'RESP', label: 'Responsable', grp: null, kind: 'text', tone: 'aux' },
+  { k: 'R25', label: 'Real 2025', grp: '2025', kind: 'amt', tone: 'real' },
+  { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto' },
+  { k: 'REAL', label: 'Real acum. 2026', grp: '2026', kind: 'amt', tone: 'real' },
+  { k: 'FC', label: 'Aterrizaje 9+3', grp: '2026', kind: 'amt', tone: 'ater', strong: true },
+  { k: 'P27', label: 'PPTO 2027', grp: '2027', kind: 'amt', tone: 'ppto', hero: true },
+  { k: 'PCT', label: '% del PPTO 2027', grp: '2027', kind: 'share', tone: 'var' },
+  { k: 'VENT', label: 'Ventana 2027', grp: '2027', kind: 'text', tone: 'aux' },
+  { k: 'DABS', label: 'Δ $ vs 9+3', grp: 'Variaciones', kind: 'delta', tone: 'var' },
+  { k: 'DPCT', label: 'Δ % vs 9+3', grp: 'Variaciones', kind: 'var', tone: 'var' },
+  { k: 'D26', label: 'Δ % vs PPTO 26', grp: 'Variaciones', kind: 'var', tone: 'var' },
+  { k: 'D25', label: 'Δ % 9+3 vs Real 25', grp: 'Variaciones', kind: 'var', tone: 'var' },
+  { k: 'EJ', label: '% ejec. real / 9+3', grp: 'Variaciones', kind: 'ratio', tone: 'var' },
+  { k: 'APR', label: 'Aprobado total', grp: 'Aprobación', kind: 'amt', tone: 'var' },
+  { k: 'CONS', label: 'Consumido total', grp: 'Aprobación', kind: 'amt', tone: 'var' },
+  { k: 'SALDO', label: 'Saldo aprobado', grp: 'Aprobación', kind: 'delta', tone: 'var' },
+  { k: 'PEJ', label: '% ejecutado', grp: 'Aprobación', kind: 'ratio', tone: 'var' },
+  { k: 'SAL27', label: 'Saldo luego de PPTO 27', grp: 'Aprobación', kind: 'delta', tone: 'var' },
+  { k: 'EXC', label: 'Exceso a aprobar', grp: 'Aprobación', kind: 'amt', tone: 'var' }
+];
+const UNI_ORDER = ['TIPO','SL','RESP','FMT','R25','P26','REAL','FC','P27','PCT','VENT','DABS','DPCT','D26','D25','EJ','APR','CONS','SALDO','PEJ','SAL27','EXC'];
+// en el Cuadro General los montos vienen de la hoja del cuadro: solo se suman las columnas que no tiene
+const GEN_SKIP = new Set(['SL','R25','P26','REAL','FC','P27','DABS','DPCT','D26','D25','EJ','PCT']);
+function uniExtras(pg){
+  if (!pg || (pg.cuadro.locked && pg.cuadro.locked(pg.key))) return [];
+  const own = new Set(pg.cuadro.colDefs(pg.key).map(c => c.k));
+  return UNI_COLS.filter(c => !own.has(c.k) && !(pg.cuadro === General && GEN_SKIP.has(c.k)) && !(pg.cuadro === Me && pg.key === 'me|ofi') && !(pg.cuadro === Oi && pg.key === 'oi|inf'));
+}
+function uniVals(sls){
+  const U = 1e6, prm = (state.ds && state.ds.pr) || {}, v = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, EXC: 0, n08: 0 };
+  sls.forEach(r => {
+    v.R25 += (r.r25 || 0) / U; v.P26 += (r.p26 || 0) / U; v.REAL += (r.real26 || 0) / U; v.FC += (r.fc26 || 0) / U; v.P27 += (r.p27 || 0) / U;
+    const p = prm[E.slKey(r.sl)];
+    if (p){ v.n08++; v.APR += p.apr / U; v.CONS += p.cons / U; v.SALDO += p.saldo / U; v.EXC += Math.max(0, p.cons / U + r.p27 / U - p.apr / U); }
+  });
+  return v;
+}
+function uniCell(c, v, sls, den){
+  const one = sls.length === 1 ? sls[0] : null;
+  switch (c.k){
+    case 'SL': return { t: one ? String(one.sl) : sls.length + ' SL', cls: 'slc' };
+    case 'RESP': return { t: E.respOf(sls), cls: 'resp' };
+    case 'PCT': return den ? { t: nf(state.pctDec).format(v.P27 / den * 100) + '%', cls: Math.abs(v.P27) < 0.005 ? 'na' : '' } : { t: '', cls: '' };
+    case 'VENT': { if (!one) return { t: '', cls: 'aux' }; const p = (state.ds.pr || {})[E.slKey(one.sl)]; return { t: p ? ItPr.ventana({ desde: p.desde, hasta: p.hasta }) : '', cls: 'aux' }; }
+    case 'DABS': return fDelta(v.P27 - v.FC);
+    case 'DPCT': return fVar(vr(v.P27, v.FC));
+    case 'D26': return fVar(vr(v.P27, v.P26));
+    case 'D25': return fVar(vr(v.FC, v.R25));
+    case 'EJ': return fRatio(v.REAL, v.FC);
+    case 'APR': case 'CONS': return v.n08 ? fAmt(v[c.k]) : { t: '–', cls: 'na' };
+    case 'SALDO': case 'SAL27': { if (!v.n08) return { t: '–', cls: 'na' }; const x = c.k === 'SALDO' ? v.SALDO : v.SALDO - v.P27; const f = fAmt(x); return f.cls === 'na' ? f : { t: f.t, cls: x < 0 ? 'vn' : '' }; }
+    case 'PEJ': return v.APR ? { t: nf(0).format(v.CONS / v.APR * 100) + '%', cls: v.CONS > v.APR ? 'vn' : '' } : { t: '–', cls: 'na' };
+    case 'EXC': { if (!v.n08) return { t: '–', cls: 'na' }; const f = fAmt(v.EXC); return f.cls === 'na' ? f : { t: f.t, cls: 'vn' }; }
+    default: return fAmt(v[c.k]);
+  }
+}
+function addUniCols(tm, pg){
+  const ex = uniExtras(pg); if (!ex.length || !tm.cols) return;
+  const st = colOpts(pg), sel = ex.filter(c => st.cols && st.cols.has(c.k)); if (!sel.length) return;
+  const rows = tm.rows || [];
+  const totRow = rows.slice().reverse().find(r => ['grand','total'].includes(r.style) && r.drill && r.drill.sls && r.drill.sls.length);
+  const den = totRow ? uniVals(totRow.drill.sls).P27 : 0;
+  const cols = tm.cols.slice(), ord = k => UNI_ORDER.indexOf(k);
+  sel.forEach(c => {
+    let at = -1;
+    for (let i = cols.length - 1; i >= 0; i--){ const oi = ord(cols[i].k); if (oi >= 0 && oi < ord(c.k)){ at = i + 1; break; } }
+    if (at < 0){ const j = cols.findIndex(x => ord(x.k) > ord(c.k)); at = j >= 0 ? j : cols.length; }
+    // no partir un grupo: si después vienen columnas propias del mismo grupo, va al final de ese grupo
+    while (at > 0 && at < cols.length && ord(cols[at].k) < 0 && cols[at].grp && cols[at].grp === cols[at - 1].grp) at++;
+    const lbl = c.k === 'REAL' ? 'Real acum. ' + mesCorto() : c.label;
+    cols.splice(at, 0, Object.assign({}, c, { label: lbl, uni: true }));
+  });
+  tm.cols = cols;
+  rows.forEach(r => {
+    if (!r.cells || r.spacer) return;
+    const sls = r.drill && r.drill.sls && r.drill.sls.length ? r.drill.sls : null;
+    const v = sls ? uniVals(sls) : null;
+    sel.forEach(c => { r.cells[c.k] = (sls && r.style !== 'blockhead') ? uniCell(c, v, sls, den) : { t: '', cls: '' }; });
+  });
+}
+function postTM(tm, pg){
+  if (tm && !tm._uni){ tm._uni = true; addUniCols(tm, pg); }
   if (tm && !tm._tipo){
     tm._tipo = true;
     const fl = tipoLabel(); if (fl && tm.sub) tm.sub += ' · ' + fl;
@@ -2584,7 +2668,7 @@ function renderSlide(){
   if (!pg){ $('#sFit').innerHTML = ''; return; }
   state.page = pg.key;
   const o = optsOf(pg.cuadro);
-  TM = postTM(pg.cuadro.build(pg.key, o));
+  TM = postTM(pg.cuadro.build(pg.key, o), pg);
   const tx = textsFor(pg.key, TM);
   $('#sEyebrow').textContent = TM.eyebrow;
   $('#sTitle').textContent = tx.title; $('#sSub').textContent = tx.sub; $('#sNote').textContent = tx.note;
@@ -2637,6 +2721,11 @@ function renderColGrid(){
     if (g !== last){ html += `<div class="gl">${esc(g)}</div>`; last = g; }
     html += `<label class="tg" for="c_${d.k}"><input type="checkbox" id="c_${d.k}" data-k="${d.k}" ${o.cols.has(d.k) ? 'checked' : ''}>${esc(d.label)}</label>`;
   });
+  const ex = uniExtras(pg);
+  if (ex.length){
+    html += `<div class="gl" style="margin-top:8px">Más columnas</div>`;
+    ex.forEach(d => { html += `<label class="tg" for="c_${d.k}"><input type="checkbox" id="c_${d.k}" data-k="${d.k}" ${o.cols.has(d.k) ? 'checked' : ''}>${esc(d.k === 'REAL' ? 'Real acum. ' + mesCorto() : d.label)}<span class="muted" style="font-size:10.5px;margin-left:4px">${esc(d.grp || '')}</span></label>`; });
+  }
   $('#colgrid').innerHTML = html;
 }
 function renderCuadroOpts(){
@@ -2998,7 +3087,7 @@ async function exportPptx(all){
   if (!(await ensureLib('PptxGenJS', LIBS.PptxGenJS))){ toast('No se pudo cargar la librería de PowerPoint. Revisá la conexión o probá en otra red.'); return; }
   const pptx = new PptxGenJS(); pptx.layout = 'LAYOUT_WIDE'; pptx.title = 'Presupuesto CAPEX';
   const pages = all ? allPages() : [currentPage()];
-  pages.forEach(p => { const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro))); addSlide(pptx, tm, textsFor(p.key, tm)); });
+  pages.forEach(p => { const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p); addSlide(pptx, tm, textsFor(p.key, tm)); });
   try{
     const blob = await pptx.write({ outputType: 'blob' });
     await saveFile(all ? `Presupuesto_CAPEX_${stamp()}.pptx` : `${slug(textsFor(state.page, TM).title)}_${stamp()}.pptx`, blob);
@@ -3019,7 +3108,7 @@ $('#xXlsx').onclick = async () => {
   if (!(await ensureLib('XLSX', LIBS.XLSX))){ toast('No se pudo cargar la librería de Excel.'); return; }
   const wb = XLSX.utils.book_new();
   allPages().forEach((p, n) => {
-    const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro))), rows = tm.rows.filter(r => !r.spacer);
+    const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p), rows = tm.rows.filter(r => !r.spacer);
     const aoa = [[tm.labelHead].concat(tm.cols.map(c => (c.grp ? c.grp + ' · ' : '') + c.label))];
     rows.forEach(r => aoa.push([(ROWSTYLE[r.style] && ROWSTYLE[r.style].indent ? '   ' : '') + r.label + (r.sub ? ' · ' + r.sub : '')].concat(tm.cols.map(c => (r.cells[c.k] || {}).t || ''))));
     const ws = XLSX.utils.aoa_to_sheet(aoa);
