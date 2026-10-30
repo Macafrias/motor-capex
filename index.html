@@ -409,6 +409,10 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .lockbox{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);font-size:12px}
 .lockbox span{color:var(--muted)}
 .lockbox .btn{justify-content:center}
+/* tablas largas: renglones más bajos para que la letra quede más grande al ajustar */
+.ct.dense tbody td{height:15px;line-height:1.05}
+.ct.dense tr.grand td,.ct.dense tr.total td{height:17px}
+.ct.dense tr.spacer td{height:4px}
 </style>
 
 <header class="top">
@@ -438,7 +442,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:24</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 30/10/2026 14:26</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -2529,7 +2533,8 @@ function oneTable(tm, rowsIn){
     });
     b += '</tr>';
   });
-  return `<table class="ct${state.sem ? '' : ' mono'}" style="width:max-content"><thead>${g}${h}</thead><tbody>${b}</tbody></table>`;
+  const dense = rowsIn.filter(r => !r.spacer).length > 24;
+  return `<table class="ct${state.sem ? '' : ' mono'}${dense ? ' dense' : ''}" style="width:max-content"><thead>${g}${h}</thead><tbody>${b}</tbody></table>`;
 }
 function kpiHtml(tm){
   if (!state.kpis || !tm.kpis) return '';
@@ -2682,9 +2687,11 @@ function fitTable(){
   fit.style.transform = ''; tbl.style.width = 'max-content';
   const W = body.clientWidth, H = body.clientHeight, w = tbl.offsetWidth, h = tbl.offsetHeight;
   const s = Math.min(W / w, H / h, 1.5);
-  if (Math.abs(s - 1) < 0.02){ tbl.style.width = W + 'px'; return; }
-  tbl.style.width = Math.max(w, W / s) + 'px';
-  fit.style.transform = `scale(${s})`;
+  // no estirar más de ~40% sobre el ancho natural: con pocas columnas los números quedan juntos y la tabla centrada
+  const tw = Math.min(Math.max(w, W / s), w * 1.4);
+  tbl.style.width = tw + 'px';
+  const left = Math.max(0, (W - tw * s) / 2);
+  fit.style.transform = `translateX(${left}px) scale(${s})`;
 }
 function scaleStage(){
   const st = $('#stage'), s = st.clientWidth / 1280;
@@ -3030,6 +3037,10 @@ function addSlide(pptx, tm, tx){
     cw = (totW - labW - slW) / Math.max(1, numCols.length);
     fs = Math.max(5.5, Math.min(10, rh * 40, (cw - PAD) / (numLen * CH)));
   }
+  // pocas columnas: no estirar los números a todo el ancho; la tabla queda más compacta y centrada
+  let xOff = 0;
+  const CWMAX = 1.45;
+  if (!hasNote && parts.length === 1 && cw > CWMAX){ labW = Math.max(labW, Math.min(3.4, labW + 0.6)); const used = labW + slW + CWMAX * numCols.length; if (used < totW){ xOff = (totW - used) / 2; cw = CWMAX; } }
   if (hasNote){ // columnas numéricas acotadas; el sobrante va al texto de obras y a la etiqueta
     labW = Math.max(labW, 2.6); const rest = totW - labW - slW, ncw = Math.min(1.25, rest / Math.max(1, numCols.length));
     noteW += rest - ncw * numCols.length; cw = ncw;
@@ -3065,7 +3076,7 @@ function addSlide(pptx, tm, tx){
     }));
   });
   const colW = [labW].concat(cols.map(c => c.kind === 'sl' ? slW : c.kind === 'note' ? noteW : cw));
-  s.addTable([head1, head2].concat(body), { x: 0.4 + pi * (partW + GAP), y: 1.4, w: partW, colW, rowH: rh, fontSize: fs, fontFace: 'Calibri Light', valign: 'middle', margin: [0.01, 0.05, 0.01, 0.05], autoPage: false });
+  s.addTable([head1, head2].concat(body), { x: 0.4 + pi * (partW + GAP) + xOff, y: 1.4, w: colW.reduce((a, b) => a + b, 0), colW, rowH: rh, fontSize: fs, fontFace: 'Calibri Light', valign: 'middle', margin: [0.01, 0.05, 0.01, 0.05], autoPage: false });
   });
   s.addText(tx.note, { x: 0.45, y: 7.02, w: 10.5, h: 0.32, fontSize: 8, color: PX.INK2, fontFace: 'Calibri Light' });
   s.addText('FARMACITY · PCG', { x: 11, y: 7.02, w: 1.9, h: 0.32, fontSize: 8, bold: true, color: PX.SLATE, align: 'right', fontFace: 'Calibri' });
