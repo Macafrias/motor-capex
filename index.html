@@ -477,7 +477,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 17:45</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 17:52</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -2536,10 +2536,10 @@ const Oi = {
       const L = byPart('Rodados'), t = this.sumV(L), U = 1e6;
       // segmentos genéricos para no exponer marcas ni modelos
       const SEGS = [
-        { k: 'util', grp: 'asig', label: 'Utilitario / Multipropósito', gama: 'Gama Funcional / Comercial', short: 'Utilitario', re: /kangoo|partner|berlingo|fiorino|utilit|furg/i },
-        { k: 'entry', grp: 'ben', label: 'Hatchback Subcompacto (Seg. B)', gama: 'Gama de Entrada / Económica', short: 'Hatchback B', re: /yaris|onix|208|polo|etios|argo|gol|clio/i },
-        { k: 'media', grp: 'ben', label: 'SUV Compacto/Mediano (Seg. C)', gama: 'Gama Media / Familiar', short: 'SUV C', re: null },
-        { k: 'prem', grp: 'ben', label: 'Hatchback Compacto (Seg. C)', gama: 'Gama Alta / Premium', short: 'Premium C', re: /bmw|serie\s*1|audi|mercedes|volvo|premium/i }
+        { k: 'util', grp: 'asig', label: 'Utilitario', gama: 'Gama Funcional', short: 'Utilitario', re: /kangoo|partner|berlingo|fiorino|utilit|furg/i },
+        { k: 'entry', grp: 'ben', label: 'Hatchback Subcompacto', gama: 'Gama de Entrada', short: 'Hatchback Subcompacto', re: /yaris|onix|208|polo|etios|argo|gol|clio/i },
+        { k: 'media', grp: 'ben', label: 'SUV Compacto', gama: 'Gama Media', short: 'SUV Compacto', re: null },
+        { k: 'prem', grp: 'ben', label: 'Hatchback Compacto', gama: 'Gama Alta', short: 'Hatchback Compacto', re: /bmw|serie\s*1|audi|mercedes|volvo|premium/i }
       ];
       const segOf = d => (SEGS.find(x => x.re && x.re.test(d.det || '')) || SEGS.find(x => x.k === 'media')).k;
       const G = {}; SEGS.forEach(x => G[x.k] = { k: x.k, lines: [], Q26: 0, QFC: 0, Q27: 0, P27: 0 });
