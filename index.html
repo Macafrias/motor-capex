@@ -477,7 +477,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 16:38</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 17:45</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -2532,27 +2532,41 @@ const Oi = {
               top ? { k: 'Mayor componente', tone: 'ater', plain: true, v: E.norm(top.pt).startsWith('otros (seg') ? 'Seguridad y telefonía' : top.pt, d: t.P27 ? nf(0).format(top.v / t.P27 * 100) + '% del PPTO 2027' : '' } : null].filter(Boolean);
       note = 'Categoría general "Otras Inversiones" de PPTO27, por categoría particular; abrí cada línea para ver sus jerarquías. Cada componente tiene su slide de detalle.';
     } else if (k === 'rod'){
-      title = 'Rodados'; sub = 'Unidades y PPTO 2027 por tipo de asignación · cantidades de 07_ON GOING'; labelHead = 'Tipo de auto';
-      const L = byPart('Rodados'), t = this.sumV(L);
-      const cls = d => /kangoo/i.test(d.det) ? 'asig' : /yaris/i.test(d.det) ? 'yaris' : 'cc';
-      const qs = L.map(x => this.qtyGroups(x.r.sl, cls)), G = {};
-      qs.forEach(q => Object.values(q.G).forEach(g => { const h = G[g.k] || (G[g.k] = { k: g.k, lines: [], Q26: 0, QFC: 0, Q27: 0, P27: 0, notes: [] }); ['Q26','QFC','Q27','P27'].forEach(z => h[z] += g[z]); h.lines.push(...g.lines); h.notes.push(...g.notes); }));
-      const ben = ['cc','yaris'].map(z => G[z]).filter(Boolean), bv = { Q26: 0, QFC: 0, Q27: 0, P27: 0 };
-      ben.forEach(g => ['Q26','QFC','Q27','P27'].forEach(z => bv[z] += g[z]));
-      const Gq = { G };
-      this.qtyRows(rows, page, 'rod', [{ k: 'asig', label: 'Autos de asignación', sub: () => 'innominada y nominada · Kangoo' }], Gq, o, cells);
-      if (ben.length){
-        rows.push({ label: 'Autos de beneficio', style: 'jer', cells: cells(bv), drill: null });
-        this.qtyRows(rows, page, 'rod', [
-          { k: 'cc', label: 'Corolla y Compass', style: 'child', sub: g => g.notes.length ? 'aterrizaje incluye ' + g.notes.join(', ') + ' (alta gama)' : null },
-          { k: 'yaris', label: 'Yaris', style: 'child' }], Gq, o, cells);
-      }
-      const tq = Object.values(G).reduce((a, g) => { ['Q26','QFC','Q27','P27'].forEach(z => a[z] += g[z]); return a; }, { Q26: 0, QFC: 0, Q27: 0, P27: 0 });
+      title = 'Rodados'; sub = 'Unidades y PPTO 2027 por tipo de asignación y segmento · cantidades de 07_ON GOING'; labelHead = 'Tipo de vehículo';
+      const L = byPart('Rodados'), t = this.sumV(L), U = 1e6;
+      // segmentos genéricos para no exponer marcas ni modelos
+      const SEGS = [
+        { k: 'util', grp: 'asig', label: 'Utilitario / Multipropósito', gama: 'Gama Funcional / Comercial', short: 'Utilitario', re: /kangoo|partner|berlingo|fiorino|utilit|furg/i },
+        { k: 'entry', grp: 'ben', label: 'Hatchback Subcompacto (Seg. B)', gama: 'Gama de Entrada / Económica', short: 'Hatchback B', re: /yaris|onix|208|polo|etios|argo|gol|clio/i },
+        { k: 'media', grp: 'ben', label: 'SUV Compacto/Mediano (Seg. C)', gama: 'Gama Media / Familiar', short: 'SUV C', re: null },
+        { k: 'prem', grp: 'ben', label: 'Hatchback Compacto (Seg. C)', gama: 'Gama Alta / Premium', short: 'Premium C', re: /bmw|serie\s*1|audi|mercedes|volvo|premium/i }
+      ];
+      const segOf = d => (SEGS.find(x => x.re && x.re.test(d.det || '')) || SEGS.find(x => x.k === 'media')).k;
+      const G = {}; SEGS.forEach(x => G[x.k] = { k: x.k, lines: [], Q26: 0, QFC: 0, Q27: 0, P27: 0 });
+      L.forEach(x => { const og = (state.ds.og || {})[E.slKey(x.r.sl)]; (og && og.rowsDet || []).forEach(d => {
+        const sk = segOf(d), ln = { Q26: d.q26 || 0, QFC: (d.qao || 0) + (d.qap || 0), Q27: d.q27 || 0, P27: (d.imp || 0) / U };
+        // unidad comprada en 2026 informada con texto en AO (p. ej. "1 - modelo"): es de gama alta, va al segmento premium
+        if (d.aoTxt && sk !== 'prem'){ const q = d.qao || 0; ln.QFC -= q; G.prem.QFC += q; G.prem.lines.push({ Q26: 0, QFC: q, Q27: 0, P27: 0, note: 'comprado 2026' }); }
+        G[sk].lines.push(ln); ['Q26','QFC','Q27','P27'].forEach(z => G[sk][z] += ln[z]);
+      }); });
+      const sumG = ks => ks.reduce((a, k) => { ['Q26','QFC','Q27','P27'].forEach(z => a[z] += G[k][z]); return a; }, { Q26: 0, QFC: 0, Q27: 0, P27: 0 });
+      const nonEmpty = k => ['Q26','QFC','Q27','P27'].some(z => Math.abs(G[k][z]) > 0.0001);
+      const segRows = grp => SEGS.filter(x => x.grp === grp && nonEmpty(x.k)).forEach(x => {
+        const g = G[x.k], zk = page + '|seg|' + x.k, open = !!o.zoomAll || state.zoom.has(zk), multi = g.lines.length > 1;
+        rows.push({ label: x.label, sub: x.gama, style: 'child', cells: cells(g), drill: null, zoom: multi ? zk : null, open });
+        if (open && multi) g.lines.forEach((ln, i) => rows.push({ label: x.short + ' · variante ' + (i + 1), sub: ln.note || null, style: 'sl', cells: cells(ln), drill: null }));
+      });
+      const asig = SEGS.filter(x => x.grp === 'asig').map(x => x.k), ben = SEGS.filter(x => x.grp === 'ben').map(x => x.k);
+      rows.push({ label: 'Autos de asignación', sub: 'innominada y nominada', style: 'jer', cells: cells(sumG(asig)), drill: null });
+      segRows('asig');
+      rows.push({ label: 'Autos de beneficio', style: 'jer', cells: cells(sumG(ben)), drill: null });
+      segRows('ben');
+      const tq = sumG(asig.concat(ben));
       rows.push({ spacer: true }, { label: 'Total Rodados', sub: L.length === 1 ? 'SL ' + L[0].r.sl : L.length + ' SL', style: 'total', cells: cells(Object.assign({}, t, { Q26: tq.Q26, QFC: tq.QFC, Q27: tq.Q27 })), drill: { title: 'Rodados', sls: L.map(x => x.r) } });
       const dq = tq.Q27 - tq.QFC;
       kpis = [{ k: 'PPTO 2027 · Rodados', v: '$' + fAmt(t.P27).t + unitShort(), d: nf(0).format(tq.Q27) + ' unidades', plain: true, hero: true, tone: 'ppto' },
               { k: 'Unidades vs aterrizaje 9+3', tone: 'ater', plain: true, v: (dq > 0 ? '+' : dq < 0 ? '−' : '') + nf(0).format(Math.abs(dq)) + ' u.', d: nf(0).format(tq.QFC) + ' en 2026 · ' + nf(0).format(tq.Q26) + ' en PPTO 2026' }];
-      note = 'Cantidades de 07_ON GOING: PPTO 2026 = col. AN; Aterrizaje 9+3 = AO (comprado) + AP (a comprar en lo que resta del año); PPTO 2027 = col. T. Montos 2027 por renglón (col. AL). Asignación = Kangoo; beneficio = Corolla, Corolla Cross, Compass y Yaris.';
+      note = 'Cantidades de 07_ON GOING: PPTO 2026 = col. AN; Aterrizaje 9+3 = AO (comprado) + AP (a comprar en lo que resta del año); PPTO 2027 = col. T. Montos 2027 por renglón (col. AL). Vehículos agrupados por carrocería y segmento; las unidades de gama alta compradas en 2026 se informan en AO.';
     } else if (k === 'seg'){
       title = 'Seguridad y telefonía'; sub = 'Seguridad por jerarquización · telefonía con cantidades de 07_ON GOING';
       const L = keep(byPart('Otros (Seguridad y telefonia)'));
