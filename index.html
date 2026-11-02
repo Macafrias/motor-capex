@@ -477,7 +477,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 15:26</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 15:35</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -3601,7 +3601,8 @@ function addCover(pptx){
 async function exportPptx(all){
   if (!(await ensureLib('PptxGenJS', LIBS.PptxGenJS))){ toast('No se pudo cargar la librería de PowerPoint. Revisá la conexión o probá en otra red.'); return; }
   const pptx = new PptxGenJS(); pptx.layout = 'LAYOUT_WIDE'; pptx.title = pptTitle(); pptx.company = 'Farmacity';
-  const pages = all ? allPages() : [currentPage()];
+  // los controles de integridad son de uso interno: no van en la presentación completa
+  const pages = all ? exportPages() : [currentPage()];
   if (all && state.ppt.cover !== false) addCover(pptx);
   pages.forEach(p => { const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p, true); addSlide(pptx, tm, textsFor(p.key, tm)); });
   try{
@@ -3737,7 +3738,8 @@ new ResizeObserver(scaleStage).observe($('#stage'));
 scaleStage();
 renderAll(true);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTable);
-function updAllTxt(){ $('#xAllTxt').textContent = `PowerPoint · todas (${allPages().length})`; }
+const exportPages = () => allPages().filter(p => p.cuadro !== Ctl);
+function updAllTxt(){ $('#xAllTxt').textContent = `PowerPoint · todas (${exportPages().length})`; }
 updAllTxt();
 new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 })();
