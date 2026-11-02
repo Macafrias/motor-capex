@@ -477,7 +477,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 15:41</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 15:43</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -720,7 +720,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       const lab = HS.indexOf('concepto');
       const og = all('ON GOING'), po = all('PROYECTOS ON GOING'), pf = all('PROYECTOS FUTUROS');
       const at = HS.map((x, i) => x.startsWith('aterrizaje 2026') ? i : -1).filter(i => i >= 0);
-      const ppto27 = all('PPTO 2027');
+      // PPTO 2027 total del cuadro: la columna "PPTO 2027" del encabezado, sin tomar la AX (ahí se pega la versión enviada)
+      const offS = wb.Sheets[n]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[n]['!ref']).s.c : 0, iAX = XLSX.utils.decode_col('AX') - offS;
+
       const ra = HS.findIndex(x => x.startsWith('real acumulado'));
       const map = {
         R25: HS.indexOf('real 2025'), P26O: og[0], P26P: po[0], P26F: pf[0], P26: HS.indexOf('ppto 2026'),
@@ -730,8 +732,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       const sub = (S[hr + 1] || []).map(norm);
       const cmap = {
         P27O: og[1] != null ? og[1] + 1 : -1, P27P: po[1] != null ? po[1] + 1 : -1, P27F: pf[1] != null ? pf[1] : -1,
-        RACU: ra, P27: ppto27[ppto27.length - 1]
+        RACU: ra, P27: (all('PPTO 2027').filter(i => i < iAX).pop() ?? all('PPTO 2027').pop())
       };
+      const p27Col = cmap.P27 != null && cmap.P27 >= 0 ? XLSX.utils.encode_col(cmap.P27 + offS) : null;
       snap = {}; cached = {};
       let ctx = null;
       for (let i = hr + 1; i < S.length; i++) {
@@ -742,7 +745,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         if (ctxLabel && norm(ctxLabel).startsWith('otros proyectos de log')) key = 'opl|' + key;
         // segundo "TOTAL CAPEX" = gran total
         if (key === 'total capex' && snap['total capex']) key = 'total capex|grand';
-        snap[key] = {}; cached[key] = {};
+        snap[key] = {}; cached[key] = { _cell: p27Col ? p27Col + (i + 1 + (wb.Sheets[n]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[n]['!ref']).s.r : 0)) : null };
         for (const k in map) if (map[k] >= 0 && map[k] != null) snap[key][k] = typeof r[map[k]] === 'number' ? r[map[k]] : null;
         for (const k in cmap) if (cmap[k] >= 0) cached[key][k] = typeof r[cmap[k]] === 'number' ? r[cmap[k]] : null;
       }
@@ -2655,7 +2658,7 @@ const Ctl = {
       add(G, 'Suma de todos los SL de PPTO27', totSL, ax3, 'PPTO27!AX3', full.rows.filter(r => r.p27));
       add(G, 'TOTAL CAPEX del Cuadro General', V('TOT', 'P27'), ax3, 'PPTO27!AX3');
       const cg = full.cached && full.cached['total capex|grand'];
-      if (cg && cg.P27 != null) add(G, 'TOTAL CAPEX del Excel (Cuadro_Capex (2))', V('TOT', 'P27'), cg.P27, (full.snapName || 'Cuadro_Capex (2)'));
+      if (cg && cg.P27 != null) add(G, `TOTAL CAPEX del cuadro del Excel (${full.snapName || 'Cuadro_Capex'}${cg._cell ? '!' + cg._cell : ''})`, V('TOT', 'P27'), cg.P27, (full.snapName || 'Cuadro_Capex') + (cg._cell ? '!' + cg._cell : ''));
       const badM = full.rows.filter(r => Math.abs((r.p27m || []).reduce((a, x) => a + x, 0) - r.p27) / U > CTL_TOL);
       add(G, 'Suma ENE–DIC 2027 de cada SL vs su PPTO 2027', full.rows.reduce((a, r) => a + (r.p27m || []).reduce((x, y) => x + y, 0), 0) / U, totSL, 'columna PPTO 2027', badM);
       add(G, 'On going + Proy. on going + Proy. futuros', ['P27O','P27P','P27F'].reduce((a, k) => a + (V('TOT', k) || 0), 0), V('TOT', 'P27'), 'TOTAL CAPEX');
@@ -2670,14 +2673,15 @@ const Ctl = {
       add(B, 'Bajas sin PPTO 2027', sumP(bajas), 0, 'debe ser 0', bajas.filter(r => r.p27));
       // B2 · línea por línea contra el cuadro que tiene calculado el Excel (para ubicar dónde está una diferencia del total)
       if (full.cached){
-        const B2 = 'Cuadro General del motor vs ' + (full.snapName || 'Cuadro_Capex (2)') + ' · PPTO 2027 por línea';
+        const cgc = full.cached['total capex|grand'], colL = cgc && cgc._cell ? cgc._cell.replace(/\d+/g, '') : '';
+        const B2 = 'Cuadro General del motor vs ' + (full.snapName || 'Cuadro_Capex') + (colL ? ' (columna ' + colL + ')' : '') + ' · PPTO 2027 por línea';
         const alias = { 'farmacia rio negro y neuquen': ['farmacias del pueblo', 'farmacias rio negro y neuquen'] };
         res.rows.forEach(r => {
           const n = E.norm(r.label), pre = r.parent === 'OPL' ? 'opl|' : '';
           const keys = r.id === 'TOT' ? ['total capex|grand'] : [pre + n, n].concat((alias[n] || []).flatMap(a => [pre + a, a]));
           let cc = null; for (const k of keys){ if (full.cached[k] && full.cached[k].P27 != null){ cc = full.cached[k]; break; } }
           if (!cc) return;
-          add(B2, (r.parent ? '   ' : '') + r.label, r.v.P27 || 0, cc.P27, 'Excel', null);
+          add(B2, (r.parent ? '   ' : '') + r.label + (cc._cell ? '  · ' + cc._cell : ''), r.v.P27 || 0, cc.P27, (full.snapName || 'Excel') + (cc._cell ? '!' + cc._cell : ''), null);
         });
       }
       // C · cuadros particulares vs general
