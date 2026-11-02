@@ -477,7 +477,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 15:43</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 16:38</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -770,20 +770,28 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     }
 
     /* 06_FCTS26: PPTO 2026 y último FCTS por SL (misma fuente que los valores 2026 del cuadro) */
-    const fc26 = {}; let fcLabel = null;
+    let fc26 = {}; let fcLabel = null, fcCol = null, fcCands = [];
     if (fctsName) {
       const F = aoa(fctsName);
       const fh = F.findIndex(r => r && r.some(x => norm(x) === 'codificacion sl'));
       if (fh >= 0) {
-        const FH = F[fh].map(norm);
+        const FH = F[fh].map(norm), offF = wb.Sheets[fctsName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[fctsName]['!ref']).s.c : 0;
         const iSl = FH.indexOf('subledger'), iP = FH.indexOf('ppto 2026');
-        const fcs = FH.map((x, i) => x.startsWith('fc total') ? i : -1).filter(i => i >= 0);
-        const iF = fcs[fcs.length - 1];
-        if (iSl >= 0) for (let i = fh + 1; i < F.length; i++) {
-          const r = F[i]; if (!r || r[iSl] == null) continue;
-          const k = slKey(r[iSl]);
-          const o = fc26[k] || (fc26[k] = { p26: 0, fc: 0 });
-          o.p26 += iP >= 0 ? num(r[iP]) : 0; o.fc += iF != null ? num(r[iF]) : 0;
+        const fcs = FH.map((x, i) => x.startsWith('fc total') || /9\s*\+\s*3/.test(x) ? i : -1).filter(i => i >= 0);
+        // puede haber más de una columna "FC TOTAL": se arma el mapa con cada una y se elige la que cruza con el aterrizaje 9+3 del cuadro del Excel
+        const target = snap && snap['total capex|grand'] && snap['total capex|grand'].A93 != null ? snap['total capex|grand'].A93 * 1e6 : null;
+        fcCands = fcs.map(iF => {
+          const m = {}; let tot = 0;
+          if (iSl >= 0) for (let i = fh + 1; i < F.length; i++) {
+            const r = F[i]; if (!r || r[iSl] == null) continue;
+            const k = slKey(r[iSl]), o = m[k] || (m[k] = { p26: 0, fc: 0 });
+            o.p26 += iP >= 0 ? num(r[iP]) : 0; const v = num(r[iF]); o.fc += v; tot += v;
+          }
+          return { col: XLSX.utils.encode_col(iF + offF), name: F[fh][iF], m, tot, dif: target != null ? Math.abs(tot - target) : null };
+        });
+        if (fcCands.length){
+          const best = target != null ? fcCands.slice().sort((a, b) => a.dif - b.dif)[0] : fcCands[fcCands.length - 1];
+          fc26 = best.m; fcCol = best.col;
         }
         fcLabel = fctsName;
       }
@@ -863,7 +871,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     let mzInside = null;
     for (const n of jerCands) { mzInside = jerFromAoA(aoa(n), n); if (mzInside) break; }
     const jerCol = c.jer >= 0 ? XLSX.utils.encode_col(c.jer + (wb.Sheets[pptoName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[pptoName]['!ref']).s.c : 0)) : null;
-    return { rows, p27Cell, r25Src, r25Out, verX, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
+    return { rows, fcCol, fcCands: fcCands.map(c => ({ col: c.col, name: c.name, tot: c.tot, dif: c.dif })), p27Cell, r25Src, r25Out, verX, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
   }
 
   /* ---------- Cálculo ---------- */
@@ -2684,6 +2692,15 @@ const Ctl = {
           add(B2, (r.parent ? '   ' : '') + r.label + (cc._cell ? '  · ' + cc._cell : ''), r.v.P27 || 0, cc.P27, (full.snapName || 'Excel') + (cc._cell ? '!' + cc._cell : ''), null);
         });
       }
+      // B3 · aterrizaje 9+3: los cuadros particulares suman el 9+3 de cada SL; el General lo toma del cuadro del Excel
+      { const B3 = 'Aterrizaje 9+3 · SL (' + (full.fcName || '06_FCTS26') + (full.fcCol ? ' col. ' + full.fcCol : '') + ') vs cuadro del Excel';
+        const slsOf = r => r.hasKids ? res.rows.filter(c => c.parent === r.id).flatMap(c => c.sls || []) : (r.sls || []);
+        res.rows.filter(r => r.v && r.v.A93 != null && (r.sls || r.hasKids) && r.id !== 'OPL').forEach(r => {
+          const L = slsOf(r); if (!L.length && !r.v.A93) return;
+          const x = L.reduce((a, s) => a + (s.fc26 || 0), 0) / U;
+          add(B3, (r.parent ? '   ' : '') + r.label, x, r.v.A93, 'cuadro del Excel', L.filter(s => s.fc26));
+        });
+      }
       // C · cuadros particulares vs general
       const C = 'Cuadros particulares vs Cuadro General';
       const og = E.computeITOngoing(full, curMz(), IT_PARTS);
@@ -3176,6 +3193,7 @@ function renderFiles(){
   const p = state.ds.params || {};
   $('#files').innerHTML = `
     <div class="fileline"><span class="tag">Presupuesto</span><b>${esc(state.dsName)}</b><span class="st ${state.dsSrc === 'file' ? 'live' : 'demo'}">${state.dsSrc === 'file' ? 'Cargado' : 'Ejemplo · datos ficticios'}</span></div>
+    ${state.ds.fcCol ? `<div class="fileline"><span class="tag">Aterrizaje 9+3 por SL</span><b>${esc(state.ds.fcName || '06_FCTS26')} · columna ${esc(state.ds.fcCol)}</b><span class="st live">${(state.ds.fcCands || []).length > 1 ? 'Elegida entre ' + state.ds.fcCands.map(c => c.col).join(', ') + ': la que cruza con el 9+3 del cuadro' : 'Se usa en los cuadros particulares'}</span></div>` : ''}
     ${state.ds.jerCol ? `<div class="fileline"><span class="tag">Jerarquización</span><b>PPTO27 · columna ${esc(state.ds.jerCol)}</b><span class="st live">Se usa primero; la Matriz completa los vacíos</span></div>` : ''}
     <div class="fileline"><span class="tag">Matriz de Subledgers</span><b>${esc(state.mzName)}</b><span class="st ${state.mzSrc === 'live' || (!state.mz && curMz()) ? 'live' : 'demo'}"${curMz() ? '' : ' style="color:var(--bad)"'}>${state.mzSrc === 'live' ? 'Cargada · ' + state.mz.count + ' SL' : state.mz ? 'Ejemplo · ' + state.mz.count + ' SL' : curMz() ? 'Tomada del archivo de presupuesto · ' + curMz().count + ' SL' : 'Sin cargar: las jerarquías salen vacías'}</span></div>`;
   const hc = state.ds.og && state.ds.og.__cols;
