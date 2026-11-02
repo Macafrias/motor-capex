@@ -440,6 +440,14 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .dt tr.why-zero td{color:var(--muted)}
 .why-h{font-size:13px;margin:14px 0 6px;color:var(--fg)}.why-h small{font-weight:400;color:var(--muted);margin-left:6px}
 .dt td.vn{color:#C9584A}.dt td.vp{color:#3E9B6A}
+/* detalle por SL agrupado */
+.dt tr.dgrp{cursor:pointer;background:var(--surface-2)}
+.dt tr.dgrp:hover{background:color-mix(in srgb,var(--accent) 8%,var(--surface-2))}
+.dt tr.dgrp .chev{display:inline-block;width:16px;color:var(--ppto-ht);font-size:11px}
+.dt tr.dsl td{font-size:12.5px;color:var(--ink-2)}
+.drawer-head .drseg{margin-left:auto}
+.drawer-head .drseg + .btn,.drawer-head .drseg ~ #drClose{margin-left:0}
+.drawer-head .drseg button{height:28px;font-size:12px}
 </style>
 
 <header class="top">
@@ -469,7 +477,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 14:11</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 14:52</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -3081,6 +3089,8 @@ function renderAll(full){
 }
 
 /* ============ detalle por SL ============ */
+/* detalle por SL: agrupado por jerarquización (con apertura) o lista plana */
+const DRILL = { group: true, open: new Set() };
 function renderDrill(){
   const el = $('#drawer'), d = state.drill;
   if (!d){ el.hidden = true; return; }
@@ -3094,14 +3104,36 @@ function renderDrill(){
   const m = v => fAmt((v || 0) / 1e6).t;
   // variación % del PPTO 2027 contra el FCTS 2026 (aterrizaje 9+3), con color
   const pv = (a, b, bold) => { const f = fVar(vr((a || 0) / 1e6, (b || 0) / 1e6)); return `<td class="n ${state.sem ? (f.cls || '') : ''}"${bold ? ' style="font-weight:700"' : ''}>${f.t || '–'}</td>`; };
-  const jer = s => { const x = E.jerOf(curMz(), s); return x && x.jer ? x.jer : '—'; };
+  const jer = s => { const x = E.jerOf(curMz(), s); return x && x.jer ? x.jer : 'Sin jerarquización'; };
+  const K = ['r25','p26','real26','fc26','p27'], sum = (L, k) => L.reduce((a, s) => a + (s[k] || 0), 0);
+  const nums = (L, bold) => K.map(k => `<td class="n"${bold ? ' style="font-weight:700"' : ''}>${m(sum(L, k))}</td>`).join('') + pv(sum(L, 'p27'), sum(L, 'fc26'), bold);
+  const slRow = (s, ind) => `<tr class="${ind ? 'dsl' : ''}"><td class="n" style="text-align:left${ind ? ';padding-left:26px' : ''}">${esc(s.sl)}</td><td>${esc(s.nom)}</td><td>${esc(jer(s))}</td><td>${pill(s)}</td>${K.map(k => `<td class="n">${m(s[k])}</td>`).join('')}${pv(s.p27, s.fc26)}</tr>`;
+  // grupos por jerarquía, ordenados por PPTO 2027
+  const G = {}; sls.forEach(s => { const j = jer(s); (G[j] = G[j] || []).push(s); });
+  const groups = Object.entries(G).map(([j, L]) => ({ j, L, p: sum(L, 'p27') })).sort((a, b) => Math.abs(b.p) - Math.abs(a.p));
+  const canGroup = groups.length > 1 || (groups[0] && groups[0].L.length > 1);
+  const grouped = DRILL.group && canGroup;
+  const key = j => d.title + '|' + j;
+  let body = '';
+  if (sls.length > 1) body += `<tr class="dtot"><td colspan="4" style="font-weight:700">Total ${sls.length} SL${grouped ? ' · ' + groups.length + ' jerarquías' : ''}</td>${nums(sls, true)}</tr>`;
+  if (grouped){
+    groups.forEach(g => {
+      const open = DRILL.open.has(key(g.j)), one = g.L.length === 1;
+      body += `<tr class="dgrp" data-j="${esc(g.j)}"><td colspan="4"><span class="chev">${open ? '▾' : '▸'}</span><b>${esc(g.j)}</b><span class="muted" style="margin-left:8px">${g.L.length} SL</span></td>${nums(g.L, true)}</tr>`;
+      if (open) g.L.forEach(s => body += slRow(s, true));
+    });
+  } else body += sls.map(s => slRow(s, false)).join('');
+  const allOpen = grouped && groups.every(g => DRILL.open.has(key(g.j)));
   el.hidden = false;
-  el.innerHTML = `<div class="drawer-head"><h2>${esc(d.title)}</h2><span class="muted">${sls.length} SL · montos en ${unitLbl()}</span><button class="btn" type="button" id="drClose">Cerrar</button></div>
-    ${sls.length ? `<div class="tscroll"><table class="dt"><thead><tr><th>SL</th><th>Nombre</th><th>Jerarquización</th><th>Tipo</th><th class="n">Real 2025</th><th class="n">PPTO 2026</th><th class="n">Real 2026</th><th class="n">FCTS 2026</th><th class="n">PPTO 2027</th><th class="n">Var. % vs FCTS</th></tr></thead><tbody>
-    ${sls.length > 1 ? (() => { const t = k => sls.reduce((a, s) => a + (s[k] || 0), 0); return `<tr class="dtot"><td colspan="4" style="font-weight:700">Total ${sls.length} SL</td>${['r25','p26','real26','fc26','p27'].map(k => `<td class="n" style="font-weight:700">${m(t(k))}</td>`).join('')}${pv(t('p27'), t('fc26'), true)}</tr>`; })() : ''}
-    ${sls.map(s => `<tr><td class="n" style="text-align:left">${esc(s.sl)}</td><td>${esc(s.nom)}</td><td>${esc(jer(s))}</td><td>${pill(s)}</td><td class="n">${m(s.r25)}</td><td class="n">${m(s.p26)}</td><td class="n">${m(s.real26)}</td><td class="n">${m(s.fc26)}</td><td class="n">${m(s.p27)}</td>${pv(s.p27, s.fc26)}</tr>`).join('')}
-    </tbody></table></div>` : '<p class="empty">Sin SL asociados.</p>'}`;
+  el.innerHTML = `<div class="drawer-head"><h2>${esc(d.title)}</h2><span class="muted">${sls.length} SL · montos en ${unitLbl()}</span>
+      ${canGroup ? `<div class="seg drseg"><button type="button" data-dg="1" aria-pressed="${grouped}">Por jerarquía</button><button type="button" data-dg="0" aria-pressed="${!grouped}">Todos los SL</button></div>` : ''}
+      ${grouped ? `<button class="btn" type="button" id="drAll">${allOpen ? 'Cerrar todas' : 'Abrir todas'}</button>` : ''}
+      <button class="btn" type="button" id="drClose">Cerrar</button></div>
+    ${sls.length ? `<div class="tscroll"><table class="dt"><thead><tr><th>SL</th><th>Nombre</th><th>Jerarquización</th><th>Tipo</th><th class="n">Real 2025</th><th class="n">PPTO 2026</th><th class="n">Real 2026</th><th class="n">FCTS 2026</th><th class="n">PPTO 2027</th><th class="n">Var. % vs FCTS</th></tr></thead><tbody>${body}</tbody></table></div>` : '<p class="empty">Sin SL asociados.</p>'}`;
   $('#drClose').onclick = () => { state.drill = null; el.hidden = true; };
+  el.querySelectorAll('[data-dg]').forEach(b => b.onclick = () => { DRILL.group = b.dataset.dg === '1'; renderDrill(); });
+  const all = $('#drAll'); if (all) all.onclick = () => { groups.forEach(g => allOpen ? DRILL.open.delete(key(g.j)) : DRILL.open.add(key(g.j))); renderDrill(); };
+  el.querySelectorAll('tr.dgrp').forEach(tr => tr.onclick = () => { const k = key(tr.dataset.j); DRILL.open.has(k) ? DRILL.open.delete(k) : DRILL.open.add(k); renderDrill(); });
 }
 
 /* ============ carga de archivos ============ */
