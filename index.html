@@ -477,7 +477,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 14:52</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 15:26</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -835,6 +835,12 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         og.__cols = { h26: 'AN ' + (raw[iH26] || '(sin título)'), hfc: 'AP ' + (raw[iHfc] || '(sin título)'), h27: 'T ' + (raw[iH27] || '(sin título)') };
       }
     }
+    /* total PPTO 2027 de la hoja PPTO27: celda AX3 (y la fila 3 de la columna PPTO 2027, por si se mueve) */
+    let p27Cell = null;
+    { const ws = wb.Sheets[pptoName], off = ws && ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']).s.c : 0;
+      const get = a => { const c = ws && ws[a]; return c && typeof c.v === 'number' ? c.v : null; };
+      const colP27 = c.p27 >= 0 ? XLSX.utils.encode_col(c.p27 + off) : null;
+      p27Cell = { addr: 'AX3', v: get('AX3'), col: colP27, vCol: colP27 ? get(colP27 + '3') : null }; }
     /* 05_Consolidado_REAL: real 2025 por SL (columna REAL 2025) */
     let r25Src = null, r25Out = [];
     if (realName) {
@@ -854,7 +860,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     let mzInside = null;
     for (const n of jerCands) { mzInside = jerFromAoA(aoa(n), n); if (mzInside) break; }
     const jerCol = c.jer >= 0 ? XLSX.utils.encode_col(c.jer + (wb.Sheets[pptoName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[pptoName]['!ref']).s.c : 0)) : null;
-    return { rows, r25Src, r25Out, verX, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
+    return { rows, p27Cell, r25Src, r25Out, verX, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
   }
 
   /* ---------- Cálculo ---------- */
@@ -2616,6 +2622,122 @@ const Oi = {
   }
 };
 
+/* ============ CUADRO 07 · Controles de integridad (foco PPTO 2027) ============ */
+const CTL_TOL = 0.01; // millones
+const Ctl = {
+  id: 'ctl', name: 'Controles de integridad', blurb: 'Todo cruza con PPTO27 · celda AX3',
+  views: { completo: { label: 'Completo', cols: ['MOT','REF','DIF','EST'] }, conRef: { label: 'Con fuente', cols: ['MOT','REF','SRC','DIF','EST'] } },
+  colDefs(){
+    return [
+      { k: 'MOT', label: 'Motor', grp: 'PPTO 2027', kind: 'amt', tone: 'ppto', strong: true },
+      { k: 'REF', label: 'Referencia', grp: 'PPTO 2027', kind: 'amt', tone: 'aux' },
+      { k: 'SRC', label: 'Contra', grp: 'PPTO 2027', kind: 'text', tone: 'aux' },
+      { k: 'DIF', label: 'Diferencia', grp: 'Control', kind: 'delta', tone: 'var' },
+      { k: 'EST', label: 'Estado', grp: 'Control', kind: 'text', tone: 'aux' }
+    ];
+  },
+  defaults(){ return { view: 'completo', cols: this.views.completo.cols.slice() }; },
+  pages(){ return [{ key: 'ctl', label: null }]; },
+  optsHtml(){ return `<p class="empty" style="font-size:11.5px;padding:0">Cada control compara lo que muestra el motor con su fuente. Tolerancia: ${nf(2).format(CTL_TOL)} M. Se calculan siempre con todos los SL (sin el filtro de tipo).</p>`; },
+  /* lista de controles: { grp, label, mot, ref, src, sls? } en millones */
+  run(){
+    const U = 1e6, full = state.dsFull || state.ds; if (!full) return [];
+    const res = full === state.ds ? state.res : E.compute(full);
+    const saveDs = state.ds, saveRes = state.res;
+    state.ds = full; state.res = res;   // los cuadros particulares se recalculan sobre el archivo completo
+    const out = [], R = id => res.rows.find(r => r.id === id), V = (id, k) => { const r = R(id); return r ? (r.v[k] || 0) : null; };
+    const add = (grp, label, mot, ref, src, sls) => out.push({ grp, label, mot, ref, src, sls: sls || null });
+    const sumP = L => L.reduce((a, r) => a + (r.p27 || 0), 0) / U;
+    try{
+      // A · total
+      const cell = full.p27Cell || {}, ax3 = cell.v != null ? cell.v / U : null, totSL = sumP(full.rows);
+      const G = 'Total PPTO 2027 · celda AX3 de PPTO27';
+      add(G, 'Suma de todos los SL de PPTO27', totSL, ax3, 'PPTO27!AX3', full.rows.filter(r => r.p27));
+      add(G, 'TOTAL CAPEX del Cuadro General', V('TOT', 'P27'), ax3, 'PPTO27!AX3');
+      const cg = full.cached && full.cached['total capex|grand'];
+      if (cg && cg.P27 != null) add(G, 'TOTAL CAPEX del Excel (Cuadro_Capex (2))', V('TOT', 'P27'), cg.P27, (full.snapName || 'Cuadro_Capex (2)'));
+      const badM = full.rows.filter(r => Math.abs((r.p27m || []).reduce((a, x) => a + x, 0) - r.p27) / U > CTL_TOL);
+      add(G, 'Suma ENE–DIC 2027 de cada SL vs su PPTO 2027', full.rows.reduce((a, r) => a + (r.p27m || []).reduce((x, y) => x + y, 0), 0) / U, totSL, 'columna PPTO 2027', badM);
+      add(G, 'On going + Proy. on going + Proy. futuros', ['P27O','P27P','P27F'].reduce((a, k) => a + (V('TOT', k) || 0), 0), V('TOT', 'P27'), 'TOTAL CAPEX');
+      // B · armado del cuadro general
+      const B = 'Armado del Cuadro General';
+      E.STRUCTURE.filter(n => n.type === 'group').forEach(n => { const kids = res.rows.filter(r => r.parent === n.id); add(B, n.label + ' = suma de sus aperturas', kids.reduce((a, r) => a + (r.v.P27 || 0), 0), V(n.id, 'P27'), n.label); });
+      E.STRUCTURE.filter(n => n.type === 'sum').forEach(n => add(B, n.label + ' = ' + n.of.map(id => (E.STRUCTURE.find(x => x.id === id) || {}).label || id).join(' + '), n.of.reduce((a, id) => a + (V(id, 'P27') || 0), 0), V(n.id, 'P27'), n.label));
+      const inG = new Set(); res.rows.forEach(r => (r.sls || []).forEach(x => inG.add(x)));
+      const outG = full.rows.filter(r => !inG.has(r) && Math.abs(r.p27) > 0);
+      add(B, 'SL con PPTO 2027 que entran en alguna línea del cuadro', sumP(full.rows.filter(r => inG.has(r))), totSL, 'todos los SL', outG);
+      const bajas = full.rows.filter(r => E.norm(r.tipo) === 'bajas' || E.norm(r.gral) === 'baja');
+      add(B, 'Bajas sin PPTO 2027', sumP(bajas), 0, 'debe ser 0', bajas.filter(r => r.p27));
+      // C · cuadros particulares vs general
+      const C = 'Cuadros particulares vs Cuadro General';
+      const og = E.computeITOngoing(full, curMz(), IT_PARTS);
+      add(C, 'IT On going (Hard, Soft y ECOM)', og.total.P27, V('IT', 'P27O'), 'IT · on going');
+      const ip = E.computeITProyectos(full, IT_PARTS), sumI = cats => ip.items.filter(x => cats.includes(x.cat)).reduce((a, x) => a + x.v.P27, 0);
+      add(C, 'IT Proyectos on going (en curso, extra y finalizados)', sumI(['curso','extra','fin']), V('IT', 'P27P'), 'IT · proy. on going');
+      add(C, 'IT Proyectos sin aprobación', sumI(['sin']), V('IT', 'P27F'), 'IT · proy. futuros');
+      add(C, 'IT total (on going + proyectos)', og.total.P27 + sumI(['curso','extra','fin','sin']), V('IT', 'P27'), 'IT');
+      const mc = Me.calc(), meNon = mc.uni.filter(r => E.norm(r.gral) !== 'tfm');
+      add(C, 'Mejoras Edilicias · Total Reformas y mejoras (sin TFM)', mc.sum(meNon).P27, V('ME', 'P27'), 'Mejoras Edilicias', meNon);
+      const meLines = mc.lines.filter(l => !l.tfm).reduce((a, l) => a + l.v.P27, 0) + mc.sum(mc.huerf.filter(r => E.norm(r.gral) !== 'tfm')).P27;
+      add(C, 'Mejoras · líneas de la composición (sin TFM)', meLines, V('ME', 'P27'), 'Mejoras Edilicias');
+      const ld = Log.data(), sv = L => L.reduce((a, x) => a + x.v.P27, 0);
+      add(C, 'Logística (on going + proyectos)', sv(ld.log), V('LOG', 'P27'), 'Logística', ld.log.map(x => x.r));
+      const oplRow = res.rows.find(r => r.parent === 'OPL' && E.norm(r.label).includes('otros proyectos de log'));
+      add(C, 'Masterplan · Otros proyectos de logística', sv(ld.opl), oplRow ? oplRow.v.P27 : null, 'Otros proyectos de logística', ld.opl.map(x => x.r));
+      const oi = Oi.data();
+      add(C, 'Otras Inversiones', oi.reduce((a, x) => a + x.v.P27, 0), V('OI', 'P27'), 'Otras Inversiones', oi.map(x => x.r));
+      ['Rodados','Otros (Seguridad y telefonia)','Expansión comercial','Infraestructura corporativa'].forEach(pt => {
+        const L = oi.filter(x => E.norm(x.r.part) === E.norm(pt)), gr = res.rows.find(r => r.parent === 'OI' && E.norm(r.label) === E.norm(pt));
+        add(C, 'Otras Inversiones · ' + pt.replace(' (Seguridad y telefonia)', ' (seguridad y telefonía)'), L.reduce((a, x) => a + x.v.P27, 0), gr ? gr.v.P27 : null, pt, L.map(x => x.r));
+      });
+      // D · fuentes de detalle
+      const D = 'Detalle de las hojas vs PPTO27 (por SL)';
+      const ogm = full.og || {}, ogSL = full.rows.filter(r => ogm[E.slKey(r.sl)] && ogm[E.slKey(r.sl)].rowsDet);
+      const ogBad = ogSL.filter(r => Math.abs(ogm[E.slKey(r.sl)].rowsDet.reduce((a, d) => a + (d.imp || 0), 0) - r.p27) / U > CTL_TOL);
+      add(D, '07_ON GOING · importe 2027 (col. AL) por SL', ogSL.reduce((a, r) => a + ogm[E.slKey(r.sl)].rowsDet.reduce((x, d) => x + (d.imp || 0), 0), 0) / U, sumP(ogSL), 'PPTO27 de esos SL', ogBad);
+      const prm = full.pr || {}, prSL = full.rows.filter(r => prm[E.slKey(r.sl)] && E.norm(r.tipo) === 'proyectos');
+      const prBad = prSL.filter(r => Math.abs(prm[E.slKey(r.sl)].tot27 - r.p27) / U > CTL_TOL);
+      add(D, '08_PROYECTOS · TOTAL 2027 por SL', prSL.reduce((a, r) => a + prm[E.slKey(r.sl)].tot27, 0) / U, sumP(prSL), 'PPTO27 de esos SL', prBad);
+      const ofi = Me.ofi(optsOf(Me));
+      if (ofi.row) add(D, `Renovación de oficinas (SL ${OFI_SL}) · oficinas de 08_PROYECTOS`, ofi.tot.P27, ofi.row.p27 / U, 'PPTO27 del SL', [ofi.row]);
+      // SL con código real repetido (los "SL_…" de crecimiento se abren a propósito en varias filas)
+      const seen = {}, dup = []; full.rows.forEach(r => { const k = E.slKey(r.sl); if (!k || /^sl_/i.test(k)) return; if (seen[k]){ dup.push(r); if (!dup.includes(seen[k])) dup.push(seen[k]); } else seen[k] = r; });
+      add(D, 'SL repetidos en PPTO27 · PPTO 2027 duplicado', sumP(dup.filter(r => seen[E.slKey(r.sl)] !== r)), 0, 'debe ser 0', dup);
+    } finally { state.ds = saveDs; state.res = saveRes; }
+    return out;
+  },
+  build(page, o){
+    const L = this.run(), cols = this.colDefs().filter(c => o.cols.has(c.k)), rows = [];
+    const okOf = x => x.ref != null && x.mot != null && Math.abs(x.mot - x.ref) <= CTL_TOL;
+    let grp = null, ok = 0;
+    L.forEach(x => {
+      if (x.grp !== grp){ if (grp) rows.push({ spacer: true }); rows.push({ label: x.grp, style: 'blockhead', cells: {} }); grp = x.grp; }
+      const good = okOf(x); if (good) ok++;
+      const cells = {};
+      cols.forEach(c => {
+        if (c.k === 'MOT') cells[c.k] = x.mot == null ? { t: 'n/d', cls: 'na' } : fAmt(x.mot);
+        else if (c.k === 'REF') cells[c.k] = x.ref == null ? { t: 'n/d', cls: 'na' } : fAmt(x.ref);
+        else if (c.k === 'SRC') cells[c.k] = { t: x.src || '', cls: 'resp' };
+        else if (c.k === 'DIF') cells[c.k] = (x.mot == null || x.ref == null) ? { t: '', cls: '' } : good ? { t: '0', cls: '' } : fDelta(x.mot - x.ref);
+        else if (c.k === 'EST') cells[c.k] = x.ref == null ? { t: 'sin referencia', cls: 'resp' } : good ? { t: '✓ cruza', cls: 'vp' } : { t: '✗ revisar', cls: 'vn' };
+      });
+      rows.push({ label: x.label, style: 'jer', cells, drill: x.sls && x.sls.length ? { title: x.label, sls: x.sls } : null });
+    });
+    const tot = L.filter(x => x.ref != null).length, ax = (state.dsFull || state.ds || {}).p27Cell || {};
+    return {
+      eyebrow: `Presupuesto CAPEX ${(state.ds.params || {}).anioPpto || 2027} · Controles`, title: 'Controles de integridad · PPTO 2027',
+      sub: `En ${unitLbl()} · el motor contra el Excel: total, armado del cuadro, cuadros particulares y hojas de detalle`,
+      note: 'Referencia principal: celda AX3 de la hoja PPTO27. Hacé clic en un control para ver los SL involucrados (en los que no cruzan, solo los que difieren). Tolerancia ' + nf(2).format(CTL_TOL) + ' M.',
+      labelHead: 'Control', cols, rows,
+      kpis: [
+        { k: 'Controles que cruzan', v: ok + ' / ' + tot, d: ok === tot ? 'todo cruza' : (tot - ok) + ' para revisar', plain: true, hero: true, tone: ok === tot ? 'ppto' : 'ater' },
+        { k: 'Total PPTO 2027 · PPTO27!AX3', tone: 'ppto', plain: true, v: ax.v != null ? '$' + fAmt(ax.v / 1e6).t + unitShort() : 'sin dato', d: ax.v == null ? 'no encontré un número en AX3' : (ax.col && ax.col !== 'AX' ? 'la columna PPTO 2027 está en ' + ax.col : 'celda AX3') }
+      ]
+    };
+  },
+  checks(){ return []; }
+};
+
 Me.checksOfi = function(o){
   const D = this.ofi(o || optsOf(this)), f2 = v => nf(2).format(v), out = [];
   out.push({ label: `SL ${OFI_SL} en PPTO27`, ok: !!D.row, count: D.row ? 0 : 1, detail: D.row ? [] : [`No se encontró el SL ${OFI_SL} en la hoja de presupuesto`], okTxt: D.row ? D.row.nom : '' });
@@ -2626,7 +2748,7 @@ Me.checksOfi = function(o){
   }
   return out;
 };
-const CUADROS = [General, ItOg, ItPr, Me, Log, Oi];
+const CUADROS = [General, ItOg, ItPr, Me, Log, Oi, Ctl];
 const cuadroOf = key => CUADROS.find(c => key === c.id || key.startsWith(c.id + '|'));
 function optsOf(c){
   let o = state.opts[c.id];
@@ -2741,7 +2863,7 @@ function curValue(r){
 }
 const noteKey = (ver, pg, r) => ver.id + '|' + (r.gid || (pg ? pg.key : '') + '|' + r.label);
 function addVerCols(tm, pg){
-  const vs = selVers(); if (!vs.length || !tm.cols) return;
+  const vs = selVers(); if (!vs.length || !tm.cols || (pg && pg.cuadro === Ctl)) return;
   const add = [];
   vs.forEach(v => {
     add.push({ k: 'VER_' + v.id, label: v.short || v.name, grp: 'Versiones · análisis', kind: 'amt', tone: 'aux', vref: v });
@@ -2855,7 +2977,7 @@ const UNI_ORDER = ['TIPO','SL','RESP','FMT','R25','P26','REAL','FC','P27','PCT',
 // en el Cuadro General los montos vienen de la hoja del cuadro: solo se suman las columnas que no tiene
 const GEN_SKIP = new Set(['SL','R25','P26','REAL','FC','P27','DABS','DPCT','D26','D25','EJ','PCT']);
 function uniExtras(pg){
-  if (!pg || (pg.cuadro.locked && pg.cuadro.locked(pg.key))) return [];
+  if (!pg || pg.cuadro === Ctl || (pg.cuadro.locked && pg.cuadro.locked(pg.key))) return [];
   const own = new Set(pg.cuadro.colDefs(pg.key).map(c => c.k));
   return UNI_COLS.filter(c => !own.has(c.k) && !(pg.cuadro === General && GEN_SKIP.has(c.k)) && !(pg.cuadro === Me && pg.key === 'me|ofi') && !(pg.cuadro === Oi && pg.key === 'oi|inf'));
 }
@@ -3081,6 +3203,12 @@ function renderAll(full){
   }
   renderTipo();
   if (full) buildExcelVersion();
+  if (full && state.res && state.dsFull){
+    try{
+      const L = Ctl.run(), bad = L.filter(x => x.ref != null && (x.mot == null || Math.abs(x.mot - x.ref) > CTL_TOL));
+      state.res.checks.unshift({ label: 'Controles de integridad PPTO 2027', ok: !bad.length, count: bad.length, detail: bad.map(x => `${x.label}: motor ${nf(2).format(x.mot || 0)} vs ${x.src} ${nf(2).format(x.ref || 0)}`), okTxt: L.filter(x => x.ref != null).length + ' controles cruzan · ver cuadro "Controles de integridad"' });
+    }catch(e){ console.error(e); }
+  }
   renderVer();
   renderSlidesList(); renderViews(); renderColGrid(); renderCuadroOpts(); renderFiles(); renderChecks(); renderSlide();
   if (state.drill) renderDrill();
