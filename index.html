@@ -477,7 +477,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 15:35</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 15:41</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -2668,6 +2668,18 @@ const Ctl = {
       add(B, 'SL con PPTO 2027 que entran en alguna línea del cuadro', sumP(full.rows.filter(r => inG.has(r))), totSL, 'todos los SL', outG);
       const bajas = full.rows.filter(r => E.norm(r.tipo) === 'bajas' || E.norm(r.gral) === 'baja');
       add(B, 'Bajas sin PPTO 2027', sumP(bajas), 0, 'debe ser 0', bajas.filter(r => r.p27));
+      // B2 · línea por línea contra el cuadro que tiene calculado el Excel (para ubicar dónde está una diferencia del total)
+      if (full.cached){
+        const B2 = 'Cuadro General del motor vs ' + (full.snapName || 'Cuadro_Capex (2)') + ' · PPTO 2027 por línea';
+        const alias = { 'farmacia rio negro y neuquen': ['farmacias del pueblo', 'farmacias rio negro y neuquen'] };
+        res.rows.forEach(r => {
+          const n = E.norm(r.label), pre = r.parent === 'OPL' ? 'opl|' : '';
+          const keys = r.id === 'TOT' ? ['total capex|grand'] : [pre + n, n].concat((alias[n] || []).flatMap(a => [pre + a, a]));
+          let cc = null; for (const k of keys){ if (full.cached[k] && full.cached[k].P27 != null){ cc = full.cached[k]; break; } }
+          if (!cc) return;
+          add(B2, (r.parent ? '   ' : '') + r.label, r.v.P27 || 0, cc.P27, 'Excel', null);
+        });
+      }
       // C · cuadros particulares vs general
       const C = 'Cuadros particulares vs Cuadro General';
       const og = E.computeITOngoing(full, curMz(), IT_PARTS);
