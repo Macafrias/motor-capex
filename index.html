@@ -492,7 +492,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 09:08</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 09:29</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -792,7 +792,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       const fh = F.findIndex(r => r && r.some(x => norm(x) === 'codificacion sl'));
       if (fh >= 0) {
         const FH = F[fh].map(norm), offF = wb.Sheets[fctsName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[fctsName]['!ref']).s.c : 0;
-        const iSl = FH.indexOf('subledger'), iP = FH.indexOf('ppto 2026');
+        const iSl = FH.indexOf('subledger'), iP = FH.indexOf('ppto 2026'), iEs = FH.indexOf('estado del sl'), iTi = FH.indexOf('tipo de sl');
         const fcs = FH.map((x, i) => x.startsWith('fc total') || /9\s*\+\s*3/.test(x) ? i : -1).filter(i => i >= 0);
         // puede haber más de una columna "FC TOTAL": se arma el mapa con cada una y se elige la que cruza con el aterrizaje 9+3 del cuadro del Excel
         const target = snap && snap['total capex|grand'] && snap['total capex|grand'].A93 != null ? snap['total capex|grand'].A93 * 1e6 : null;
@@ -800,8 +800,10 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
           const m = {}; let tot = 0;
           if (iSl >= 0) for (let i = fh + 1; i < F.length; i++) {
             const r = F[i]; if (!r || r[iSl] == null) continue;
-            const k = slKey(r[iSl]), o = m[k] || (m[k] = { p26: 0, fc: 0 });
-            o.p26 += iP >= 0 ? num(r[iP]) : 0; const v = num(r[iF]); o.fc += v; tot += v;
+            const k = slKey(r[iSl]), o = m[k] || (m[k] = { p26: 0, fc: 0, parts: [] });
+            const p = iP >= 0 ? num(r[iP]) : 0, v = num(r[iF]);
+            o.p26 += p; o.fc += v; tot += v;
+            o.parts.push({ est: norm(iEs >= 0 ? r[iEs] : ''), tipo: norm(iTi >= 0 ? r[iTi] : ''), p26: p, fc: v });
           }
           return { col: XLSX.utils.encode_col(iF + offF), name: F[fh][iF], m, tot, dif: target != null ? Math.abs(tot - target) : null };
         });
@@ -818,10 +820,18 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     for (let m = 11; m >= 0; m--) if (rows.some(r => Math.abs(r.real[m]) > 0.5)) { lastReal = m; break; }
 
     // valores 2026 por SL dentro de cada fila (fallback a PPTO27 si el SL no está en 06_FCTS26)
-    rows.forEach(r => {
-      const f = fc26[slKey(r.sl)];
-      r.p26 = f ? f.p26 : r.p26b;
-      r.fc26 = f ? f.fc : r.fc26b; r.fcSrc = f ? '06' : 'ppto27';
+    // un mismo SL puede estar abierto en varias filas de PPTO27 (p. ej. SL_CRECIMIENTO… por estado): los montos 2026 se asignan una sola vez,
+    // a la fila con el mismo tipo/estado; lo que no encuentra pareja va a la primera fila de ese SL (antes se repetían en cada fila)
+    const byKey = {}; rows.forEach(r => { const k = slKey(r.sl); (byKey[k] = byKey[k] || []).push(r); });
+    rows.forEach(r => { r.p26 = r.p26b; r.fc26 = r.fc26b; r.fcSrc = 'ppto27'; });
+    Object.entries(byKey).forEach(([k, R]) => {
+      const f = fc26[k]; if (!f) return;
+      R.forEach(r => { r.p26 = 0; r.fc26 = 0; r.fcSrc = '06'; });
+      if (R.length === 1){ R[0].p26 = f.p26; R[0].fc26 = f.fc; return; }
+      (f.parts || [{ est: '', tipo: '', p26: f.p26, fc: f.fc }]).forEach(pt => {
+        const t = R.find(r => norm(r.estado) === pt.est && (!pt.tipo || norm(r.tipo) === pt.tipo)) || R.find(r => norm(r.estado) === pt.est) || R[0];
+        t.p26 += pt.p26; t.fc26 += pt.fc;
+      });
     });
     if (!fcLabel) rows.forEach(r => { r.fcSrc = 'ppto27'; });
     /* 07_ON GOING: cantidades (horas) × precio unitario por SL */
