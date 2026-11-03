@@ -468,7 +468,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 03/11/2026 11:31</b></small></div>
+    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 03/11/2026 11:52</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -492,7 +492,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 11:31</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 11:52</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -763,7 +763,8 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         if (ctxLabel && norm(ctxLabel).startsWith('otros proyectos de log')) key = 'opl|' + key;
         // segundo "TOTAL CAPEX" = gran total
         if (key === 'total capex' && snap['total capex']) key = 'total capex|grand';
-        snap[key] = {}; cached[key] = { _cell: p27Col ? p27Col + (i + 1 + (wb.Sheets[n]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[n]['!ref']).s.r : 0)) : null };
+        const rowN = i + 1 + (wb.Sheets[n]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[n]['!ref']).s.r : 0);
+        snap[key] = {}; cached[key] = { _cell: p27Col ? p27Col + rowN : null, _cells: Object.fromEntries(Object.entries(cmap).filter(([, c]) => c != null && c >= 0).map(([k, c]) => [k, XLSX.utils.encode_col(c + offS) + rowN])) };
         for (const k in map) if (map[k] >= 0 && map[k] != null) snap[key][k] = typeof r[map[k]] === 'number' ? r[map[k]] : null;
         for (const k in cmap) if (cmap[k] >= 0) cached[key][k] = typeof r[cmap[k]] === 'number' ? r[cmap[k]] : null;
       }
@@ -1069,7 +1070,8 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       { label: 'SL con estado fuera de regla (con PPTO 27)', count: offRule.length, ok: offRule.length === 0, detail: offRule.map(r => `${r.sl} · ${r.nom} · ${r.tipo}/${r.estado}`) }
     ];
     // contraste con lo que tenía calculado el Excel
-    let diffs = 0, compared = 0;
+    let diffs = 0, compared = 0; const diffDet = [];
+    const CN = { P27O: 'PPTO 2027 On going', P27P: 'PPTO 2027 Proyectos', P27F: 'PPTO 2027 Proyectos futuros', P27: 'PPTO 2027', RACU: 'Real 2026 acumulado' }, fM = v => num(v).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     out.forEach(r => {
       const key = r.id === 'TOT' ? 'total capex|grand' : (r.parent === 'OPL' ? 'opl|' + norm(r.label) : norm(r.label));
       let cc = ds.cached && ds.cached[key];
@@ -1077,10 +1079,11 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       if (!cc) return;
       ['P27O','P27P','P27F','P27','RACU'].forEach(k => {
         if (cc[k] == null) return; compared++;
-        if (Math.abs(num(r.v[k]) - cc[k]) > 0.5) { diffs++; (r.diff = r.diff || {})[k] = cc[k]; }
+        if (Math.abs(num(r.v[k]) - cc[k]) > 0.5) { diffs++; (r.diff = r.diff || {})[k] = cc[k];
+          diffDet.push(`${r.label} · ${CN[k] || k}: motor (desde PPTO27) ${fM(r.v[k])} vs Excel${cc._cells && cc._cells[k] ? ' (' + (ds.snapName || 'Cuadro_Capex') + '!' + cc._cells[k] + ')' : ''} ${fM(cc[k])} · dif. ${fM(num(r.v[k]) - cc[k])}`); }
       });
     });
-    checks.push({ label: 'Contraste con valores del Excel', count: diffs, compared, ok: diffs === 0 });
+    checks.push({ label: 'Contraste con valores del Excel', count: diffs, compared, ok: diffs === 0, detail: diffDet });
     checks.push({ label: 'Aperturas 2026 que no suman en el Excel', count: snapWarn.length, ok: snapWarn.length === 0, detail: snapWarn.map(w => { const nm = { P26: 'PPTO 2026', P26O: 'PPTO 2026 On going', P26P: 'PPTO 2026 Proyectos', P26F: 'PPTO 2026 Futuros', A84: 'Aterrizaje 8+4', A93O: 'Aterrizaje 9+3 On going', A93P: 'Aterrizaje 9+3 Proyectos', A93: 'Aterrizaje 9+3', R26: 'Real 2026', RACU: 'Real acumulado', P27: 'PPTO 2027', P27O: 'PPTO 2027 On going', P27P: 'PPTO 2027 Proyectos', P27F: 'PPTO 2027 Futuros', VER: 'Versión' }[w.col] || w.col, f = v => num(v).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       return `${w.row} · ${nm}: el Excel muestra ${f(w.excel)} y sus aperturas suman ${f(w.calc)} (dif. ${f(num(w.excel) - num(w.calc))})`; }), warn: true });
     return { rows: out, checks, bajasReal, totalP27, lastReal: ds.lastReal, params: ds.params };
