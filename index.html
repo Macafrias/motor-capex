@@ -468,7 +468,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 03/11/2026 10:43</b></small></div>
+    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 03/11/2026 10:56</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -492,7 +492,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 10:43</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 10:56</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -793,6 +793,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       if (fh >= 0) {
         const FH = F[fh].map(norm), offF = wb.Sheets[fctsName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[fctsName]['!ref']).s.c : 0;
         const iSl = FH.indexOf('subledger'), iP = FH.indexOf('ppto 2026'), iEs = FH.indexOf('estado del sl'), iTi = FH.indexOf('tipo de sl');
+        const iPt = FH.indexOf('categoria particular para cuadros'), iGr = FH.indexOf('categoria gral en cuadros'), iNm = FH.indexOf('nombre subledger');
         const fcs = FH.map((x, i) => x.startsWith('fc total') || /9\s*\+\s*3/.test(x) ? i : -1).filter(i => i >= 0);
         // puede haber más de una columna "FC TOTAL": se arma el mapa con cada una y se elige la que cruza con el aterrizaje 9+3 del cuadro del Excel
         const target = snap && snap['total capex|grand'] && snap['total capex|grand'].A93 != null ? snap['total capex|grand'].A93 * 1e6 : null;
@@ -804,6 +805,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
             const p = iP >= 0 ? num(r[iP]) : 0, v = num(r[iF]);
             o.p26 += p; o.fc += v; tot += v;
             o.parts.push({ est: norm(iEs >= 0 ? r[iEs] : ''), tipo: norm(iTi >= 0 ? r[iTi] : ''), p26: p, fc: v });
+            if (!o.part && iPt >= 0) { o.part = r[iPt]; o.gral = iGr >= 0 ? r[iGr] : ''; o.nom = iNm >= 0 ? r[iNm] : ''; o.sl = r[iSl]; o.tipo = iTi >= 0 ? r[iTi] : ''; o.estado = iEs >= 0 ? r[iEs] : ''; }
           }
           return { col: XLSX.utils.encode_col(iF + offF), name: F[fh][iF], m, tot, dif: target != null ? Math.abs(tot - target) : null };
         });
@@ -823,6 +825,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     // un mismo SL puede estar abierto en varias filas de PPTO27 (p. ej. SL_CRECIMIENTO… por estado): los montos 2026 se asignan una sola vez,
     // a la fila con el mismo tipo/estado; lo que no encuentra pareja va a la primera fila de ese SL (antes se repetían en cada fila)
     const byKey = {}; rows.forEach(r => { const k = slKey(r.sl); (byKey[k] = byKey[k] || []).push(r); });
+    // SL que están en 06_FCTS26 con 9+3 pero no en PPTO27: el cuadro del Excel los puede incluir y el motor no
+    const fcOut = Object.entries(fc26).filter(([k, f]) => !byKey[k] && (Math.abs(f.fc) >= 1 || Math.abs(f.p26) >= 1))
+      .map(([k, f]) => ({ sl: f.sl != null ? f.sl : k, nom: f.nom || '', part: f.part || '', gral: f.gral || '', tipo: f.tipo || '', estado: f.estado || '', p26: f.p26, fc26: f.fc, p27: 0, r25: 0, real26: 0, out06: true }));
     rows.forEach(r => { r.p26 = r.p26b; r.fc26 = r.fc26b; r.fcSrc = 'ppto27'; });
     Object.entries(byKey).forEach(([k, R]) => {
       const f = fc26[k]; if (!f) return;
@@ -897,7 +902,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
     let mzInside = null;
     for (const n of jerCands) { mzInside = jerFromAoA(aoa(n), n); if (mzInside) break; }
     const jerCol = c.jer >= 0 ? XLSX.utils.encode_col(c.jer + (wb.Sheets[pptoName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[pptoName]['!ref']).s.c : 0)) : null;
-    return { rows, fcCol, fcCands: fcCands.map(c => ({ col: c.col, name: c.name, tot: c.tot, dif: c.dif })), p27Cell, r25Src, r25Out, verX, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
+    return { rows, fcOut, fcCol, fcCands: fcCands.map(c => ({ col: c.col, name: c.name, tot: c.tot, dif: c.dif })), p27Cell, r25Src, r25Out, verX, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
   }
 
   /* ---------- Cálculo ---------- */
@@ -2828,7 +2833,13 @@ const Ctl = {
         res.rows.filter(r => r.v && r.v.A93 != null && (r.sls || r.hasKids) && r.id !== 'OPL').forEach(r => {
           const L = slsOf(r); if (!L.length && !r.v.A93) return;
           const x = L.reduce((a, s) => a + (s.fc26 || 0), 0) / U;
-          add(B3, (r.parent ? '   ' : '') + r.label, x, r.v.A93, 'cuadro del Excel', L.filter(s => s.fc26));
+          // pista: el cuadro del Excel puede estar armado con la columna FCTS 2026 de PPTO27 en vez de 06_FCTS26
+          const alt = L.reduce((a, s) => a + (s.fc26b || 0), 0) / U, dif = L.filter(s => Math.abs((s.fc26 || 0) - (s.fc26b || 0)) >= 5e3);
+          const parts = r.hasKids ? res.rows.filter(c => c.parent === r.id).map(c => E.norm(c.label)) : [E.norm(r.label)];
+          const outs = (full.fcOut || []).filter(o => parts.includes(E.norm(o.part))), outV = outs.reduce((a, o) => a + o.fc26, 0) / U;
+          const hint = Math.abs(x - r.v.A93) > CTL_TOL ? (outs.length && Math.abs(x + outV - r.v.A93) <= CTL_TOL + 0.5 ? outs.length + ' SL de ' + (full.fcName || '06_FCTS26') + ' que no están en PPTO27 suman ' + nf(2).format(outV) + ' y explican la diferencia' : Math.abs(alt - r.v.A93) <= CTL_TOL ? 'con la columna FCTS 2026 de PPTO27 da ' + nf(2).format(alt) + ' y cruza: el cuadro del Excel usa PPTO27' : dif.length ? dif.length + ' SL con 9+3 distinto entre ' + (full.fcName || '06_FCTS26') + ' y PPTO27 (FCTS 2026 = ' + nf(2).format(alt) + ')' : '') : '';
+          const bad3 = Math.abs(x - r.v.A93) > CTL_TOL;
+          out.push({ grp: B3, label: (r.parent ? '   ' : '') + r.label, mot: x, ref: r.v.A93, src: 'cuadro del Excel', hint, sls: bad3 && outs.length ? outs.concat(dif) : bad3 && dif.length ? dif : L.filter(s => s.fc26) });
         });
       }
       // C · cuadros particulares vs general
@@ -2884,7 +2895,7 @@ const Ctl = {
         else if (c.k === 'DIF') cells[c.k] = (x.mot == null || x.ref == null) ? { t: '', cls: '' } : good ? { t: '0', cls: '' } : fDelta(x.mot - x.ref);
         else if (c.k === 'EST') cells[c.k] = x.ref == null ? { t: 'sin referencia', cls: 'resp' } : good ? { t: '✓ cruza', cls: 'vp' } : { t: '✗ revisar', cls: 'vn' };
       });
-      rows.push({ label: x.label, style: 'jer', cells, drill: x.sls && x.sls.length ? { title: x.label, sls: x.sls } : null });
+      rows.push({ label: x.label, sub: !good && x.hint ? x.hint : null, style: 'jer', cells, drill: x.sls && x.sls.length ? { title: x.label.trim() + (x.hint ? ' · ' + x.hint : ''), sls: x.sls } : null });
     });
     const tot = L.filter(x => x.ref != null).length, ax = (state.dsFull || state.ds || {}).p27Cell || {};
     return {
@@ -3393,7 +3404,7 @@ function renderAll(full){
   if (full && state.res && state.dsFull){
     try{
       const L = Ctl.run(), bad = L.filter(x => x.ref != null && (x.mot == null || Math.abs(x.mot - x.ref) > CTL_TOL));
-      state.res.checks.unshift({ label: 'Controles de integridad PPTO 2027', ok: !bad.length, count: bad.length, detail: bad.map(x => `${x.label}: motor ${nf(2).format(x.mot || 0)} vs ${x.src} ${nf(2).format(x.ref || 0)}`), okTxt: L.filter(x => x.ref != null).length + ' controles cruzan · ver cuadro "Controles de integridad"' });
+      state.res.checks.unshift({ label: 'Controles de integridad PPTO 2027', ok: !bad.length, count: bad.length, detail: bad.map(x => `${x.label.trim()} (${x.grp.split(' · ')[0]}): motor ${nf(2).format(x.mot || 0)} vs ${x.src} ${nf(2).format(x.ref || 0)} · diferencia ${nf(2).format((x.mot || 0) - (x.ref || 0))}${x.hint ? ' · ' + x.hint : ''}`), okTxt: L.filter(x => x.ref != null).length + ' controles cruzan · ver cuadro "Controles de integridad"' });
     }catch(e){ console.error(e); }
   }
   renderVer();
