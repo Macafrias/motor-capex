@@ -468,7 +468,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 03/11/2026 11:52</b></small></div>
+    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 03/11/2026 11:55</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -492,7 +492,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 11:52</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 11:55</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -649,9 +649,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
   ];
 
   const VIEWS = {
-    completo:  { label:'Completo', cols: COLS.filter(c => !c.extra).map(c=>c.k).filter(k => k !== 'A84') },
+    completo:  { label:'Completo', cols: COLS.filter(c => !c.extra).map(c=>c.k).filter(k => k !== 'A84' && k !== 'R25') },
     tipo:      { label:'Por tipo', cols:['P26O','A93O','P27O','VO','P26P','A93P','P27P','VP','P26F','P27F','P26','A93','P27','V27'], byType:true },
-    ejecutivo: { label:'Ejecutivo', cols:['R25','P26','A93','RACU','P27','VAT','V27'] },
+    ejecutivo: { label:'Ejecutivo', cols:['P26','A93','RACU','P27','VAT','V27'] },
     apertura:  { label:'Apertura 2027', cols:['A93O','P27O','VO','A93P','P27P','P27F','A93','P27','V27'] },
     ppto26:    { label:'Cierre 2026', cols:['R25','P26O','P26P','P26F','P26','RACU','A93','V26','VAT'] }
   };
@@ -1064,9 +1064,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       { label: 'PPTO 2027 · cuadro vs PPTO27', a: tot.P27, b: totalP27, ok: Math.abs(tot.P27 - totalP27) < 0.5 },
       { label: 'Real 2026 · cuadro + bajas vs PPTO27', a: tot.RACU + bajasReal, b: totalReal, ok: Math.abs(tot.RACU + bajasReal - totalReal) < 0.5 },
       { label: 'Categorías sin mapear', count: Object.keys(unmapped).length, ok: Object.keys(unmapped).length === 0, detail: unmapped },
-      ...(ds.r25Src ? [{ label: 'Real 2025 de SL que no están en PPTO27', warn: true, count: (ds.r25Out || []).length, ok: !(ds.r25Out || []).length,
+      ...(ds.r25Src ? [{ label: 'Real 2025 de SL que no están en PPTO27 (informativo)', warn: true, count: (ds.r25Out || []).length, ok: true,
         detail: (ds.r25Out || []).slice(0, 40).map(x => `${x.sl} · ${x.nom} · ${(x.v / 1e6).toLocaleString('es-AR', { maximumFractionDigits: 2 })} M`).concat((ds.r25Out || []).length > 40 ? ['… y ' + ((ds.r25Out || []).length - 40) + ' más'] : []),
-        okTxt: 'todos los SL de 05_Consolidado_REAL están en PPTO27' }] : []),
+        okTxt: (ds.r25Out || []).length ? (ds.r25Out || []).length + ' SL con real 2025 que ya no siguen en 2027 (normal, no afecta al PPTO 2027)' : 'todos los SL de 05_Consolidado_REAL están en PPTO27' }] : []),
       { label: 'SL con estado fuera de regla (con PPTO 27)', count: offRule.length, ok: offRule.length === 0, detail: offRule.map(r => `${r.sl} · ${r.nom} · ${r.tipo}/${r.estado}`) }
     ];
     // contraste con lo que tenía calculado el Excel
