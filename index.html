@@ -492,7 +492,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 09:29</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 09:47</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1509,7 +1509,88 @@ const General = {
 };
 
 /* ============ CUADRO 02 · IT On going ============ */
+
 const IT_PARTS = ['IT - Hard', 'IT - Soft', 'ECOM'];
+/* ============ CUADRO 02 · IT Resumen (todo desde la hoja PPTO27) ============ */
+const ItRes = {
+  id: 'itres', name: 'IT Resumen', blurb: 'PPTO 2026, 9+3 y PPTO 2027 por tipo · directo de PPTO27',
+  views: {
+    completo: { label: 'Completo', cols: ['P26O','P26P','P26F','P26','A93O','P27O','VO','A93P','P27P','P27F','RACU','A93','P27'] },
+    tipo27: { label: 'Apertura 2027', cols: ['A93O','P27O','VO','A93P','P27P','P27F','A93','P27','V27'] },
+    corto: { label: 'Resumen', cols: ['P26','RACU','A93','P27','V27'] }
+  },
+  colDefs(){
+    return [
+      { k: 'P26O', label: 'On going', grp: 'PPTO 2026', kind: 'amt', tone: 'ppto', gtone: 'ppto' },
+      { k: 'P26P', label: 'Proy. on going', grp: 'PPTO 2026', kind: 'amt', tone: 'ppto', gtone: 'ppto' },
+      { k: 'P26F', label: 'Proy. futuros', grp: 'PPTO 2026', kind: 'amt', tone: 'ppto', gtone: 'ppto' },
+      { k: 'P26', label: 'Total', grp: 'PPTO 2026', kind: 'amt', tone: 'ppto', strong: true, gtone: 'ppto' },
+      { k: 'A93O', label: '9+3', grp: 'On going', kind: 'amt', tone: 'ater', gtone: 'ater' },
+      { k: 'P27O', label: 'PPTO 2027', grp: 'On going', kind: 'amt', tone: 'ppto', gtone: 'ater' },
+      { k: 'VO', label: 'Variación', grp: 'On going', kind: 'var', tone: 'var', gtone: 'ater' },
+      { k: 'A93P', label: '9+3', grp: 'Proyectos on going', kind: 'amt', tone: 'ater', gtone: 'real' },
+      { k: 'P27P', label: 'PPTO 2027', grp: 'Proyectos on going', kind: 'amt', tone: 'ppto', gtone: 'real' },
+      { k: 'A93F', label: '9+3', grp: 'Proyectos futuros', kind: 'amt', tone: 'ater', gtone: 'fut' },
+      { k: 'P27F', label: 'PPTO 2027', grp: 'Proyectos futuros', kind: 'amt', tone: 'fut', gtone: 'fut' },
+      { k: 'RACU', label: 'a la fecha', grp: 'Real acumulado', kind: 'amt', tone: 'real', gtone: 'real' },
+      { k: 'A93', label: '9+3', grp: 'Aterrizaje 2026', kind: 'amt', tone: 'ater', strong: true, gtone: 'ater' },
+      { k: 'P27', label: 'Total', grp: 'PPTO 2027', kind: 'amt', tone: 'ppto', hero: true, gtone: 'ppto' },
+      { k: 'V27', label: 'vs 9+3', grp: 'PPTO 2027', kind: 'var', tone: 'var', gtone: 'ppto' }
+    ];
+  },
+  defaults(){ return { view: 'completo', cols: this.views.completo.cols.slice() }; },
+  pages(){ return [{ key: 'itres', label: null }]; },
+  optsHtml(){ return `<p class="empty" style="font-size:11.5px;padding:0">Todo sale de la hoja PPTO27, filtrando Categoría gral = IT y por categoría particular. On going = TIPO DE SL "ON GOING"; proyectos on going = PROYECTOS en curso o finalizados; futuros = PROYECTOS sin aprobación. PPTO 2026 = col. PPTO 2026, 9+3 = col. FCTS 2026, real = REAL 2026, PPTO 2027 = col. PPTO 2027.</p>`; },
+  cat(r){ const t = E.norm(r.tipo), e = E.norm(r.estado); if (t === 'on going') return 'O'; if (t !== 'proyectos') return null; return e === 'sin aprobacion' ? 'F' : 'P'; },
+  vals(L){
+    const U = 1e6, v = { P26O: 0, P26P: 0, P26F: 0, P26: 0, A93O: 0, A93P: 0, A93F: 0, A93: 0, P27O: 0, P27P: 0, P27F: 0, P27: 0, RACU: 0 };
+    L.forEach(r => { const c = this.cat(r), p26 = (r.p26b || 0) / U, fc = (r.fc26b || 0) / U, p27 = (r.p27 || 0) / U;
+      v.P26 += p26; v.A93 += fc; v.P27 += p27; v.RACU += (r.real26 || 0) / U;
+      if (c){ v['P26' + c] += p26; v['A93' + c] += fc; v['P27' + c] += p27; } });
+    return v;
+  },
+  build(page, o){
+    const cols = this.colDefs().filter(c => o.cols.has(c.k)), rows = [];
+    const it = state.ds.rows.filter(r => E.norm(r.gral) === 'it');
+    const cells = v => { const out = {}; cols.forEach(c => {
+      if (c.k === 'VO') out[c.k] = fVar(vr(v.P27O, v.A93O));
+      else if (c.k === 'V27') out[c.k] = fVar(vr(v.P27, v.A93));
+      else out[c.k] = fAmt(v[c.k]);
+    }); return out; };
+    const tot = this.vals(it);
+    rows.push({ label: 'IT', style: 'group', cells: cells(tot), drill: { title: 'IT', sls: it } });
+    const parts = IT_PARTS.concat([...new Set(it.map(r => r.part))].filter(p => !IT_PARTS.some(x => E.norm(x) === E.norm(p))));
+    parts.forEach(pt => { const L = it.filter(r => E.norm(r.part) === E.norm(pt)); if (!L.length) return;
+      rows.push({ label: pt, style: 'child', cells: cells(this.vals(L)), drill: { title: pt, sls: L } }); });
+    const d = fVar(vr(tot.P27, tot.A93));
+    return {
+      eyebrow: `Presupuesto CAPEX ${(state.ds.params || {}).anioPpto || 2027} · IT`, title: 'IT · Resumen',
+      sub: `En ${unitLbl()} · PPTO 2026, aterrizaje 9+3 y PPTO 2027 por on going y proyectos · real acumulado a ${mesTxt()}`,
+      note: 'Fuente: hoja PPTO27 (Categoría gral IT, por categoría particular). On going, proyectos on going (en curso y finalizados) y proyectos futuros (sin aprobación) según TIPO y ESTADO DEL SL.',
+      labelHead: 'Concepto', cols, rows,
+      kpis: [{ k: 'PPTO 2027 · IT', v: '$' + fAmt(tot.P27).t + unitShort(), d: (d.t || '') + ' vs aterrizaje 9+3', up: d.up, hero: true, tone: 'ppto' },
+             { k: 'Aterrizaje 2026 9+3', tone: 'ater', plain: true, v: '$' + fAmt(tot.A93).t + unitShort(), d: tot.A93 ? nf(0).format(tot.RACU / tot.A93 * 100) + '% ejecutado a ' + mesCorto() : '' }]
+    };
+  },
+  checks(){
+    const it = state.ds.rows.filter(r => E.norm(r.gral) === 'it'), out = [], f2 = v => nf(2).format(v);
+    const lines = [], cmp = (lbl, a, b) => { if (b != null && Math.abs(a - b) > 0.01) lines.push(`${lbl}: acá ${f2(a)} vs Cuadro General ${f2(b)}`); };
+    [['IT', it]].concat(IT_PARTS.map(p => ['IT|' + p, it.filter(r => E.norm(r.part) === E.norm(p))])).forEach(([id, L]) => {
+      const g = state.res.rows.find(r => r.id === id); if (!g) return; const v = this.vals(L), n = g.label;
+      cmp(n + ' · PPTO 2027', v.P27, g.v.P27); cmp(n + ' · PPTO 2027 on going', v.P27O, g.v.P27O); cmp(n + ' · PPTO 2027 proy. on going', v.P27P, g.v.P27P); cmp(n + ' · PPTO 2027 futuros', v.P27F, g.v.P27F);
+    });
+    out.push({ label: 'PPTO 2027 vs Cuadro General', ok: !lines.length, count: lines.length, detail: lines, okTxt: 'cruza en IT, Hard, Soft y ECOM' });
+    const l26 = [];
+    [['IT', it]].concat(IT_PARTS.map(p => ['IT|' + p, it.filter(r => E.norm(r.part) === E.norm(p))])).forEach(([id, L]) => {
+      const g = state.res.rows.find(r => r.id === id); if (!g) return; const v = this.vals(L);
+      if (g.v.P26 != null && Math.abs(v.P26 - g.v.P26) > 0.5) l26.push(`${g.label} · PPTO 2026: PPTO27 ${f2(v.P26)} vs cuadro del Excel ${f2(g.v.P26)}`);
+      if (g.v.A93 != null && Math.abs(v.A93 - g.v.A93) > 0.5) l26.push(`${g.label} · 9+3: PPTO27 (FCTS 2026) ${f2(v.A93)} vs cuadro del Excel ${f2(g.v.A93)}`);
+    });
+    out.push({ label: '2026 (PPTO27) vs cuadro del Excel', ok: !l26.length, warn: true, count: l26.length, detail: l26, okTxt: 'PPTO 2026 y 9+3 coinciden' });
+    return out;
+  }
+};
+
 const ItOg = {
   id: 'itog', name: 'IT On going', blurb: 'Hard y Soft por jerarquización de exposición',
   views: {
@@ -2830,7 +2911,7 @@ Me.checksOfi = function(o){
   }
   return out;
 };
-const CUADROS = [General, ItOg, ItPr, Me, Log, Oi, Ctl];
+const CUADROS = [General, ItRes, ItOg, ItPr, Me, Log, Oi, Ctl];
 const cuadroOf = key => CUADROS.find(c => key === c.id || key.startsWith(c.id + '|'));
 function optsOf(c){
   let o = state.opts[c.id];
@@ -3061,7 +3142,7 @@ const GEN_SKIP = new Set(['SL','R25','P26','REAL','FC','P27','DABS','DPCT','D26'
 function uniExtras(pg){
   if (!pg || pg.cuadro === Ctl || (pg.cuadro.locked && pg.cuadro.locked(pg.key))) return [];
   const own = new Set(pg.cuadro.colDefs(pg.key).map(c => c.k));
-  return UNI_COLS.filter(c => !own.has(c.k) && !(pg.cuadro === General && GEN_SKIP.has(c.k)) && !(pg.cuadro === Me && pg.key === 'me|ofi') && !(pg.cuadro === Oi && pg.key === 'oi|inf'));
+  return UNI_COLS.filter(c => !own.has(c.k) && !((pg.cuadro === General || pg.cuadro === ItRes) && GEN_SKIP.has(c.k)) && !(pg.cuadro === Me && pg.key === 'me|ofi') && !(pg.cuadro === Oi && pg.key === 'oi|inf'));
 }
 function uniVals(sls){
   const U = 1e6, prm = (state.ds && state.ds.pr) || {}, v = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, EXC: 0, n08: 0 };
@@ -3619,7 +3700,7 @@ function addSlide(pptx, tm, tx){
     txtCols.forEach(c => { txtW[c.k] = Math.min(3.2, Math.max(0.7, txtLen[c.k] * Math.max(6, fs - 1.5) * CH * 1.2 + PAD + 0.05)); });
     const tw = txtCols.reduce((a, c) => a + txtW[c.k], 0);
     cw = (totW - labW - slW - tw) / Math.max(1, numOnly.length);
-    fs = Math.max(5.5, Math.min(FSMAX, rh * FSK, (cw - PAD) / (numLen * CH)));
+    fs = Math.max(5.5, Math.min(FSMAX, rh * FSK, (cw - PAD - 0.04) / (numLen * CH * 1.15)));
   } };
   sizeAll();
   // encabezados que ocupan 2-3 renglones: se descuenta su alto real para que la tabla no se pase del pie
