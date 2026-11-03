@@ -83,11 +83,12 @@ button,input,select{font:inherit;color:inherit}
 
 /* controles */
 .checks{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
-.checks li{display:grid;grid-template-columns:18px 1fr;gap:6px;font-size:12px;align-items:start}
+.checks li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:6px;font-size:12px;align-items:start}
 .checks .ic{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff;margin-top:1px}
 .checks .ok .ic{background:var(--ok)} .checks .warn .ic{background:var(--warn)} .checks .bad .ic{background:var(--bad)}
 .checks small{display:block;color:var(--muted)}
-.checks details{grid-column:2}
+.checks details{grid-column:2;min-width:0}
+.checks .det li{display:list-item;word-break:normal;overflow-wrap:anywhere;margin-bottom:3px}
 .checks summary{cursor:pointer;color:var(--muted);font-size:11.5px}
 .checks .det{font-size:11.5px;color:var(--muted);margin:4px 0 0;padding-left:14px}
 
@@ -477,7 +478,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 02/11/2026 17:52</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 09:00</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1666,10 +1667,19 @@ const ItOg = {
     it.blocks.forEach(b => {
       const g = state.res.rows.find(r => r.id === 'IT|' + b.part); if (!g) return;
       [['P26', 'P26O', 'PPTO 2026'], ['FC', 'A93O', 'FCTS 9+3'], ['P27', 'P27O', 'PPTO 2027']].forEach(([a, k, lbl]) => {
-        if (g.v[k] != null && Math.abs(b.v[a] - g.v[k]) > 0.5) lines.push(`${b.part} · ${lbl}: acá ${f0(b.v[a])} vs Cuadro General ${f0(g.v[k])}`);
+        if (g.v[k] != null && Math.abs(b.v[a] - g.v[k]) > 0.5){
+          const dif = g.v[k] - b.v[a];
+          lines.push(`${b.part} · ${lbl}: este cuadro ${f0(b.v[a])} (suma de los SL ON GOING de PPTO27) vs Cuadro General ${f0(g.v[k])} (hoja ${state.ds.snapName || 'Cuadro_Capex'}) · diferencia ${f0(dif)}`);
+          // pistas: SL de la misma subcategoría que hoy no son ON GOING pero tienen monto en esa columna (el cuadro 2026 los pudo haber contado como on going)
+          const fld = a === 'P26' ? 'p26' : a === 'FC' ? 'fc26' : 'p27';
+          const cand = state.ds.rows.filter(r => E.norm(r.part) === E.norm(b.part) && E.norm(r.tipo) !== 'on going' && Math.abs(r[fld] || 0) >= 0.5e6).sort((x, y) => Math.abs(y[fld]) - Math.abs(x[fld]));
+          if (cand.length) lines.push(`   Posibles causas · SL de ${b.part} que en PPTO27 no son ON GOING y tienen ${lbl}: ` + cand.slice(0, 5).map(r => `${r.sl} ${r.nom} (${E.norm(r.estado) === 'sin aprobacion' ? 'proy. futuro' : 'proyecto'}) ${f0(r[fld] / 1e6)}`).join(' · ') + (cand.length > 5 ? ` · y ${cand.length - 5} más` : '') + ` · suman ${f0(cand.reduce((x, r) => x + r[fld], 0) / 1e6)}`);
+        }
       });
     });
-    out.push({ label: 'Conciliación con el Cuadro General', ok: !lines.length, warn: true, count: lines.length, detail: lines, okTxt: 'PPTO 26, FCTS y PPTO 27 coinciden' });
+    const nDif = lines.filter(l => !l.startsWith('   ')).length;
+    if (nDif) lines.push('Cómo leerlo: este cuadro suma los SL que hoy son ON GOING en PPTO27 (montos 2026 de 06_FCTS26). El Cuadro General toma los valores 2026 tal como están en la hoja del cuadro, abiertos con la clasificación de 2026. Si un SL cambió de on going a proyecto (o de subcategoría), aparece la diferencia.');
+    out.push({ label: 'Conciliación con el Cuadro General', ok: !nDif, warn: true, count: nDif, detail: lines, okTxt: 'PPTO 26, FCTS y PPTO 27 coinciden' });
     if (page === 'itog|ECOM'){
       const { own, aparte } = this.ecomData(), all = own.concat(aparte);
       const sinH = all.filter(x => !x.v.hasOg);
