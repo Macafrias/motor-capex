@@ -468,7 +468,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 03/11/2026 11:09</b></small></div>
+    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 03/11/2026 11:28</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -492,7 +492,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 11:09</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 11:28</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -834,7 +834,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
           const r = F[i]; if (!r || r[iSl] == null || String(r[iSl]).trim() === '') continue;
           const k = slKey(r[iSl]), v = num(r[iBY]), o = fcB[k] || (fcB[k] = { fc: 0, parts: [] });
           o.fc += v; o.parts.push({ est: norm(iEs >= 0 ? r[iEs] : ''), tipo: norm(iTi >= 0 ? r[iTi] : ''), fc: v });
-          if (!o.sl) { o.sl = r[iSl]; o.part = iPt >= 0 ? r[iPt] : (fc26[k] || {}).part; o.gral = iGr >= 0 ? r[iGr] : (fc26[k] || {}).gral; o.nom = iNm >= 0 ? r[iNm] : (fc26[k] || {}).nom; o.tipo = iTi >= 0 ? r[iTi] : (fc26[k] || {}).tipo; o.estado = iEs >= 0 ? r[iEs] : (fc26[k] || {}).estado; }
+          // columna C = categoría general (p. ej. Crecimiento Brick) · columna D = particular (Farmacity, Simplicity…)
+          const vC = r[2 - off], vD = r[3 - off];
+          if (!o.sl) { o.sl = r[iSl]; o.part = vD != null && String(vD).trim() ? vD : iPt >= 0 ? r[iPt] : (fc26[k] || {}).part; o.gral = vC != null && String(vC).trim() ? vC : iGr >= 0 ? r[iGr] : (fc26[k] || {}).gral; o.nom = iNm >= 0 ? r[iNm] : (fc26[k] || {}).nom; o.tipo = iTi >= 0 ? r[iTi] : (fc26[k] || {}).tipo; o.estado = iEs >= 0 ? r[iEs] : (fc26[k] || {}).estado; }
         }
         fcLabel = fcByName; fcCol = 'BY'; fcCands = [];
       }
@@ -867,6 +869,14 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       rows.forEach(r => { if (!fcB[slKey(r.sl)]) { r.fc26 = 0; r.fcSrc = 'fcts'; } });
     } else assign(fc26, 'fc26', '06');
     if (!fcLabel) rows.forEach(r => { r.fcSrc = 'ppto27'; });
+    // Crecimiento: los SL con 9+3 en FCTS que no están en PPTO27 se suman igual (como en el cuadro del Excel),
+    // agrupados por la categoría general (col. C) y particular (col. D) de FCTS
+    fcOut.forEach(o => {
+      if (!/^crecimiento/.test(norm(o.gral)) || !o.part) return;
+      o.added = true;
+      rows.push({ sl: o.sl, nom: o.nom || String(o.sl), jer: '', resp: '', gral: o.gral, part: o.part, tipo: o.tipo || (fc26[slKey(o.sl)] || {}).tipo || '', estado: o.estado || (fc26[slKey(o.sl)] || {}).estado || '', cid: '',
+        real: MES_L.map(() => 0), real26: 0, p26b: 0, fc26b: 0, oc: 0, p27m: MES_L.map(() => 0), p27: 0, p26: o.p26 || 0, fc26: o.fc26 || 0, fcSrc: fcB ? 'fcts' : '06', soloFcts: true });
+    });
     /* 07_ON GOING: cantidades (horas) × precio unitario por SL */
     const og = {};
     if (ogName) {
@@ -2864,7 +2874,7 @@ const Ctl = {
           // pista: el cuadro del Excel puede estar armado con la columna FCTS 2026 de PPTO27 en vez de 06_FCTS26
           const alt = L.reduce((a, s) => a + (s.fc26b || 0), 0) / U, dif = L.filter(s => Math.abs((s.fc26 || 0) - (s.fc26b || 0)) >= 5e3);
           const parts = r.hasKids ? res.rows.filter(c => c.parent === r.id).map(c => E.norm(c.label)) : [E.norm(r.label)];
-          const outs = (full.fcOut || []).filter(o => parts.includes(E.norm(o.part))), outV = outs.reduce((a, o) => a + o.fc26, 0) / U;
+          const outs = (full.fcOut || []).filter(o => !o.added && parts.includes(E.norm(o.part))), outV = outs.reduce((a, o) => a + o.fc26, 0) / U;
           const hint = Math.abs(x - r.v.A93) > CTL_TOL ? (outs.length && Math.abs(x + outV - r.v.A93) <= CTL_TOL + 0.5 ? outs.length + ' SL de ' + (full.fcName || '06_FCTS26') + ' que no están en PPTO27 suman ' + nf(2).format(outV) + ' y explican la diferencia' : Math.abs(alt - r.v.A93) <= CTL_TOL ? 'con la columna FCTS 2026 de PPTO27 da ' + nf(2).format(alt) + ' y cruza: el cuadro del Excel usa PPTO27' : dif.length ? dif.length + ' SL con 9+3 distinto entre ' + (full.fcName || '06_FCTS26') + ' y PPTO27 (columna FCTS 2026 de PPTO27 = ' + nf(2).format(alt) + ')' : '') : '';
           const bad3 = Math.abs(x - r.v.A93) > CTL_TOL;
           out.push({ grp: B3, label: (r.parent ? '   ' : '') + r.label, mot: x, ref: r.v.A93, src: 'cuadro del Excel', hint, sls: bad3 && outs.length ? outs.concat(dif) : bad3 && dif.length ? dif : L.filter(s => s.fc26) });
