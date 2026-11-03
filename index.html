@@ -449,6 +449,20 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .drawer-head .drseg{margin-left:auto}
 .drawer-head .drseg + .btn,.drawer-head .drseg ~ #drClose{margin-left:0}
 .drawer-head .drseg button{height:28px;font-size:12px}
+/* barra de controles arriba de la slide */
+.ctlbar{margin:0 0 10px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.ctlbar .cb-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ctlbar .cb-sum{font-size:12.5px;padding:3px 10px;border-radius:999px;font-weight:500}
+.ctlbar .cb-sum.ok{background:color-mix(in srgb,#3E9B6A 16%,transparent);color:#2F7A52}
+.ctlbar .cb-sum.warn{background:color-mix(in srgb,#E0A23B 20%,transparent);color:#8A5A12}
+.ctlbar .cb-sum.bad{background:color-mix(in srgb,#C9584A 18%,transparent);color:#A23A2E}
+.ctlbar .cb-chip{border:1px solid var(--line);background:var(--surface-2);color:var(--fg);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.ctlbar .cb-chip.warn{border-color:#E0A23B}.ctlbar .cb-chip.bad{border-color:#C9584A}
+.ctlbar .cb-chip[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 14%,var(--surface))}
+.ctlbar .cb-sc{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.ctlbar .cb-det{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--surface-2);font-size:12px;max-height:220px;overflow:auto}
+.ctlbar .cb-dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.ctlbar .cb-det ul{margin:0;padding-left:18px}.ctlbar .cb-det li{margin:2px 0;overflow-wrap:anywhere}
 </style>
 
 <header class="top">
@@ -478,7 +492,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 09:00</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 09:08</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -491,6 +505,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="seg" id="views" role="group" aria-label="Vista de columnas"></div>
       <span class="hint">Títulos y nota al pie se editan con un clic en la slide. Clic en una fila para ver sus SL.</span>
     </div>
+    <div class="ctlbar" id="ctlbar" hidden></div>
     <div class="stage" id="stage">
       <div class="stage-inner" id="stageInner">
         <div class="slide" id="slide">
@@ -3250,6 +3265,29 @@ function renderChecks(){
   const own = pg.cuadro.checks(pg.key, optsOf(pg.cuadro));
   const base = state.res.checks;
   $('#checks').innerHTML = (own.length ? `<li style="display:block"><span class="ph" style="margin:0">Este cuadro</span></li>` + own.map(checkLi).join('') + `<li style="display:block;margin-top:6px"><span class="ph" style="margin:0">Archivo</span></li>` : '') + base.map(checkLi).join('');
+  renderCtlBar(own, base);
+}
+/* barra de controles arriba de la slide: lo que no cruza a la vista mientras se mira el cuadro (no sale en las exportaciones) */
+let CTL_OPEN = null;
+function renderCtlBar(own, base){
+  const el = $('#ctlbar'); if (!el) return;
+  if (!state.ds){ el.hidden = true; return; }
+  const items = own.map(c => Object.assign({ scope: 'Este cuadro' }, c)).concat(base.map(c => Object.assign({ scope: 'Archivo' }, c)));
+  const bad = items.filter(c => !c.ok), nOk = items.length - bad.length, nErr = bad.filter(c => !c.warn).length, nWarn = bad.length - nErr;
+  const key = c => c.scope + '|' + c.label;
+  if (CTL_OPEN && !bad.some(c => key(c) === CTL_OPEN)) CTL_OPEN = null;
+  const cnt = c => c.count != null ? c.count : (c.a != null ? '' : '');
+  const det = c => { const d = Array.isArray(c.detail) ? c.detail : (c.detail && typeof c.detail === 'object' ? Object.entries(c.detail).map(([k, v]) => `${k}: ${v}`) : []);
+    if (c.a != null && !c.ok) d.unshift(`cuadro $${nf(0).format(c.a)} M vs base $${nf(0).format(c.b)} M`); return d; };
+  const open = bad.find(c => key(c) === CTL_OPEN);
+  el.hidden = false;
+  el.innerHTML = `<div class="cb-row">
+      <span class="cb-sum ${bad.length ? (nErr ? 'bad' : 'warn') : 'ok'}">${bad.length ? (nErr ? '✗' : '!') : '✓'} Controles: <b>${nOk}</b> cruzan${nWarn ? ` · <b>${nWarn}</b> aviso${nWarn > 1 ? 's' : ''}` : ''}${nErr ? ` · <b>${nErr}</b> para revisar` : ''}</span>
+      ${bad.map(c => `<button type="button" class="cb-chip ${c.warn ? 'warn' : 'bad'}" data-k="${esc(key(c))}" aria-pressed="${key(c) === CTL_OPEN}"><span class="cb-sc">${esc(c.scope)}</span>${esc(c.label)}${cnt(c) !== '' ? ` <b>${cnt(c)}</b>` : ''}</button>`).join('')}
+    </div>
+    ${open ? `<div class="cb-det"><div class="cb-dh"><b>${esc(open.label)}</b><button type="button" class="btn mini" data-close="1">Cerrar</button></div><ul>${det(open).slice(0, 14).map(x => `<li>${esc(String(x).trim())}</li>`).join('') || '<li>Sin detalle.</li>'}${det(open).length > 14 ? `<li class="muted">… y ${det(open).length - 14} más (ver el panel de controles)</li>` : ''}</ul></div>` : ''}`;
+  el.querySelectorAll('.cb-chip').forEach(b => b.onclick = () => { CTL_OPEN = CTL_OPEN === b.dataset.k ? null : b.dataset.k; renderCtlBar(own, base); });
+  const cl = el.querySelector('[data-close]'); if (cl) cl.onclick = () => { CTL_OPEN = null; renderCtlBar(own, base); };
 }
 function renderAll(full){
   if (full){
