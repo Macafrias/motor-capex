@@ -468,7 +468,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 03/11/2026 16:08</b></small></div>
+    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 04/11/2026 12:14</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -492,7 +492,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 03/11/2026 16:08</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 04/11/2026 12:14</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -2472,7 +2472,7 @@ const Log = {
       if (otherSl) rows.push({ label: 'Otros SL on going', sub: 'sin detalle en 07_ON GOING', style: 'jer', cells: ccell(otherSl, ppto), drill: { title: 'On going sin detalle', sls: noDet.map(x => x.r) } });
       rows.push({ label: 'PPTO 2027 sin pase de año', sub: 'vs aterrizaje 2026 9+3', style: 'sub', cells: ccell(ppto, ppto, { fc }), drill: null });
       // en el total se muestra el aterrizaje y la variación calculada sin el pase de año
-      rows.push({ spacer: true }, { label: 'Total PPTO 2027 · on going', sub: 'incluye pase de año · variación sin pase de año', style: 'total', cells: ccell(totP27, totP27, { fc, base: ppto }), drill: { title: 'Logística · on going', sls: OG.map(x => x.r) } });
+      rows.push({ spacer: true }, { label: 'Total PPTO 2027 · on going', sub: 'incluye pase de año · vs aterrizaje 2026 9+3', style: 'total', cells: ccell(totP27, totP27, { fc }), drill: { title: 'Logística · on going', sls: OG.map(x => x.r) } });
       totV = { P27: totP27, FC: fc };
       const d = fVar(vr(ppto, fc));
       const dd = ppto - fc;
@@ -3987,7 +3987,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="03/11/2026 16:08";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="04/11/2026 12:14";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script>
 </body></html>
