@@ -463,12 +463,24 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .ctlbar .cb-det{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--surface-2);font-size:12px;max-height:220px;overflow:auto}
 .ctlbar .cb-dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .ctlbar .cb-det ul{margin:0;padding-left:18px}.ctlbar .cb-det li{margin:2px 0;overflow-wrap:anywhere}
+
+/* ---------- compartir ---------- */
+.share-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:22px;padding:4px 2px 6px}
+.share-list{display:grid;gap:6px;margin-top:8px}
+.share-warn{font-size:11.5px;padding:0;margin-top:8px;color:var(--warn,#B7791F)}
+.share-info{margin:12px 0 14px;padding-left:18px;font-size:12px;line-height:1.5;color:var(--ink-2)}
+.share-info li{margin:2px 0}
+.share-btn{margin-top:4px}
+@media (max-width:760px){.share-grid{grid-template-columns:1fr}}
+html.share #btnLoad,html.share #pData,html.share #pChecks,html.share .ver-panel,html.share #ctlbar,html.share #xShare,html.share .stagebar .hint,html.share .sl-next{display:none!important}
+html.share .slide [contenteditable]{cursor:text}
+
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 04/11/2026 15:06</b></small></div>
+    <div><h1>Motor de Presentación CAPEX</h1><small id="hSub">Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 04/11/2026 16:02</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -483,7 +495,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <h2 class="ph">Cuadros</h2>
       <div class="slides" id="slides"></div>
     </section>
-    <section class="panel">
+    <section class="panel" id="pData">
       <h2 class="ph">Datos</h2>
       <div class="drop" id="drop" role="button" tabindex="0" aria-label="Cargar archivos Excel">
         <b>Arrastrá los Excel acá</b>
@@ -492,9 +504,9 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 04/11/2026 15:06</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 04/11/2026 16:02</p>
     </section>
-    <section class="panel">
+    <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
       <ul class="checks" id="checks"></ul>
     </section>
@@ -520,7 +532,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
           <div class="s-body" id="sBody"><div class="s-fit" id="sFit"></div></div>
           <div class="s-foot">
             <div class="note" id="sNote" contenteditable="true" spellcheck="false"></div>
-            <div class="brandline">Farmacity · PCG</div>
+            <div class="brandline" id="sBrand">Farmacity · PCG</div>
           </div>
         </div>
       </div>
@@ -580,6 +592,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         <button class="btn" id="xPng" type="button">Imagen PNG</button>
         <button class="btn" id="xXlsx" type="button">Excel</button>
         <button class="btn wide" id="xCopy" type="button">Copiar tabla</button>
+        <button class="btn wide share-btn" id="xShare" type="button"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="3.5" r="1.8"/><circle cx="4" cy="8" r="1.8"/><circle cx="12" cy="12.5" r="1.8"/><path d="m5.6 7.1 4.8-2.7M5.6 8.9l4.8 2.7"/></svg>Compartir motor estático</button>
       </div>
       <p class="empty" style="font-size:11.5px;margin:10px 0 0">El PowerPoint trae tablas nativas: se editan en PowerPoint o se suben a Canva. La imagen va directo a Canva.</p>
     </section>
@@ -1341,22 +1354,24 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 <script>
 const DEMO = /*__DEMO__*/null;
 const DEMO_MZ = /*__DEMOMZ__*/null;
+const SHARE = /*__SHARE__*/null;
 (function(){
 const E = window.CapexEngine;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const LS = 'capex-motor-v2', LSMZ = 'capex-motor-matriz';
+const LS = SHARE ? 'capex-motor-share|' + SHARE.id : 'capex-motor-v2', LSMZ = SHARE ? LS + '|mz' : 'capex-motor-matriz';
 const ls = {
   get(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch(e){ return null; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
-const saved = ls.get(LS) || {};
-const savedMz = ls.get(LSMZ);
+const saved = ls.get(LS) || (SHARE && SHARE.ui) || {};
+const savedMz = SHARE ? null : ls.get(LSMZ);
+if (SHARE) document.documentElement.classList.add('share');
 
 /* ============ estado ============ */
 const state = {
-  ds: DEMO, dsSrc: DEMO ? 'demo' : 'none', dsName: DEMO ? 'PPTO 2027 - CAPEX - Prueba 2.xlsx' : 'Sin cargar',
-  mz: savedMz ? savedMz.mz : DEMO_MZ, mzSrc: savedMz ? 'live' : (DEMO_MZ ? 'demo' : 'none'), mzName: savedMz ? savedMz.name : (DEMO_MZ ? 'Subledger_matriz.xlsx' : 'Sin cargar'),
+  ds: SHARE ? SHARE.ds : DEMO, dsSrc: SHARE ? 'share' : DEMO ? 'demo' : 'none', dsName: SHARE ? 'Vista compartida' : DEMO ? 'PPTO 2027 - CAPEX - Prueba 2.xlsx' : 'Sin cargar',
+  mz: SHARE ? SHARE.mz : savedMz ? savedMz.mz : DEMO_MZ, mzSrc: savedMz ? 'live' : (DEMO_MZ ? 'demo' : 'none'), mzName: savedMz ? savedMz.name : (DEMO_MZ ? 'Subledger_matriz.xlsx' : 'Sin cargar'),
   dir: null, dirName: null, dirPerm: null,
   page: saved.page || 'general',
   unit: saved.unit || 'M', pctDec: +(saved.pctDec || 0), dec: saved.dec == null ? 2 : +saved.dec, kpis: saved.kpis !== false, sem: saved.sem !== false,
@@ -2974,6 +2989,8 @@ Me.checksOfi = function(o){
   return out;
 };
 const CUADROS = [General, ItRes, ItOg, ItPr, Me, Log, Oi, Ctl];
+const CUADROS_ALL = CUADROS.slice();
+if (SHARE) for (let i = CUADROS.length - 1; i >= 0; i--) if (!SHARE.cuadros.includes(CUADROS[i].id)) CUADROS.splice(i, 1);
 const cuadroOf = key => CUADROS.find(c => key === c.id || key.startsWith(c.id + '|'));
 function optsOf(c){
   let o = state.opts[c.id];
@@ -3392,9 +3409,9 @@ function renderFiles(){
   const items = [['FCTS 2026', '9+3 · ' + (state.ds.fcName || state.ds.snapName)], ['Real cargado hasta', mesTxt()], ['SL en PPTO27', state.ds.rows.length]];
   $('#meta').innerHTML = items.map(([a, b]) => `<dt>${a}</dt><dd>${esc(b)}</dd>`).join('')
     + (hc ? `<dt style="grid-column:1/-1">Horas ECOM (07_ON GOING)</dt><dd style="grid-column:1/-1;text-align:left;font-weight:400">${[['PPTO 2026', hc.h26], ['FCTS 9+3', hc.hfc], ['PPTO 2027', hc.h27]].map(([k, v]) => `<b>${k}</b>: ${esc(v)}`).join('<br>')}</dd>` : '');
-  const live = state.dsSrc === 'file';
+  const live = state.dsSrc === 'file' || state.dsSrc === 'share';
   $('#srcChip').classList.toggle('live', live);
-  $('#srcTxt').textContent = live ? 'Archivo cargado' : 'Ejemplo · datos ficticios';
+  $('#srcTxt').textContent = SHARE ? 'Actualizado al ' + SHARE.fecha : live ? 'Archivo cargado' : 'Ejemplo · datos ficticios';
 }
 const colName = k => (E.COLS.find(c => c.k === k) || {}).label || k;
 function checkLi(c){
@@ -3819,7 +3836,7 @@ function addSlide(pptx, tm, tx){
   s.addTable([head1, head2].concat(body), { x: 0.4 + pi * (partW + GAP) + xOff, y: 1.35, w: colW.reduce((a, b) => a + b, 0), colW, rowH: rh, fontSize: fs, fontFace: 'Calibri Light', valign: 'middle', margin: [0.01, 0.05, 0.01, 0.05], autoPage: false });
   });
   s.addText(tx.note, { x: 0.45, y: 7.02, w: 10.5, h: 0.32, fontSize: 8, color: PX.INK2, fontFace: 'Calibri Light' });
-  s.addText('FARMACITY · PCG', { x: 11, y: 7.02, w: 1.9, h: 0.32, fontSize: 8, bold: true, color: PX.SLATE, align: 'right', fontFace: 'Calibri' });
+  s.addText(SHARE ? 'FARMACITY · PCG · DATOS AL ' + SHARE.fecha : 'FARMACITY · PCG', { x: SHARE ? 9.9 : 11, y: 7.02, w: SHARE ? 3 : 1.9, h: 0.32, fontSize: 8, bold: true, color: PX.SLATE, align: 'right', fontFace: 'Calibri' });
 }
 /* carga diferida de librerías: primero la copia local (GitHub), después CDNs alternativos */
 function loadScript(src){ return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
@@ -3975,12 +3992,98 @@ async function syncFolder(ask){
   }catch(e){ console.error(e); state.lastErr = 'No pude leer la carpeta: ' + (e.message || e); toast(state.lastErr, 12000); renderFolder(); }
 }
 (async () => {
-  if (!FS_OK) return;
+  if (!FS_OK || SHARE) return;
   const dir = await idb.get('dir');
   if (!dir) return;
   state.dir = dir; state.dirName = dir.name; renderFolder();
   try{ if (await dir.queryPermission({ mode: 'read' }) === 'granted') syncFolder(false); }catch(e){}
 })();
+
+/* ============ compartir: motor estático con los datos de hoy ============ */
+// genera un HTML único con los datos ya adentro (solo los de los cuadros elegidos), sin carpeta, controles ni versiones
+const SHARE_SCOPE = { itres: ['IT'], itog: ['IT'], itpr: ['IT'], me: ['ME'], log: ['LOG', 'OPL'], oi: ['OI'] };
+function shareData(ids){
+  const full = state.dsFull || state.ds;
+  if (ids.includes('general')) return { ds: full, mz: state.mz || null };
+  const nodes = E.STRUCTURE.filter(n => ids.some(id => (SHARE_SCOPE[id] || []).includes(n.id)));
+  const ok = new Set(); nodes.forEach(n => { [n.label, n.key].concat(n.children || []).forEach(x => { if (x) ok.add(E.norm(x)); }); });
+  if (nodes.some(n => n.id === 'OPL')) ['farmacias rio negro y neuquen', 'farmacias del pueblo', 'farmacia del pueblo'].forEach(x => ok.add(x));
+  const rows = full.rows.filter(r => ok.has(E.norm(r.part)) || ok.has(E.norm(r.gral)));
+  const keys = new Set(rows.map(r => E.slKey(r.sl)));
+  const pick = (o, f) => { if (!o || typeof o !== 'object') return o; const x = {}; for (const k in o) if (f(k)) x[k] = o[k]; return x; };
+  const bySl = k => k.startsWith('__') || keys.has(k);
+  const byLine = k => ok.has(k.replace(/^opl\|/, ''));
+  const ds = Object.assign({}, full, { rows, og: pick(full.og, bySl), pr: pick(full.pr, bySl), snap: pick(full.snap, byLine), cached: pick(full.cached, byLine),
+    verX: null, r25Out: [], fcOut: [], fcCands: [], filtered: null });
+  if (full.mzInside && full.mzInside.map) ds.mzInside = Object.assign({}, full.mzInside, { map: pick(full.mzInside.map, bySl) });
+  const mz = state.mz && state.mz.map ? Object.assign({}, state.mz, { map: pick(state.mz.map, bySl) }) : null;
+  return { ds, mz };
+}
+const hoy = () => new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+function renderShare(){
+  const el = $('#drawer'); state.drill = null; el.hidden = false;
+  const list = CUADROS_ALL.filter(c => c !== Ctl);
+  const pre = new Set(state._shareSel || ['itres', 'itog', 'itpr']);
+  el.innerHTML = `<div class="drawer-head"><h2>Compartir motor estático</h2><span class="muted">Un archivo HTML con los datos de hoy: se abre con doble clic, sin carpeta ni Excel</span><button class="btn" type="button" id="drClose">Cerrar</button></div>
+    <div class="share-grid">
+      <div><span class="lab">Cuadros que incluye</span>
+        <div class="share-list">${list.map(c => `<label class="tg"><input type="checkbox" value="${c.id}"${pre.has(c.id) ? ' checked' : ''}>${esc(c.name)}</label>`).join('')}</div>
+        <p class="empty share-warn" id="shWarn"></p></div>
+      <div>
+        <div class="field" style="margin-top:0"><label for="shFecha">Actualizado al</label><input id="shFecha" type="text" maxlength="20" value="${esc(hoy())}"></div>
+        <div class="field"><label for="shPara">Para (opcional, va en el nombre del archivo)</label><input id="shPara" type="text" maxlength="30" placeholder="Ej.: IT" value="${esc(state._sharePara || '')}"></div>
+        <ul class="share-info"><li>Lleva solo los datos de los cuadros elegidos: los demás no viajan en el archivo.</li><li>Sin controles, versiones ni justificaciones.</li><li>Pueden ver el detalle por SL, cambiar columnas y exportar a PowerPoint, PNG o Excel. Los números quedan fijos.</li><li>Arriba y en el pie de cada slide dice "Actualizado al" con la fecha.</li></ul>
+        <button class="btn primary wide" type="button" id="shGo" style="width:100%">Descargar HTML</button>
+      </div>
+    </div>`;
+  const sel = () => [...el.querySelectorAll('.share-list input:checked')].map(i => i.value);
+  const warn = () => { $('#shWarn').textContent = sel().includes('general') ? 'El Cuadro General lleva todas las líneas del CAPEX: el archivo incluye todos los datos.' : ''; };
+  el.querySelectorAll('.share-list input').forEach(i => i.onchange = warn); warn();
+  $('#drClose').onclick = () => { el.hidden = true; };
+  $('#shGo').onclick = () => buildShare(sel(), $('#shFecha').value.trim() || hoy(), $('#shPara').value.trim());
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+async function buildShare(ids, fecha, para){
+  if (!ids.length){ toast('Elegí al menos un cuadro.'); return; }
+  if (!state.ds){ toast('Primero cargá el Excel.'); return; }
+  state._shareSel = ids; state._sharePara = para;
+  const btn = $('#shGo'); btn.disabled = true; btn.textContent = 'Armando el archivo…';
+  try{
+    const base = location.href.split('#')[0].split('?')[0];
+    let html = await (await fetch(base, { cache: 'no-store' })).text();
+    const MARK = '/*__' + 'SHARE__*/null';
+    if (!html.includes(MARK)) throw new Error('no encontré el motor publicado');
+    // librerías adentro del archivo, para que funcione sin internet ni carpeta lib/
+    const tags = [...html.matchAll(/<script src="(lib\/[^"]+)"><\/script>/g)];
+    for (const m of tags){
+      const code = await (await fetch(new URL(m[1], base), { cache: 'no-store' })).text();
+      html = html.replace(m[0], () => '<script>' + code + '<\/script>');
+    }
+    const C = '<' + '!--';
+    html = html.replace(new RegExp(C + 'UPD-->[\\s\\S]*?' + C + '/UPD-->'), '');
+    persist(); const ui = JSON.parse(localStorage.getItem('capex-motor-v2') || 'null') || {};
+    ui.ver = { on: false, exp: false, note: false, sel: [] };
+    const inSel = k => ids.includes(String(k).split('|')[0]);
+    ui.texts = Object.fromEntries(Object.entries(ui.texts || {}).filter(([k]) => inSel(k)));
+    ui.opts = Object.fromEntries(Object.entries(ui.opts || {}).filter(([k]) => ids.includes(k)));
+    if (!ids.includes(ui.page && String(ui.page).split('|')[0])) ui.page = (CUADROS_ALL.find(c => c.id === ids[0]).pages(optsOf(CUADROS_ALL.find(c => c.id === ids[0])))[0] || {}).key;
+    const d = shareData(ids);
+    const payload = { id: Date.now().toString(36), fecha, para, cuadros: ids, ds: d.ds, mz: d.mz, ui };
+    const json = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+    html = html.replace(MARK, () => json);
+    const name = 'Motor CAPEX' + (para ? ' - ' + para.replace(/[\\/:*?"<>|]/g, '') : '') + ' - ' + fecha.replace(/\//g, '-') + '.html';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' })); a.download = name;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    toast('Listo: ' + name + '. Mandalo por mail o Teams; se abre con doble clic.', 8000);
+  }catch(e){ console.error(e); toast('No pude armar el archivo (' + (e.message || e) + '). Usá el motor desde tu link de GitHub.', 9000); }
+  finally{ btn.disabled = false; btn.textContent = 'Descargar HTML'; }
+}
+$('#xShare').onclick = () => { if (!state.ds){ toast('Primero cargá el Excel.'); return; } renderShare(); };
+if (SHARE){
+  $('#hSub').innerHTML = 'Vista compartida' + (SHARE.para ? ' · ' + esc(SHARE.para) : '') + ' · <b style="font-weight:600">actualizado al ' + esc(SHARE.fecha) + '</b> · datos fijos';
+  $('#sBrand').textContent = 'Farmacity · PCG · Actualizado al ' + SHARE.fecha;
+  document.title = 'Motor CAPEX · ' + (SHARE.para || 'vista compartida') + ' · ' + SHARE.fecha;
+}
 
 /* ============ arranque ============ */
 new ResizeObserver(scaleStage).observe($('#stage'));
@@ -3994,9 +4097,9 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 })();
 </script>
 
-<div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
+<!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="04/11/2026 15:06";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="04/11/2026 16:02";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
-chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script>
+chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
