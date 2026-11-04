@@ -468,7 +468,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 04/11/2026 12:38</b></small></div>
+    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 04/11/2026 15:06</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -492,7 +492,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 04/11/2026 12:38</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 04/11/2026 15:06</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1211,7 +1211,8 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
           // detalle por renglón (p. ej. un SL con varias obras / oficinas)
           o.det.push({ nom: c.nom >= 0 ? r[c.nom] : null, est: c.est >= 0 ? r[c.est] : null, tot27: c.tot27 >= 0 ? num(r[c.tot27]) : 0, mpr: c.mpr >= 0 ? num(r[c.mpr]) : 0,
             desde: c.desde >= 0 ? r[c.desde] : null, hasta: c.hasta >= 0 ? r[c.hasta] : null, com: c.com >= 0 ? r[c.com] : null, m: MI.map(i => i >= 0 ? num(r[i]) : 0) });
-          if (!o.estado && c.est >= 0 && r[c.est]) o.estado = String(r[c.est]).trim();
+          // un SL partido en dos renglones (historia + "Aprobación extra") se clasifica como aprobación extra
+          if (c.est >= 0 && r[c.est] && (!o.estado || (/extra/.test(norm(r[c.est])) && !/extra/.test(norm(o.estado))))) o.estado = String(r[c.est]).trim();
           if (!o.nom && c.nom >= 0) o.nom = r[c.nom];
           ['apr','tot27'].forEach(x => { if (c[x] >= 0) o[x] += num(r[c[x]]); });
           const ct = c.cons >= 0 ? num(r[c.cons]) : 0, c25 = iR25 >= 0 ? num(r[iR25]) : 0, c26 = iR26 >= 0 ? num(r[iR26]) : 0;
@@ -3995,7 +3996,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="04/11/2026 12:38";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="04/11/2026 15:06";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script>
 </body></html>
