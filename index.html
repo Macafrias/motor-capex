@@ -468,7 +468,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 04/11/2026 12:14</b></small></div>
+    <div><h1>Motor de Presentación CAPEX</h1><small>Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 04/11/2026 12:38</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -492,7 +492,7 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 04/11/2026 12:14</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 04/11/2026 12:38</p>
     </section>
     <section class="panel">
       <h2 class="ph">Controles</h2>
@@ -1199,17 +1199,25 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
         const c = { sl: QH.indexOf('sl'), nom: f('nombre del proyecto', 'nombre'), est: f('estado del sl', 'estado'), apr: f('aprobado total'), cons: f('consumido total'),
           saldo: f('saldo aprobado'), pej: f('% ejecutado'), desde: f('mes desde'), hasta: f('mes hasta'), tot27: f('total 2027'), com: f('comentario'),
           mpr: f('monto a proyectar') };
+        // consumido = solo real (≤2025 + 2026); los FCTS de los meses que faltan quedan aparte (fcr) para el saldo proyectado
+        const iR25 = QH.findIndex(x => x.startsWith('real consumido') && /2025/.test(x)), iR26 = QH.findIndex(x => x.startsWith('real consumido') && /2026/.test(x));
+        const iFcr = QH.map((x, i) => /^fcts\s/.test(x) ? i : -1).filter(i => i >= 0);
+        const realOk = iR25 >= 0 || iR26 >= 0;
         const MI = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'].map(m => QH.indexOf('importe ' + m));
         for (let i = qh + 1; i < Q.length; i++) {
           const r = Q[i]; if (!r || r[c.sl] == null || r[c.sl] === '') continue;
           const k = slKey(r[c.sl]);
-          const o = pr[k] || (pr[k] = { estado: '', nom: null, apr: 0, cons: 0, saldo: 0, tot27: 0, desde: null, hasta: null, com: null, n: 0, det: [] });
+          const o = pr[k] || (pr[k] = { estado: '', nom: null, apr: 0, cons: 0, consTot: 0, fcr: 0, c25: 0, c26: 0, saldo: 0, tot27: 0, desde: null, hasta: null, com: null, n: 0, det: [] });
           // detalle por renglón (p. ej. un SL con varias obras / oficinas)
           o.det.push({ nom: c.nom >= 0 ? r[c.nom] : null, est: c.est >= 0 ? r[c.est] : null, tot27: c.tot27 >= 0 ? num(r[c.tot27]) : 0, mpr: c.mpr >= 0 ? num(r[c.mpr]) : 0,
             desde: c.desde >= 0 ? r[c.desde] : null, hasta: c.hasta >= 0 ? r[c.hasta] : null, com: c.com >= 0 ? r[c.com] : null, m: MI.map(i => i >= 0 ? num(r[i]) : 0) });
           if (!o.estado && c.est >= 0 && r[c.est]) o.estado = String(r[c.est]).trim();
           if (!o.nom && c.nom >= 0) o.nom = r[c.nom];
-          ['apr','cons','saldo','tot27'].forEach(x => { if (c[x] >= 0) o[x] += num(r[c[x]]); });
+          ['apr','tot27'].forEach(x => { if (c[x] >= 0) o[x] += num(r[c[x]]); });
+          const ct = c.cons >= 0 ? num(r[c.cons]) : 0, c25 = iR25 >= 0 ? num(r[iR25]) : 0, c26 = iR26 >= 0 ? num(r[iR26]) : 0;
+          const cr = realOk ? c25 + c26 : ct, fcr = realOk ? (iFcr.length ? iFcr.reduce((a, i) => a + num(r[i]), 0) : ct - cr) : 0;
+          o.consTot += ct; o.c25 += c25; o.c26 += c26; o.cons += cr; o.fcr += fcr;
+          o.saldo += (c.apr >= 0 ? num(r[c.apr]) : 0) - cr;
           if (c.desde >= 0 && o.desde == null) o.desde = r[c.desde]; if (c.hasta >= 0 && o.hasta == null) o.hasta = r[c.hasta];
           if (c.com >= 0 && r[c.com]) o.com = r[c.com];
           o.n++;
@@ -1315,10 +1323,10 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
       const cat08 = p ? prCat(p.estado, '') : null;
       if (cat08 && cat08 !== cat && !(cat === 'curso' && cat08 === 'curso')) mism.push({ r, cat, cat08, estado08: p.estado });
       const v = { R25: (r.r25 || 0) / U, P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U,
-        APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null };
+        APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null, FCR: p ? p.fcr / U : 0 };
       v.PEJ = v.APR ? v.CONS / v.APR : null;
-      v.SAL27 = v.SALDO != null ? v.SALDO - v.P27 : null;
-      v.EXC = Math.max(0, (v.CONS || 0) + v.P27 - (v.APR || 0));
+      v.SAL27 = v.SALDO != null ? v.SALDO - (v.FCR || 0) - v.P27 : null;
+      v.EXC = Math.max(0, (v.CONS || 0) + (v.FCR || 0) + v.P27 - (v.APR || 0));
       items.push({ r, p, cat, v, desde: p ? p.desde : null, hasta: p ? p.hasta : null });
     });
     return { items, no08, mism };
@@ -1883,7 +1891,7 @@ const ItPr = {
       { k: 'CUB', label: 'Con aprobación vigente', grp: 'Aprobación PPTO 2027', kind: 'amt', tone: 'var' },
       { k: 'AAP', label: 'A aprobar (extra)', grp: 'Aprobación PPTO 2027', kind: 'aap', tone: 'var', strong: true },
       { k: 'APR', label: 'Aprobado total', grp: 'Aprobación', kind: 'amt', tone: 'var', strong: true },
-      { k: 'CONS', label: 'Consumido total', grp: 'Aprobación', kind: 'amt', tone: 'var' },
+      { k: 'CONS', label: 'Consumido real', grp: 'Aprobación', kind: 'amt', tone: 'var' },
       { k: 'SALDO', label: 'Saldo aprobado', grp: 'Aprobación', kind: 'delta', tone: 'var' },
       { k: 'PEJ', label: '% ejecutado', grp: 'Aprobación', kind: 'ratio', tone: 'var' },
       { k: 'SAL27', label: 'Saldo luego de PPTO 27', grp: 'Aprobación', kind: 'delta', tone: 'var' },
@@ -1931,9 +1939,9 @@ const ItPr = {
     return a && z ? (a === z ? a : a + ' – ' + z) : '';
   },
   sumV(list){
-    const s = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, EXC: 0, CUB: 0, AAP: 0 };
+    const s = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, FCR: 0, EXC: 0, CUB: 0, AAP: 0 };
     list.forEach(x => { for (const k in s) s[k] += x.v[k] || 0; });
-    s.SAL27 = s.SALDO - s.P27; s.PEJ = s.APR ? s.CONS / s.APR : null; s.RESPT = E.respOf(list.map(x => x.r)); return s;
+    s.SAL27 = s.SALDO - s.FCR - s.P27; s.PEJ = s.APR ? s.CONS / s.APR : null; s.RESPT = E.respOf(list.map(x => x.r)); return s;
   },
   build(page, o){
     const k = this.kind(page), st = this.colState(page, o);
@@ -2320,7 +2328,7 @@ const Log = {
       { k: 'DABS', label: 'Δ $', grp: 'Incremento vs aterrizaje', kind: 'delta', tone: 'var' },
       { k: 'DPCT', label: 'Δ %', grp: 'Incremento vs aterrizaje', kind: 'var', tone: 'var' },
       { k: 'APR', label: 'Aprobado total', grp: 'Aprobación', kind: 'amt', tone: 'var', strong: true },
-      { k: 'CONS', label: 'Consumido total', grp: 'Aprobación', kind: 'amt', tone: 'var' },
+      { k: 'CONS', label: 'Consumido real', grp: 'Aprobación', kind: 'amt', tone: 'var' },
       { k: 'SALDO', label: 'Saldo aprobado', grp: 'Aprobación', kind: 'delta', tone: 'var' },
       { k: 'SAL27', label: 'Saldo luego de PPTO 27', grp: 'Aprobación', kind: 'delta', tone: 'var' }
     ];
@@ -2350,16 +2358,16 @@ const Log = {
       const og = pt === 'capex varios';
       const cat = og ? 'og' : ep.startsWith('finaliz') ? 'fin' : ep === 'en curso' ? 'curso' : 'sin';
       const v = { R25: (r.r25 || 0) / U, P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U,
-        APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null };
-      v.SAL27 = v.SALDO != null ? v.SALDO - v.P27 : null;
+        APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null, FCR: p ? p.fcr / U : 0 };
+      v.SAL27 = v.SALDO != null ? v.SALDO - v.FCR - v.P27 : null;
       items.push({ r, p, v, cat, opl: isOpl, isPr: !og, desde: p ? p.desde : null, hasta: p ? p.hasta : null });
     });
     return { items, log: items.filter(x => !x.opl), opl: items.filter(x => x.opl) };
   },
   sumV(list){
-    const s = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0 };
+    const s = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, FCR: 0 };
     list.forEach(x => { for (const k in s) s[k] += x.v[k] || 0; });
-    s.SAL27 = s.SALDO - s.P27; s.RESPT = E.respOf(list.map(x => x.r)); return s;
+    s.SAL27 = s.SALDO - s.FCR - s.P27; s.RESPT = E.respOf(list.map(x => x.r)); return s;
   },
   fmtCell(c, v, slTxt, it){
     if (c.kind === 'sl') return { t: slTxt || '', cls: 'slc' };
@@ -2590,7 +2598,7 @@ const Oi = {
       { k: 'DABS', label: 'Δ $', grp: 'Incremento vs aterrizaje', kind: 'delta', tone: 'var' },
       { k: 'DPCT', label: 'Δ %', grp: rod ? 'Montos' : 'Incremento vs aterrizaje', kind: 'var', tone: 'var' },
       { k: 'APR', label: 'Aprobado total', grp: 'Aprobación', kind: 'amt', tone: 'var', strong: true },
-      { k: 'CONS', label: 'Consumido total', grp: 'Aprobación', kind: 'amt', tone: 'var' },
+      { k: 'CONS', label: 'Consumido real', grp: 'Aprobación', kind: 'amt', tone: 'var' },
       { k: 'SALDO', label: 'Saldo aprobado', grp: 'Aprobación', kind: 'delta', tone: 'var' }
     ];
     return rod ? q.concat(m) : m.concat(q);
@@ -2613,12 +2621,12 @@ const Oi = {
     const U = 1e6, prm = state.ds.pr || {};
     return state.ds.rows.filter(r => E.norm(r.gral) === 'otras inversiones').map(r => {
       const p = prm[E.slKey(r.sl)], ep = E.norm(r.estado);
-      const v = { R25: (r.r25 || 0) / U, P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U, APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null };
+      const v = { R25: (r.r25 || 0) / U, P26: r.p26 / U, REAL: r.real26 / U, FC: r.fc26 / U, P27: r.p27 / U, APR: p ? p.apr / U : null, CONS: p ? p.cons / U : null, SALDO: p ? p.saldo / U : null, FCR: p ? p.fcr / U : 0 };
       return { r, p, v, cat: ep.startsWith('finaliz') ? 'fin' : ep === 'en curso' ? 'curso' : 'sin', desde: p ? p.desde : null, hasta: p ? p.hasta : null };
     });
   },
   sumV(list){
-    const s = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0 };
+    const s = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, FCR: 0 };
     list.forEach(x => { for (const k in s) s[k] += x.v[k] || 0; });
     s.RESPT = E.respOf(list.map(x => x.r)); return s;
   },
@@ -3183,7 +3191,7 @@ const UNI_COLS = [
   { k: 'D25', label: 'Δ % 9+3 vs Real 25', grp: 'Variaciones', kind: 'var', tone: 'var' },
   { k: 'EJ', label: '% ejec. real / 9+3', grp: 'Variaciones', kind: 'ratio', tone: 'var' },
   { k: 'APR', label: 'Aprobado total', grp: 'Aprobación', kind: 'amt', tone: 'var' },
-  { k: 'CONS', label: 'Consumido total', grp: 'Aprobación', kind: 'amt', tone: 'var' },
+  { k: 'CONS', label: 'Consumido real', grp: 'Aprobación', kind: 'amt', tone: 'var' },
   { k: 'SALDO', label: 'Saldo aprobado', grp: 'Aprobación', kind: 'delta', tone: 'var' },
   { k: 'PEJ', label: '% ejecutado', grp: 'Aprobación', kind: 'ratio', tone: 'var' },
   { k: 'SAL27', label: 'Saldo luego de PPTO 27', grp: 'Aprobación', kind: 'delta', tone: 'var' },
@@ -3198,11 +3206,11 @@ function uniExtras(pg){
   return UNI_COLS.filter(c => !own.has(c.k) && !((pg.cuadro === General || pg.cuadro === ItRes) && GEN_SKIP.has(c.k)) && !(pg.cuadro === Me && pg.key === 'me|ofi') && !(pg.cuadro === Oi && pg.key === 'oi|inf'));
 }
 function uniVals(sls){
-  const U = 1e6, prm = (state.ds && state.ds.pr) || {}, v = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, EXC: 0, n08: 0 };
+  const U = 1e6, prm = (state.ds && state.ds.pr) || {}, v = { R25: 0, P26: 0, REAL: 0, FC: 0, P27: 0, APR: 0, CONS: 0, SALDO: 0, FCR: 0, EXC: 0, n08: 0 };
   sls.forEach(r => {
     v.R25 += (r.r25 || 0) / U; v.P26 += (r.p26 || 0) / U; v.REAL += (r.real26 || 0) / U; v.FC += (r.fc26 || 0) / U; v.P27 += (r.p27 || 0) / U;
     const p = prm[E.slKey(r.sl)];
-    if (p){ v.n08++; v.APR += p.apr / U; v.CONS += p.cons / U; v.SALDO += p.saldo / U; v.EXC += Math.max(0, p.cons / U + r.p27 / U - p.apr / U); }
+    if (p){ v.n08++; v.APR += p.apr / U; v.CONS += p.cons / U; v.SALDO += p.saldo / U; v.FCR += p.fcr / U; v.EXC += Math.max(0, (p.cons + p.fcr) / U + r.p27 / U - p.apr / U); }
   });
   return v;
 }
@@ -3219,7 +3227,7 @@ function uniCell(c, v, sls, den){
     case 'D25': return fVar(vr(v.FC, v.R25));
     case 'EJ': return fRatio(v.REAL, v.FC);
     case 'APR': case 'CONS': return v.n08 ? fAmt(v[c.k]) : { t: '–', cls: 'na' };
-    case 'SALDO': case 'SAL27': { if (!v.n08) return { t: '–', cls: 'na' }; const x = c.k === 'SALDO' ? v.SALDO : v.SALDO - v.P27; const f = fAmt(x); return f.cls === 'na' ? f : { t: f.t, cls: x < 0 ? 'vn' : '' }; }
+    case 'SALDO': case 'SAL27': { if (!v.n08) return { t: '–', cls: 'na' }; const x = c.k === 'SALDO' ? v.SALDO : v.SALDO - v.FCR - v.P27; const f = fAmt(x); return f.cls === 'na' ? f : { t: f.t, cls: x < 0 ? 'vn' : '' }; }
     case 'PEJ': return v.APR ? { t: nf(0).format(v.CONS / v.APR * 100) + '%', cls: v.CONS > v.APR ? 'vn' : '' } : { t: '–', cls: 'na' };
     case 'EXC': { if (!v.n08) return { t: '–', cls: 'na' }; const f = fAmt(v.EXC); return f.cls === 'na' ? f : { t: f.t, cls: 'vn' }; }
     default: return fAmt(v[c.k]);
@@ -3987,7 +3995,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="04/11/2026 12:14";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="04/11/2026 12:38";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script>
 </body></html>
