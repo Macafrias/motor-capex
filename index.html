@@ -480,7 +480,7 @@ html.share .slide [contenteditable]{cursor:text}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small id="hSub">Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 04/11/2026 16:02</b></small></div>
+    <div><h1>Motor de Presentación CAPEX</h1><small id="hSub">Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 04/11/2026 17:49</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -504,7 +504,7 @@ html.share .slide [contenteditable]{cursor:text}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 04/11/2026 16:02</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 04/11/2026 17:49</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -2938,6 +2938,20 @@ const Ctl = {
       const prm = full.pr || {}, prSL = full.rows.filter(r => prm[E.slKey(r.sl)] && E.norm(r.tipo) === 'proyectos');
       const prBad = prSL.filter(r => Math.abs(prm[E.slKey(r.sl)].tot27 - r.p27) / U > CTL_TOL);
       add(D, '08_PROYECTOS · TOTAL 2027 por SL', prSL.reduce((a, r) => a + prm[E.slKey(r.sl)].tot27, 0) / U, sumP(prSL), 'PPTO27 de esos SL', prBad);
+      // todo lo de 07 y 08 tiene que estar en PPTO27: SL que faltan o que en PPTO27 tienen otro tipo de SL
+      const byK = {}; full.rows.forEach(r => { const k = E.slKey(r.sl); if (k) (byK[k] = byK[k] || []).push(r); });
+      const ogImp = k => (ogm[k].rowsDet || []).reduce((a, d) => a + (d.imp || 0), 0);
+      const fake = (k, nom, v, why) => ({ sl: k, nom: nom || '', jer: why, p27: v, p26: 0, fc26: 0, real26: 0, part: '', tipo: '', estado: '' });
+      const ogKeys = Object.keys(ogm).filter(k => !k.startsWith('__') && Math.abs(ogImp(k)) >= 1);
+      const ogOut = ogKeys.filter(k => !byK[k]).map(k => fake(k, ((ogm[k].rowsDet || [])[0] || {}).det, ogImp(k), 'no está en PPTO27'));
+      add(D, '07_ON GOING · SL con importe 2027 que no están en PPTO27', ogOut.reduce((a, r) => a + r.p27, 0) / U, 0, 'debe ser 0', ogOut);
+      const ogTipo = ogKeys.filter(k => byK[k] && !byK[k].some(r => E.norm(r.tipo) === 'on going')).map(k => fake(k, byK[k][0].nom, ogImp(k), 'en PPTO27 es ' + (byK[k][0].tipo || 'sin tipo')));
+      add(D, '07_ON GOING · SL que en PPTO27 no son ON GOING', ogTipo.reduce((a, r) => a + r.p27, 0) / U, 0, 'debe ser 0', ogTipo);
+      const prKeys = Object.keys(prm).filter(k => Math.abs(prm[k].tot27) >= 1);
+      const prOut = prKeys.filter(k => !byK[k]).map(k => fake(k, prm[k].nom, prm[k].tot27, 'no está en PPTO27'));
+      add(D, '08_PROYECTOS · SL con TOTAL 2027 que no están en PPTO27', prOut.reduce((a, r) => a + r.p27, 0) / U, 0, 'debe ser 0', prOut);
+      const prTipo = prKeys.filter(k => byK[k] && !byK[k].some(r => E.norm(r.tipo) === 'proyectos')).map(k => fake(k, prm[k].nom, prm[k].tot27, 'en PPTO27 es ' + (byK[k][0].tipo || 'sin tipo')));
+      add(D, '08_PROYECTOS · SL que en PPTO27 no son PROYECTOS', prTipo.reduce((a, r) => a + r.p27, 0) / U, 0, 'debe ser 0', prTipo);
       const ofi = Me.ofi(optsOf(Me));
       if (ofi.row) add(D, `Renovación de oficinas (SL ${OFI_SL}) · oficinas de 08_PROYECTOS`, ofi.tot.P27, ofi.row.p27 / U, 'PPTO27 del SL', [ofi.row]);
       // SL con código real repetido (los "SL_…" de crecimiento se abren a propósito en varias filas)
@@ -4099,7 +4113,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="04/11/2026 16:02";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="04/11/2026 17:49";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
