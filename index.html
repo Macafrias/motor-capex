@@ -487,7 +487,7 @@ html.share .slide [contenteditable]{cursor:text}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small id="hSub">Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 05/11/2026 09:04</b></small></div>
+    <div><h1>Motor de Presentación CAPEX</h1><small id="hSub">Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 05/11/2026 09:45</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -511,7 +511,7 @@ html.share .slide [contenteditable]{cursor:text}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 05/11/2026 09:04</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 05/11/2026 09:45</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -1618,7 +1618,8 @@ const ItResp = {
   optsHtml(o){
     const b = (v, l) => `<button type="button" data-v="${v}">${l}</button>`;
     return `<div class="field"><span class="lab">Apertura</span><div class="seg" data-opt="respOpen">${b('cerrado','Solo responsables')}${b('jer','Con jerarquías')}${b('todo','Todo abierto')}</div></div>
-      <div class="field"><label class="tg"><input type="checkbox" data-opt="dd"${o.dd !== false ? ' checked' : ''}>Sumar los SL "DD" de otras líneas</label></div>
+      <div class="field"><label class="tg"><input type="checkbox" data-opt="ecom"${o.ecom !== false ? ' checked' : ''}>ECOM en un bloque aparte</label>
+      <label class="tg"><input type="checkbox" data-opt="dd"${o.dd !== false ? ' checked' : ''}>Sumar los SL "DD" de otras líneas</label></div>
       <p class="empty" style="font-size:11.5px;padding:0">Responsable = columna RESPONSABLE de PPTO27. Clic en ▸ para abrir o cerrar. Montos 2026 y 2027 de las columnas de PPTO27, igual que IT Resumen.</p>`;
   },
   cat(r){ return ItRes.cat(r); },
@@ -1626,7 +1627,8 @@ const ItResp = {
     const { it, dd } = this.lists(), jer = r => { const x = E.jerOf(curMz(), r); return x && x.jer ? x.jer : 'Sin jerarquización'; };
     o.expand = {};
     if (v === 'cerrado') return;
-    [['R|', it, jer], ['D|', dd, r => (r.gral || '') + (r.part && E.norm(r.part) !== E.norm(r.gral) ? ' · ' + r.part : '')]].forEach(([pre, L, f]) => L.forEach(r => {
+    const ec = it.filter(r => E.norm(r.part) === 'ecom'), sep = o.ecom !== false && ec.length;
+    [['R|', sep ? it.filter(r => E.norm(r.part) !== 'ecom') : it, jer], ['E|', sep ? ec : [], jer], ['D|', dd, r => (r.gral || '') + (r.part && E.norm(r.part) !== E.norm(r.gral) ? ' · ' + r.part : '')]].forEach(([pre, L, f]) => L.forEach(r => {
       const id = pre + this.resp(r); o.expand[id] = true; if (v === 'todo') o.expand[id + '|' + f(r)] = true; }));
   },
   tipoTxt(r){ const c = this.cat(r); return c === 'O' ? 'On going' : c === 'P' ? (E.norm(r.estado) === 'finalizado' ? 'Proy. finalizado' : 'Proy. en curso') : c === 'F' ? 'Proy. futuro' : (r.tipo || ''); },
@@ -1665,8 +1667,18 @@ const ItResp = {
       });
     };
     const { it, dd } = this.lists(), tIt = this.vals(it);
-    block(it, 'R|');
-    rows.push({ label: 'Total IT', sub: it.length + ' SL · cruza con el Cuadro General', style: 'total', cells: cells(tIt, ''), drill: { title: 'IT', sls: it } });
+    const isEcom = r => E.norm(r.part) === 'ecom', sep = o.ecom !== false && it.some(isEcom);
+    if (sep){
+      // ECOM se revisa con otro equipo: va en su propio bloque y después se suma al total IT
+      const core = it.filter(r => !isEcom(r)), ec = it.filter(isEcom);
+      block(core, 'R|');
+      rows.push({ label: 'Subtotal IT sin ECOM', sub: core.length + ' SL · Hard + Soft', style: 'sub', cells: cells(this.vals(core), ''), drill: { title: 'IT sin ECOM', sls: core } });
+      rows.push({ spacer: true }, { label: 'ECOM', sub: 'se revisa con el equipo de E-Commerce', style: 'blockhead', cells: {} });
+      block(ec, 'E|');
+      rows.push({ label: 'Subtotal ECOM', sub: ec.length + ' SL', style: 'sub', cells: cells(this.vals(ec), ''), drill: { title: 'ECOM', sls: ec } });
+      rows.push({ spacer: true });
+    } else block(it, 'R|');
+    rows.push({ label: 'Total IT', sub: it.length + ' SL' + (sep ? ' · con ECOM' : '') + ' · cruza con el Cuadro General', style: 'total', cells: cells(tIt, ''), drill: { title: 'IT', sls: it } });
     const withDD = o.dd !== false && dd.length;
     if (withDD){
       rows.push({ spacer: true }, { label: 'Dominio Digital en otras líneas del cuadro', sub: 'SL con responsable "DD - …" fuera de IT', style: 'blockhead', cells: {} });
@@ -4237,7 +4249,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="05/11/2026 09:04";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="05/11/2026 09:45";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
