@@ -477,12 +477,17 @@ html.share .slide [contenteditable]{cursor:text}
 
 
 .dt .vcol{border-left:2px solid var(--line,#E3E7EF);color:var(--ink-2)}
+
+.ct tr.rjer td{font-family:var(--f-reg);font-weight:600;color:var(--ink)}
+.ct tr.rjer td.lbl{padding-left:22px}
+.ct tr.rsl td{font-family:var(--f-light);color:var(--ink-2)}
+.ct tr.rsl td.lbl{padding-left:44px}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small id="hSub">Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 04/11/2026 17:58</b></small></div>
+    <div><h1>Motor de Presentación CAPEX</h1><small id="hSub">Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 05/11/2026 09:04</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -506,7 +511,7 @@ html.share .slide [contenteditable]{cursor:text}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 04/11/2026 17:58</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 05/11/2026 09:04</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -1584,6 +1589,115 @@ const General = {
 /* ============ CUADRO 02 · IT On going ============ */
 
 const IT_PARTS = ['IT - Hard', 'IT - Soft', 'ECOM'];
+
+/* ============ CUADRO · IT por responsable (PPTO27 col. RESPONSABLE + jerarquización) ============ */
+// IT completo abierto por responsable → jerarquía → SL; después, los SL "DD - …" que se exponen en otras líneas del cuadro
+const ItResp = {
+  id: 'itresp', name: 'IT por responsable', blurb: 'Responsable · jerarquización · SL · más Dominio Digital en otras líneas',
+  views: {
+    completo: { label: 'Completo', cols: ['TIPO','P26','RACU','A93','P27','DABS','V27'] },
+    tipo: { label: 'Por tipo 2027', cols: ['TIPO','A93','P27O','P27P','P27F','P27','V27'] },
+    corto: { label: 'Resumen', cols: ['A93','P27','DABS','V27'] }
+  },
+  colDefs(){
+    return [
+      { k: 'TIPO', label: 'Tipo', grp: null, kind: 'text', tone: 'aux' },
+      { k: 'P26', label: 'PPTO 2026', grp: '2026', kind: 'amt', tone: 'ppto', gtone: 'ppto' },
+      { k: 'RACU', label: 'Real acum.', grp: '2026', kind: 'amt', tone: 'real', gtone: 'ppto' },
+      { k: 'A93', label: 'Aterrizaje 9+3', grp: '2026', kind: 'amt', tone: 'ater', strong: true, gtone: 'ppto' },
+      { k: 'P27O', label: 'On going', grp: '2027', kind: 'amt', tone: 'ppto', gtone: 'ppto' },
+      { k: 'P27P', label: 'Proy. on going', grp: '2027', kind: 'amt', tone: 'ppto', gtone: 'ppto' },
+      { k: 'P27F', label: 'Proy. futuros', grp: '2027', kind: 'amt', tone: 'fut', gtone: 'ppto' },
+      { k: 'P27', label: 'PPTO 2027', grp: '2027', kind: 'amt', tone: 'ppto', hero: true, gtone: 'ppto' },
+      { k: 'DABS', label: 'Δ $', grp: 'Var. vs 9+3', kind: 'delta', tone: 'var' },
+      { k: 'V27', label: 'Δ %', grp: 'Var. vs 9+3', kind: 'var', tone: 'var' }
+    ];
+  },
+  defaults(){ return { view: 'completo', cols: this.views.completo.cols.slice(), expand: {}, dd: true }; },
+  pages(){ return [{ key: 'itresp', label: null }]; },
+  optsHtml(o){
+    const b = (v, l) => `<button type="button" data-v="${v}">${l}</button>`;
+    return `<div class="field"><span class="lab">Apertura</span><div class="seg" data-opt="respOpen">${b('cerrado','Solo responsables')}${b('jer','Con jerarquías')}${b('todo','Todo abierto')}</div></div>
+      <div class="field"><label class="tg"><input type="checkbox" data-opt="dd"${o.dd !== false ? ' checked' : ''}>Sumar los SL "DD" de otras líneas</label></div>
+      <p class="empty" style="font-size:11.5px;padding:0">Responsable = columna RESPONSABLE de PPTO27. Clic en ▸ para abrir o cerrar. Montos 2026 y 2027 de las columnas de PPTO27, igual que IT Resumen.</p>`;
+  },
+  cat(r){ return ItRes.cat(r); },
+  setOpen(o, v){
+    const { it, dd } = this.lists(), jer = r => { const x = E.jerOf(curMz(), r); return x && x.jer ? x.jer : 'Sin jerarquización'; };
+    o.expand = {};
+    if (v === 'cerrado') return;
+    [['R|', it, jer], ['D|', dd, r => (r.gral || '') + (r.part && E.norm(r.part) !== E.norm(r.gral) ? ' · ' + r.part : '')]].forEach(([pre, L, f]) => L.forEach(r => {
+      const id = pre + this.resp(r); o.expand[id] = true; if (v === 'todo') o.expand[id + '|' + f(r)] = true; }));
+  },
+  tipoTxt(r){ const c = this.cat(r); return c === 'O' ? 'On going' : c === 'P' ? (E.norm(r.estado) === 'finalizado' ? 'Proy. finalizado' : 'Proy. en curso') : c === 'F' ? 'Proy. futuro' : (r.tipo || ''); },
+  vals(L){ return ItRes.vals(L); },
+  resp(r){ const x = String(r.resp || '').trim(); return x || 'Sin responsable'; },
+  isDD(r){ return /^dd\b/.test(E.norm(r.resp || '')); },
+  lists(){
+    const rows = state.ds.rows, it = rows.filter(r => E.norm(r.gral) === 'it');
+    const dd = rows.filter(r => E.norm(r.gral) !== 'it' && this.isDD(r) && (Math.abs(r.p27 || 0) + Math.abs(r.p26b || 0) + Math.abs(r.fc26b || 0) + Math.abs(r.real26 || 0)) > 0);
+    return { it, dd };
+  },
+  build(page, o){
+    o.expand = o.expand || {};
+    const cols = this.colDefs().filter(c => o.cols.has(c.k)), rows = [];
+    const cells = (v, tipo) => { const out = {}; cols.forEach(c => {
+      if (c.k === 'TIPO') out[c.k] = { t: tipo || '', cls: 'resp' };
+      else if (c.k === 'V27') out[c.k] = fVar(vr(v.P27, v.A93));
+      else if (c.k === 'DABS') out[c.k] = fDelta(v.P27 - v.A93);
+      else out[c.k] = fAmt(v[c.k]);
+    }); return out; };
+    const tipoMix = L => { const t = new Set(L.map(r => this.cat(r) === 'O' ? 'On going' : 'Proyectos')); return t.size === 1 ? [...t][0] : 'Mixto'; };
+    const jer = r => { const x = E.jerOf(curMz(), r); return x && x.jer ? x.jer : 'Sin jerarquización'; };
+    const block = (L, pre, sub2) => {
+      const G = {}; L.forEach(r => { const k = this.resp(r); (G[k] = G[k] || []).push(r); });
+      Object.entries(G).map(([k, R]) => ({ k, R, v: this.vals(R) })).sort((a, b) => b.v.P27 - a.v.P27).forEach(g => {
+        const id = pre + g.k, open = !!o.expand[id];
+        rows.push({ label: g.k, sub: g.R.length + ' SL', style: 'group', cells: cells(g.v, tipoMix(g.R)), expandId: id, open, drill: { title: g.k, sls: g.R } });
+        if (!open) return;
+        const J = {}; g.R.forEach(r => { const k = sub2 ? sub2(r) : jer(r); (J[k] = J[k] || []).push(r); });
+        Object.entries(J).map(([k, R]) => ({ k, R, v: this.vals(R) })).sort((a, b) => b.v.P27 - a.v.P27).forEach(j => {
+          const jid = id + '|' + j.k, jo = !!o.expand[jid];
+          rows.push({ label: j.k, sub: j.R.length + ' SL', style: 'rjer', cells: cells(j.v, tipoMix(j.R)), expandId: jid, open: jo, drill: { title: g.k + ' · ' + j.k, sls: j.R } });
+          if (!jo) return;
+          j.R.slice().sort((a, b) => (b.p27 || 0) - (a.p27 || 0)).forEach(r => rows.push({ label: String(r.sl) + ' · ' + (r.nom || ''), style: 'rsl', cells: cells(this.vals([r]), this.tipoTxt(r)), drill: { title: String(r.sl) + ' · ' + (r.nom || ''), sls: [r] } }));
+        });
+      });
+    };
+    const { it, dd } = this.lists(), tIt = this.vals(it);
+    block(it, 'R|');
+    rows.push({ label: 'Total IT', sub: it.length + ' SL · cruza con el Cuadro General', style: 'total', cells: cells(tIt, ''), drill: { title: 'IT', sls: it } });
+    const withDD = o.dd !== false && dd.length;
+    if (withDD){
+      rows.push({ spacer: true }, { label: 'Dominio Digital en otras líneas del cuadro', sub: 'SL con responsable "DD - …" fuera de IT', style: 'blockhead', cells: {} });
+      block(dd, 'D|', r => (r.gral || '') + (r.part && E.norm(r.part) !== E.norm(r.gral) ? ' · ' + r.part : ''));
+      const tDD = this.vals(dd), tAll = this.vals(it.concat(dd));
+      rows.push({ label: 'Total DD en otras líneas', sub: dd.length + ' SL', style: 'sub', cells: cells(tDD, ''), drill: { title: 'Dominio Digital en otras líneas', sls: dd } });
+      rows.push({ spacer: true }, { label: 'Total IT + Dominio Digital', sub: 'lo que informa el área', style: 'grand', cells: cells(tAll, ''), drill: { title: 'IT + Dominio Digital', sls: it.concat(dd) } });
+    }
+    const tk = withDD ? this.vals(it.concat(dd)) : tIt, d = fVar(vr(tk.P27, tk.A93));
+    return {
+      eyebrow: `Presupuesto CAPEX ${(state.ds.params || {}).anioPpto || 2027} · IT`, title: 'IT · por responsable',
+      sub: `En ${unitLbl()} · por responsable y jerarquización · PPTO 2026, real acumulado a ${mesTxt()}, aterrizaje 9+3 y PPTO 2027`,
+      note: 'Fuente: hoja PPTO27 (Categoría gral IT, columna RESPONSABLE y jerarquización de exposición).' + (withDD ? ' Aparte, los SL con responsable "DD - …" que se exponen en otras líneas (Crecimiento, Logística, Otras Inversiones, TFM).' : ''),
+      labelHead: 'Responsable · jerarquización · SL', cols, rows,
+      kpis: [{ k: withDD ? 'PPTO 2027 · IT + DD' : 'PPTO 2027 · IT', v: '$' + fAmt(tk.P27).t + unitShort(), d: (d.t || '') + ' vs aterrizaje 9+3', up: d.up, hero: true, tone: 'ppto' },
+             { k: 'Aterrizaje 2026 9+3', tone: 'ater', plain: true, v: '$' + fAmt(tk.A93).t + unitShort(), d: tk.A93 ? nf(0).format(tk.RACU / tk.A93 * 100) + '% ejecutado a ' + mesCorto() : '' }]
+    };
+  },
+  checks(){
+    const { it, dd } = this.lists(), out = [], f2 = v => nf(2).format(v), v = this.vals(it), g = state.res.rows.find(r => r.id === 'IT');
+    const lines = []; if (g && Math.abs(v.P27 - g.v.P27) > 0.01) lines.push(`Total IT · PPTO 2027: acá ${f2(v.P27)} vs Cuadro General ${f2(g.v.P27)}`);
+    const sumR = Object.values(it.reduce((a, r) => { const k = this.resp(r); a[k] = (a[k] || 0) + (r.p27 || 0); return a; }, {})).reduce((a, x) => a + x, 0) / 1e6;
+    if (Math.abs(sumR - v.P27) > 0.01) lines.push(`Suma de responsables ${f2(sumR)} vs total IT ${f2(v.P27)}`);
+    out.push({ label: 'Total IT vs Cuadro General', ok: !lines.length, count: lines.length, detail: lines, okTxt: 'cruza: ' + f2(v.P27) });
+    const sinR = it.filter(r => !String(r.resp || '').trim());
+    out.push({ label: 'SL de IT sin responsable', ok: !sinR.length, warn: true, count: sinR.length, detail: sinR.map(r => `${r.sl} · ${r.nom}`), okTxt: 'todos tienen responsable' });
+    out.push({ label: 'SL "DD" en otras líneas', ok: true, warn: true, count: dd.length, okTxt: dd.length + ' SL · ' + f2(this.vals(dd).P27) + ' de PPTO 2027' });
+    return out;
+  }
+};
+
 /* ============ CUADRO 02 · IT Resumen (todo desde la hoja PPTO27) ============ */
 const ItRes = {
   id: 'itres', name: 'IT Resumen', blurb: 'PPTO 2026, 9+3 y PPTO 2027 por tipo · directo de PPTO27',
@@ -3004,7 +3118,7 @@ Me.checksOfi = function(o){
   }
   return out;
 };
-const CUADROS = [General, ItRes, ItOg, ItPr, Me, Log, Oi, Ctl];
+const CUADROS = [General, ItRes, ItResp, ItOg, ItPr, Me, Log, Oi, Ctl];
 const CUADROS_ALL = CUADROS.slice();
 if (SHARE) for (let i = CUADROS.length - 1; i >= 0; i--) if (!SHARE.cuadros.includes(CUADROS[i].id)) CUADROS.splice(i, 1);
 const cuadroOf = key => CUADROS.find(c => key === c.id || key.startsWith(c.id + '|'));
@@ -3634,6 +3748,7 @@ $('#cuadroOpts').onclick = e => {
   if (opt === 'topN') o.topN = +b.dataset.v;
   if (opt === 'genPreset'){ const v = b.dataset.v; GROUPS.forEach(g => o.expand[g.id] = v !== 'cerrado'); o.hideZero = v !== 'completo'; }
   if (opt === 'ofiSort') o.ofiSort = b.dataset.v;
+  if (opt === 'respOpen') ItResp.setOpen(o, b.dataset.v);
   if (opt === 'prParts'){
     const p = b.dataset.p, has = o.parts.includes(p);
     if (has && o.parts.length === 1){ toast('Dejá al menos una subcategoría.'); return; }
@@ -3760,7 +3875,9 @@ const ROWSTYLE = {
   aparte: { bold: false, color: PX.INK, top: 'B9A6E3', labFill: 'F6F7FA' },
   meline: { bold: true, color: PX.SLATE, labFill: 'F6F7FA', top: 'DDE1EA' },
   mecont: { bold: true, color: PX.SLATE, labFill: 'F6F7FA' },
-  ofi: { bold: true, color: PX.SLATE, labFill: 'F6F7FA', tall: true }
+  ofi: { bold: true, color: PX.SLATE, labFill: 'F6F7FA', tall: true },
+  rjer: { bold: true, color: PX.INK, indent: true },
+  rsl: { bold: false, color: PX.INK2, indent: true, light: true }
 };
 function addSlide(pptx, tm, tx){
   const s = pptx.addSlide(); s.background = { color: 'FFFFFF' };
@@ -4022,14 +4139,14 @@ async function syncFolder(ask){
 
 /* ============ compartir: motor estático con los datos de hoy ============ */
 // genera un HTML único con los datos ya adentro (solo los de los cuadros elegidos), sin carpeta, controles ni versiones
-const SHARE_SCOPE = { itres: ['IT'], itog: ['IT'], itpr: ['IT'], me: ['ME'], log: ['LOG', 'OPL'], oi: ['OI'] };
+const SHARE_SCOPE = { itres: ['IT'], itresp: ['IT'], itog: ['IT'], itpr: ['IT'], me: ['ME'], log: ['LOG', 'OPL'], oi: ['OI'] };
 function shareData(ids){
   const full = state.dsFull || state.ds;
   if (ids.includes('general')) return { ds: full, mz: state.mz || null };
   const nodes = E.STRUCTURE.filter(n => ids.some(id => (SHARE_SCOPE[id] || []).includes(n.id)));
   const ok = new Set(); nodes.forEach(n => { [n.label, n.key].concat(n.children || []).forEach(x => { if (x) ok.add(E.norm(x)); }); });
   if (nodes.some(n => n.id === 'OPL')) ['farmacias rio negro y neuquen', 'farmacias del pueblo', 'farmacia del pueblo'].forEach(x => ok.add(x));
-  const rows = full.rows.filter(r => ok.has(E.norm(r.part)) || ok.has(E.norm(r.gral)));
+  const rows = full.rows.filter(r => ok.has(E.norm(r.part)) || ok.has(E.norm(r.gral)) || (ids.includes('itresp') && ItResp.isDD(r)));
   const keys = new Set(rows.map(r => E.slKey(r.sl)));
   const pick = (o, f) => { if (!o || typeof o !== 'object') return o; const x = {}; for (const k in o) if (f(k)) x[k] = o[k]; return x; };
   const bySl = k => k.startsWith('__') || keys.has(k);
@@ -4120,7 +4237,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="04/11/2026 17:58";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="05/11/2026 09:04";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
