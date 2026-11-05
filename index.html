@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{color-scheme:light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
-<title>Motor de Presentación CAPEX</title>
+<title>Áurea · CAPEX</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -482,12 +482,14 @@ html.share .slide [contenteditable]{cursor:text}
 .ct tr.rjer td.lbl{padding-left:22px}
 .ct tr.rsl td{font-family:var(--f-light);color:var(--ink-2)}
 .ct tr.rsl td.lbl{padding-left:44px}
+
+.top h1 .h1tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:6px;font-size:.62em;letter-spacing:.12em;vertical-align:3px;background:rgba(217,154,23,.14);color:#9A6A0E;border:1px solid rgba(217,154,23,.45);font-weight:700}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Motor de Presentación CAPEX</h1><small id="hSub">Cuadros para PowerPoint y Canva que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 05/11/2026 09:50</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 05/11/2026 17:00</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -511,7 +513,7 @@ html.share .slide [contenteditable]{cursor:text}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 05/11/2026 09:50</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 05/11/2026 17:00</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -3442,7 +3444,7 @@ let TM = null;
 function renderEmptySlide(){
   TM = null;
   $('#sEyebrow').textContent = 'Presupuesto CAPEX';
-  $('#sTitle').textContent = 'Motor de Presentación CAPEX';
+  $('#sTitle').textContent = 'Áurea · CAPEX';
   $('#sSub').textContent = 'Todavía no hay datos cargados';
   $('#sNote').textContent = 'Los archivos se leen en este navegador. No se suben a ningún servidor.';
   $('#sKpis').innerHTML = '';
@@ -4213,7 +4215,7 @@ async function buildShare(ids, fecha, para){
     const payload = { id: Date.now().toString(36), fecha, para, cuadros: ids, ds: d.ds, mz: d.mz, ui };
     const json = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
     html = html.replace(MARK, () => json);
-    const name = 'Motor CAPEX' + (para ? ' - ' + para.replace(/[\\/:*?"<>|]/g, '') : '') + ' - ' + fecha.replace(/\//g, '-') + '.html';
+    const name = 'Áurea CAPEX' + (para ? ' - ' + para.replace(/[\\/:*?"<>|]/g, '') : '') + ' - ' + fecha.replace(/\//g, '-') + '.html';
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' })); a.download = name;
     document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
     toast('Listo: ' + name + '. Mandalo por mail o Teams; se abre con doble clic.', 8000);
@@ -4224,7 +4226,7 @@ $('#xShare').onclick = () => { if (!state.ds){ toast('Primero cargá el Excel.')
 if (SHARE){
   $('#hSub').innerHTML = 'Vista compartida' + (SHARE.para ? ' · ' + esc(SHARE.para) : '') + ' · <b style="font-weight:600">actualizado al ' + esc(SHARE.fecha) + '</b> · datos fijos';
   $('#sBrand').textContent = 'Farmacity · PCG · Actualizado al ' + SHARE.fecha;
-  document.title = 'Motor CAPEX · ' + (SHARE.para || 'vista compartida') + ' · ' + SHARE.fecha;
+  document.title = 'Áurea CAPEX · ' + (SHARE.para || 'vista compartida') + ' · ' + SHARE.fecha;
 }
 
 /* ============ arranque ============ */
@@ -4241,7 +4243,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="05/11/2026 09:50";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="05/11/2026 17:00";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
