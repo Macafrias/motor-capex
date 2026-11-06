@@ -484,12 +484,18 @@ html.share .slide [contenteditable]{cursor:text}
 .ct tr.rsl td.lbl{padding-left:44px}
 
 .top h1 .h1tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:6px;font-size:.62em;letter-spacing:.12em;vertical-align:3px;background:rgba(217,154,23,.14);color:#9A6A0E;border:1px solid rgba(217,154,23,.45);font-weight:700}
+
+.ct tbody tr td.conc{font-family:var(--f-reg);font-size:.86em;white-space:nowrap;text-align:left;color:var(--ink-2)}
+.ct tbody tr td.conc-extra{color:#B42318;font-weight:700}
+.ct tbody tr td.conc-sin{color:#9A6A0E;font-weight:700}
+.ct tbody tr td.conc-ok{color:#1F7A4D;font-weight:600}
+.ct tbody tr td.conc-fin{color:var(--ink-3,#8A93A6)}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 05/11/2026 17:00</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 06/11/2026 16:53</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -513,7 +519,7 @@ html.share .slide [contenteditable]{cursor:text}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 05/11/2026 17:00</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 06/11/2026 16:53</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -1995,6 +2001,7 @@ const ItOg = {
 /* ============ CUADRO 03 · IT Proyectos ============ */
 const PR_PAGES = [
   { kind: 'resumen', label: 'Resumen on going' },
+  { kind: 'proy', label: 'Por proyecto · aprobación' },
   { kind: 'curso', label: 'Proyectos on going' },
   { kind: 'extra', label: 'Aprobación extra' },
   { kind: 'sin', label: 'Sin aprobación' },
@@ -2007,6 +2014,7 @@ const ItPr = {
     const k = this.kind(page);
     const V = {
       resumen: { completo: { label: 'Composición PPTO 2027', cols: ['SL','P27','PCT','CUB','AAP'] }, con26: { label: 'Con referencia 2026', cols: ['SL','P26','FC','P27','PCT','APR'] } },
+      proy: { completo: { label: 'Aprobación del proyecto', cols: ['SL','APR','CONS','FCR','P27','USO','DISP','CONC'] }, est: { label: 'Con estado', cols: ['SL','EST','APR','USO','DISP','CONC'] }, ref: { label: 'Con 2026', cols: ['SL','P26','FC','P27','APR','DISP','CONC'] } },
       curso: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR'] }, resp: { label: 'Con responsable', cols: ['SL','RESP','P26','FC','P27','APR'] }, aprob: { label: 'Saldo aprobado', cols: ['SL','APR','CONS','SALDO','P27','SAL27'] }, ppto: { label: 'Presupuesto', cols: ['SL','P26','REAL','FC','P27','DPCT'] } },
       extra: { completo: { label: 'Detalle', cols: ['SL','P26','FC','P27','APR','EXC'] }, resp: { label: 'Con responsable', cols: ['SL','RESP','P27','APR','EXC'] }, aprob: { label: 'Saldo aprobado', cols: ['SL','APR','CONS','SALDO','P27','EXC'] } },
       sin: { completo: { label: 'Listado PPTO 2027', cols: ['SL','P27'] }, resp: { label: 'Con responsable', cols: ['SL','RESP','P27'] }, vent: { label: 'Con ventana 2027', cols: ['SL','P27','VENT'] }, ref: { label: 'Con referencia 2026', cols: ['SL','P26','FC','P27'] } },
@@ -2033,8 +2041,37 @@ const ItPr = {
       { k: 'SALDO', label: 'Saldo aprobado', grp: 'Aprobación', kind: 'delta', tone: 'var' },
       { k: 'PEJ', label: '% ejecutado', grp: 'Aprobación', kind: 'ratio', tone: 'var' },
       { k: 'SAL27', label: 'Saldo luego de PPTO 27', grp: 'Aprobación', kind: 'delta', tone: 'var' },
-      { k: 'EXC', label: 'Exceso a aprobar', grp: 'Aprobación', kind: 'exc', tone: 'var' }
+      { k: 'EXC', label: 'Exceso a aprobar', grp: 'Aprobación', kind: 'exc', tone: 'var' },
+      { k: 'EST', label: 'Estado PPTO27', grp: null, kind: 'text', tone: 'aux' },
+      { k: 'FCR', label: 'FCTS oct–dic 26', grp: 'Uso del proyecto', kind: 'amt', tone: 'ater' },
+      { k: 'USO', label: 'Uso total', grp: 'Uso del proyecto', kind: 'amt', tone: 'var', strong: true },
+      { k: 'DISP', label: 'Saldo / exceso', grp: 'Uso del proyecto', kind: 'delta', tone: 'var', strong: true },
+      { k: 'CONC', label: 'Conclusión', grp: null, kind: 'text', tone: 'aux' }
     ];
+  },
+  /* proyectos = jerarquización de exposición presupuestaria; un proyecto puede tener varios SL (Hard y/o Soft)
+     uso total = consumido real + FCTS de los meses que faltan + PPTO 2027; si supera lo aprobado, requiere aprobación extra */
+  proyGroups(D, o){
+    const mz = curMz(), G = {};
+    D.items.forEach(x => {
+      let j = String((E.jerOf(mz, x.r) || {}).jer || '').trim();
+      const key = (!j || j === '-' || /^n\/?a$/i.test(j)) ? 'sl:' + E.slKey(x.r.sl) : E.norm(j);
+      if (key.startsWith('sl:')) j = x.r.nom || String(x.r.sl);
+      (G[key] = G[key] || { key, jer: j, items: [], noJer: key.startsWith('sl:') }).items.push(x);
+    });
+    const est = x => { const e = String(x.r.estado || '').trim(); return e ? e.charAt(0) + e.slice(1).toLowerCase() : 'Sin estado'; };
+    return Object.values(G).map(g => {
+      const v = this.sumV(g.items); v.USO = (v.CONS || 0) + (v.FCR || 0) + (v.P27 || 0); v.DISP = (v.APR || 0) - v.USO;
+      const hasApr = (v.APR || 0) > 0.005, allFin = g.items.every(x => x.cat === 'fin');
+      g.empty = !hasApr && Math.abs(v.USO) < 0.005;
+      g.conc = g.empty ? 'vacio' : !hasApr ? 'sin' : v.DISP >= -0.005 ? (allFin && Math.abs(v.P27) < 0.005 ? 'fin' : 'ok') : 'extra';
+      v.CONC = { vacio: 'Sin montos', sin: 'Requiere aprobación', ok: 'Alcanza lo aprobado', fin: 'Finalizado', extra: 'Aprobación extra · $' + fAmt(-v.DISP).t }[g.conc];
+      v.CONCK = g.conc;
+      const E2 = [...new Set(g.items.map(est))]; v.EST = E2.length <= 2 ? E2.join(' + ') : 'Mixto';
+      g.marked = g.items.some(x => x.cat === 'extra' || E.norm(x.r.estado).includes('extra'));
+      g.v = v; g.items.forEach(x => { x.v.USO = (x.v.CONS || 0) + (x.v.FCR || 0) + x.v.P27; x.v.DISP = x.v.APR != null ? x.v.APR - x.v.USO : null; x.v.EST = est(x); });
+      return g;
+    });
   },
   defaults(){ return { parts: ['IT - Hard', 'IT - Soft', 'ECOM'], hideEmpty: true, topN: 12, zoomAll: false, byPage: {} }; },
   colState(page, o){
@@ -2069,6 +2106,9 @@ const ItPr = {
     if (c.k === 'PCT') return this._tot ? { t: nf(state.pctDec).format(v.P27 / this._tot * 100) + '%', cls: Math.abs(v.P27) < 0.005 ? 'na' : '' } : { t: '–', cls: 'na' };
     if (c.k === 'AAP'){ const f = fAmt(v.AAP); return f.cls === 'na' ? f : { t: f.t, cls: 'aap' }; }
     if (c.k === 'VENT') return { t: it ? this.ventana(it) : '', cls: 'aux' };
+    if (c.k === 'EST') return { t: v.EST || '', cls: 'resp' };
+    if (c.k === 'CONC') return { t: v.CONC || '', cls: 'conc' + (v.CONCK ? ' conc-' + v.CONCK : '') };
+    if (c.k === 'DISP'){ const x = v.DISP; if (x == null) return { t: '–', cls: 'na' }; const f = fAmt(x); if (f.cls === 'na') return f; return { t: f.t, cls: x < -0.005 ? 'vn strong-neg' : '' }; }
     return fAmt(v[c.k]);
   },
   ventana(it){
@@ -2098,6 +2138,7 @@ const ItPr = {
     };
     let tot;
     this._tot = D.items.reduce((a, x) => a + x.v.P27, 0);
+    if (k === 'proy') return this.buildProy(page, o, D, cols, cells, p);
     if (k === 'resumen'){
       // proyectos aprobados (on going + aprobación extra + finalizados) por subcategoría; los futuros (sin aprobación) van en su slide
       const all = D.items.filter(x => x.cat !== 'sin');
@@ -2182,9 +2223,58 @@ const ItPr = {
       labelHead: k === 'resumen' ? 'Subcategoría' : 'Jerarquización · SL', cols, rows: rows.length ? rows : [{ label: 'Sin proyectos en esta categoría', style: 'cfnc', cells: {} }], kpis: kp
     };
   },
+  buildProy(page, o, D, cols, cells, p){
+    const G = this.proyGroups(D, o).filter(g => !(o.hideEmpty && g.empty)), rows = [];
+    const BL = [['extra', 'Requieren aprobación extra', 'uso total mayor a lo aprobado', g => -g.v.DISP],
+                ['sin', 'Requieren aprobación', 'proyectos sin monto aprobado en 08_PROYECTOS', g => g.v.USO],
+                ['ok', 'Alcanza lo aprobado', 'consumido + FCTS restante + PPTO 2027 dentro de lo aprobado', g => g.v.P27],
+                ['fin', 'Finalizados', 'sin PPTO 2027', g => g.v.APR || 0],
+                ['vacio', 'Sin montos', '', g => 0]];
+    const short = pp => String(pp || '').replace(/^IT - /i, '');
+    BL.forEach(([ck, lab, sub, met]) => {
+      const L = G.filter(g => g.conc === ck).sort((a, b) => met(b) - met(a)); if (!L.length) return;
+      if (rows.length) rows.push({ spacer: true });
+      rows.push({ label: lab, sub: L.length + (L.length === 1 ? ' proyecto' : ' proyectos') + (sub ? ' · ' + sub : ''), style: 'blockhead', cells: {} });
+      L.forEach(g => {
+        const its = g.items.slice().sort((a, b) => b.v.P27 - a.v.P27), parts = [...new Set(its.map(x => short(x.r.part)))].join(' + ');
+        if (its.length === 1){ const x = its[0]; rows.push({ label: g.jer, sub: (g.noJer ? 'sin jerarquización · ' : '') + parts, style: 'jer', cells: cells(g.v, String(x.r.sl), x), drill: { title: g.jer, sls: [x.r] } }); return; }
+        const zk = page + '|' + g.key, open = !!o.zoomAll || state.zoom.has(zk);
+        rows.push({ label: g.jer, sub: parts, style: 'jer', cells: cells(g.v, its.length + ' SL'), drill: { title: g.jer, sls: its.map(x => x.r) }, zoom: zk, open });
+        if (open) its.forEach(x => { const v = Object.assign({}, x.v, { CONC: '', CONCK: '' }); rows.push({ label: x.r.nom || String(x.r.sl), sub: short(x.r.part), style: 'sl', cells: cells(v, String(x.r.sl), x), drill: { title: x.r.nom, sls: [x.r] } }); });
+      });
+      if (L.length > 1){ const v = this.sumV(L.flatMap(g => g.items)); v.USO = v.CONS + v.FCR + v.P27; v.DISP = L.reduce((a, g) => a + g.v.DISP, 0); v.CONC = ck === 'extra' ? 'Aprobación extra · $' + fAmt(-v.DISP).t : ''; v.CONCK = ck === 'extra' ? 'extra' : '';
+        rows.push({ label: 'Subtotal ' + lab.toLowerCase(), style: 'sub', cells: cells(v, L.reduce((a, g) => a + g.items.length, 0) + ' SL'), drill: { title: lab, sls: L.flatMap(g => g.items.map(x => x.r)) } }); }
+    });
+    const all = G.flatMap(g => g.items), tot = this.sumV(all); tot.USO = tot.CONS + tot.FCR + tot.P27; tot.DISP = null; // el neto mezcla excesos y saldos: no se muestra
+    rows.push({ spacer: true }, { label: 'Total IT proyectos', sub: G.length + ' proyectos · ' + all.length + ' SL', style: 'total', cells: cells(tot, all.length + ' SL'), drill: { title: 'IT proyectos', sls: all.map(x => x.r) } });
+    const ex = G.filter(g => g.conc === 'extra'), exV = ex.reduce((a, g) => a - g.v.DISP, 0), sn = G.filter(g => g.conc === 'sin');
+    return {
+      eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · IT Proyectos`, title: 'IT Proyectos · aprobación por proyecto',
+      sub: `En ${unitLbl()} · proyecto = jerarquización · uso = consumido real + FCTS oct–dic + PPTO 2027`,
+      note: 'Aprobado y consumido real (≤2025 + 2026) desde 08_PROYECTOS; FCTS de los meses que faltan de 2026 desde 08_PROYECTOS; PPTO 2027 desde PPTO27. Un proyecto alcanza lo aprobado si su uso total no supera el aprobado, aunque alguno de sus SL figure "Sin aprobación".',
+      labelHead: 'Proyecto · SL', cols, rows,
+      kpis: [{ k: 'Aprobación extra a pedir', v: '$' + fAmt(exV).t + unitShort(), d: ex.length + (ex.length === 1 ? ' proyecto' : ' proyectos') + ' con uso mayor a lo aprobado', plain: true, hero: true, tone: 'ater' },
+             { k: 'Sin aprobado', tone: 'ppto', plain: true, v: '$' + fAmt(sn.reduce((a, g) => a + g.v.USO, 0)).t + unitShort(), d: sn.length + (sn.length === 1 ? ' proyecto' : ' proyectos') + ' a aprobar' }]
+    };
+  },
   checks(page, o){
     const k = this.kind(page), D = this.data(o), f2 = v => nf(2).format(v), out = [];
-    const sinJ = D.items.filter(x => k === 'resumen' ? false : (x.cat === k) && !((E.jerOf(curMz(), x.r) || {}).jer));
+    if (k === 'proy'){
+      const G = this.proyGroups(D, o);
+      const nm = g => `${g.jer} (${g.items.map(x => x.r.sl).join(', ')})`;
+      const a = G.filter(g => g.conc === 'extra' && !g.marked);
+      out.push({ label: 'Requieren aprobación extra y no están marcados', ok: !a.length, warn: true, count: a.length, detail: a.map(g => `${nm(g)}: exceso ${f2(-g.v.DISP)} · estado ${g.v.EST}`), okTxt: 'todos los que exceden están marcados' });
+      const b = G.filter(g => (g.conc === 'ok' || g.conc === 'fin') && g.marked);
+      out.push({ label: 'Marcados aprobación extra que alcanzan lo aprobado', ok: !b.length, warn: true, count: b.length, detail: b.map(g => `${nm(g)}: saldo ${f2(g.v.DISP)}`), okTxt: 'sin casos' });
+      const c = G.filter(g => g.conc === 'sin' && g.items.some(x => x.cat === 'curso' || x.cat === 'extra' || x.cat === 'fin'));
+      out.push({ label: 'En curso sin aprobado en 08_PROYECTOS', ok: !c.length, warn: true, count: c.length, detail: c.map(g => `${nm(g)}: estado ${g.v.EST}`), okTxt: 'sin casos' });
+      const cov = G.filter(g => g.conc === 'ok').flatMap(g => g.items.filter(x => x.cat === 'sin').map(x => `${x.r.sl} · ${x.r.nom} → ${g.jer}`));
+      out.push({ label: 'SL "Sin aprobación" cubiertos por su proyecto', ok: true, warn: true, count: cov.length, detail: cov, okTxt: cov.length ? cov.length + ' SL dentro de lo aprobado de su proyecto (informativo)' : 'sin casos' });
+      const sumG = G.reduce((x, g) => x + g.v.P27, 0), sumI = D.items.reduce((x, i) => x + i.v.P27, 0), nSl = G.reduce((x, g) => x + g.items.length, 0);
+      const L = []; if (Math.abs(sumG - sumI) > 0.005) L.push(`Suma de proyectos ${f2(sumG)} vs SL de IT proyectos ${f2(sumI)}`); if (nSl !== D.items.length) L.push(`SL agrupados ${nSl} vs ${D.items.length}`);
+      out.push({ label: 'Proyectos = suma de sus SL', ok: !L.length, count: L.length, detail: L, okTxt: G.length + ' proyectos · ' + nSl + ' SL · ' + f2(sumG) });
+    }
+    const sinJ = D.items.filter(x => k === 'resumen' ? false : (k === 'proy' || x.cat === k) && !((E.jerOf(curMz(), x.r) || {}).jer));
     if (k !== 'resumen') out.push({ label: 'SL sin jerarquización', ok: !sinJ.length, warn: true, count: sinJ.length, detail: sinJ.map(x => `${x.r.sl} · ${x.r.nom}`), okTxt: 'todos tienen jerarquía' });
     out.push({ label: 'SL sin dato en 08_PROYECTOS', ok: !D.no08.length, warn: true, count: D.no08.length, detail: D.no08.map(r => `${r.sl} · ${r.nom} (estado tomado de PPTO27: ${r.estado})`) });
     out.push({ label: 'Estado distinto en 08_PROYECTOS (se usa PPTO27)', ok: !D.mism.length, warn: true, count: D.mism.length,
@@ -3885,6 +3975,22 @@ const ROWSTYLE = {
   rjer: { bold: true, color: PX.INK, indent: true },
   rsl: { bold: false, color: PX.INK2, indent: true, light: true }
 };
+/* tablas muy largas: en PowerPoint se reparten en varias slides (cortando antes de un bloque) para que la letra no se achique */
+const PPT_MAXR = 32;
+function addSlides(pptx, tm, tx){
+  const real = tm.rows.filter(r => !r.spacer);
+  if (real.length <= PPT_MAXR || tm.split2) return addSlide(pptx, tm, tx);
+  const chunks = [[]]; let n = 0;
+  tm.rows.forEach((r, i) => {
+    const cur = chunks[chunks.length - 1];
+    if (r.spacer){ if (cur.length) cur.push(r); return; }
+    const restBlock = r.style === 'blockhead' ? tm.rows.slice(i + 1).findIndex(x => x.style === 'blockhead') : -1;
+    const blockLen = r.style === 'blockhead' ? (restBlock < 0 ? tm.rows.length - i : restBlock + 1) : 0;
+    if (n >= PPT_MAXR || (r.style === 'blockhead' && n >= 12 && n + blockLen > PPT_MAXR)){ while (cur.length && cur[cur.length - 1].spacer) cur.pop(); chunks.push([]); n = 0; }
+    chunks[chunks.length - 1].push(r); n++;
+  });
+  chunks.forEach((rows, i) => addSlide(pptx, Object.assign({}, tm, { rows, kpis: i ? null : tm.kpis }), Object.assign({}, tx, { title: tx.title + '  (' + (i + 1) + '/' + chunks.length + ')' })));
+}
 function addSlide(pptx, tm, tx){
   const s = pptx.addSlide(); s.background = { color: 'FFFFFF' };
   [['DED3F3', 0], ['C9DDF5', 2.5], ['F9D9B8', 5]].forEach(([c, y]) => s.addShape(pptx.ShapeType.rect, { x: 0, y, w: 0.09, h: 2.5, fill: { color: c }, line: { color: c } }));
@@ -3972,6 +4078,7 @@ function addSlide(pptx, tm, tx){
       if (state.sem && /vp/.test(f.cls)) o.color = '3E9B6A';
       if (state.sem && /vn/.test(f.cls)) o.color = 'C9584A';
       if (/\baap\b/.test(f.cls)) { o.color = '8A4B12'; o.bold = true; o.fontFace = 'Calibri'; }
+      const cc = /conc-(extra|sin|ok|fin)/.exec(f.cls || ''); if (cc) { o.color = { extra: 'B42318', sin: '9A6A0E', ok: '1F7A4D', fin: '8A91A6' }[cc[1]]; o.bold = cc[1] !== 'fin'; o.fontFace = 'Calibri'; }
       if (/na/.test(f.cls)) o.color = 'B6BCCB';
       return { text: f.t || '', options: o };
     }));
@@ -4014,7 +4121,7 @@ async function exportPptx(all){
   // los controles de integridad son de uso interno: no van en la presentación completa
   const pages = all ? exportPages() : [currentPage()];
   if (all && state.ppt.cover !== false) addCover(pptx);
-  pages.forEach(p => { const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p, true); addSlide(pptx, tm, textsFor(p.key, tm)); });
+  pages.forEach(p => { const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p, true); addSlides(pptx, tm, textsFor(p.key, tm)); });
   try{
     const blob = await pptx.write({ outputType: 'blob' });
     await saveFile(all ? `${slug(pptTitle())}_${stamp()}.pptx` : `${slug(textsFor(state.page, TM).title)}_${stamp()}.pptx`, blob);
@@ -4243,7 +4350,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="05/11/2026 17:00";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="06/11/2026 16:53";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
