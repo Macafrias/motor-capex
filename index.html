@@ -518,7 +518,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 11:36</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 12:00</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -542,7 +542,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 11:36</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 12:00</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -769,6 +769,13 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       });
     }
 
+    /* PPTO 2027 sin recalcular: si la celda total quedó en 0 pero los meses ENE–DIC tienen valores (Excel guardado sin recalcular),
+       se toma la suma de los meses para que la línea no desaparezca del cuadro; queda marcado en los controles */
+    const p27Fix = [];
+    if (c.m27.some(j => j >= 0)) rows.forEach(r => {
+      const sm = r.p27m.reduce((a, x) => a + x, 0);
+      if (Math.abs(r.p27) < 1 && Math.abs(sm) >= 1){ r.p27Excel = r.p27; r.p27 = sm; r.p27Fix = true; p27Fix.push({ sl: r.sl, nom: r.nom, part: r.part, v: sm }); }
+    });
     /* Parámetros */
     const params = {};
     if (parName) aoa(parName).forEach(r => {
@@ -1069,7 +1076,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
     let mzInside = null;
     for (const n of jerCands) { mzInside = jerFromAoA(aoa(n), n); if (mzInside) break; }
     const jerCol = c.jer >= 0 ? XLSX.utils.encode_col(c.jer + (wb.Sheets[pptoName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[pptoName]['!ref']).s.c : 0)) : null;
-    return { rows, sl26, snap26, sl26Src, sl26Out, sl26Bajas, fcOut, fcCol, fcCands: fcCands.map(c => ({ col: c.col, name: c.name, tot: c.tot, dif: c.dif })), p27Cell, r25Src, r25Out, verX, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
+    return { rows, p27Fix, sl26, snap26, sl26Src, sl26Out, sl26Bajas, fcOut, fcCol, fcCands: fcCands.map(c => ({ col: c.col, name: c.name, tot: c.tot, dif: c.dif })), p27Cell, r25Src, r25Out, verX, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
   }
 
   /* ---------- Cálculo ---------- */
@@ -1217,6 +1224,14 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
     checks.push({ label: 'Contraste con valores del Excel', count: diffs, compared, ok: diffs === 0, detail: diffDet });
     checks.push({ label: 'Aperturas 2026 que no suman en el Excel', count: snapWarn.length, ok: snapWarn.length === 0, detail: snapWarn.map(w => { const nm = { P26: 'PPTO 2026', P26O: 'PPTO 2026 On going', P26P: 'PPTO 2026 Proyectos', P26F: 'PPTO 2026 Futuros', A84: 'Aterrizaje 8+4', A93O: 'Aterrizaje 9+3 On going', A93P: 'Aterrizaje 9+3 Proyectos', A93: 'Aterrizaje 9+3', R26: 'Real 2026', RACU: 'Real acumulado', P27: 'PPTO 2027', P27O: 'PPTO 2027 On going', P27P: 'PPTO 2027 Proyectos', P27F: 'PPTO 2027 Futuros', VER: 'Versión' }[w.col] || w.col, f = v => num(v).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       return `${w.row} · ${nm}: el Excel muestra ${f(w.excel)} y sus aperturas suman ${f(w.calc)} (dif. ${f(num(w.excel) - num(w.calc))})`; }), warn: true });
+    const FX = ds.p27Fix || [];
+    if (FX.length){
+      const f2 = v => num(v).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), byP = {};
+      FX.forEach(x => { byP[x.part || 'sin categoría'] = (byP[x.part || 'sin categoría'] || 0) + x.v; });
+      checks.push({ label: 'PPTO 2027 sin recalcular en el Excel', ok: false, warn: true, count: FX.length,
+        detail: ['La columna PPTO 2027 de PPTO27 está en 0 pero los meses ENE–DIC tienen valores: se usó la suma de los meses. En el Excel: Fórmulas → Calcular ahora (F9) y guardar.']
+          .concat(Object.entries(byP).map(([k, v]) => `${k}: ${f2(v / 1e6)}`)).concat(FX.map(x => `${x.sl}${x.nom ? " · " + x.nom : ""} · ${f2(x.v / 1e6)}`)) });
+    }
     if (use26){
       const f2 = v => num(v).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const T = ds.snap['total capex|grand'] || {}, tr = out.find(r => r.id === 'TOT'), L = [];
@@ -3210,7 +3225,11 @@ const Ctl = {
       const cell = full.p27Cell || {}, ax3 = cell.v != null ? cell.v / U : null, totSL = sumP(full.rows);
       const G = 'Total PPTO 2027 · celda AX3 de PPTO27';
       add(G, 'Suma de todos los SL de PPTO27', totSL, ax3, 'PPTO27!AX3', full.rows.filter(r => r.p27));
+      const fx = (full.p27Fix || []).reduce((a, x) => a + x.v, 0) / U;
+      const fxHint = 'la diferencia son ' + (full.p27Fix || []).length + ' SL con PPTO 2027 sin recalcular en el Excel (' + nf(2).format(fx) + '): F9 y guardar';
+      if (fx && ax3 != null && Math.abs(totSL - fx - ax3) <= CTL_TOL) out[out.length - 1].hint = fxHint;
       add(G, 'TOTAL CAPEX del Cuadro General', V('TOT', 'P27'), ax3, 'PPTO27!AX3');
+      if (fx && ax3 != null && Math.abs(V('TOT', 'P27') - fx - ax3) <= CTL_TOL) out[out.length - 1].hint = fxHint;
       const cg = full.cached && full.cached['total capex|grand'];
       if (cg && cg.P27 != null) add(G, `TOTAL CAPEX del cuadro del Excel (${full.snapName || 'Cuadro_Capex'}${cg._cell ? '!' + cg._cell : ''})`, V('TOT', 'P27'), cg.P27, (full.snapName || 'Cuadro_Capex') + (cg._cell ? '!' + cg._cell : ''));
       const badM = full.rows.filter(r => Math.abs((r.p27m || []).reduce((a, x) => a + x, 0) - r.p27) / U > CTL_TOL);
@@ -4548,7 +4567,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="08/11/2026 11:36";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="08/11/2026 12:00";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
