@@ -518,7 +518,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 10:56</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 11:23</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -542,7 +542,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 10:56</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 11:23</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -2062,17 +2062,26 @@ const ItOg = {
     };
   },
   buildResumen(page, o, it, cols, cellsOf){
-    const n = it.blocks.reduce((a, b) => a + b.n, 0);
-    const rows = [{ label: 'IT', style: 'total', cells: cellsOf(it.total, n + ' SL'), drill: { title: 'IT On going', sls: it.blocks.flatMap(b => b.groups.flatMap(g => g.sls)) } }];
-    it.blocks.forEach(b => {
-      const pageKey = 'itog|' + b.part, has = (o.split && o.parts.includes(b.part));
-      rows.push({ label: b.part, style: 'jer', cells: cellsOf(b.v, b.n + ' SL'), drill: { title: b.part, sls: b.groups.flatMap(g => g.sls) }, goto: has ? pageKey : null });
-    });
+    const n = it.blocks.reduce((a, b) => a + b.n, 0), rows = [];
+    // IT (Hard + Soft) lo informa un equipo y ECOM otro: subtotal IT, ECOM aparte y total al final
+    const line = b => { const pageKey = 'itog|' + b.part, has = (o.split && o.parts.includes(b.part));
+      rows.push({ label: b.part, style: 'jer', cells: cellsOf(b.v, b.n + ' SL'), drill: { title: b.part, sls: b.groups.flatMap(g => g.sls) }, goto: has ? pageKey : null }); };
+    const sumB = L => { const v = {}; L.forEach(b => Object.entries(b.v).forEach(([k, x]) => { if (typeof x === 'number') v[k] = (v[k] || 0) + x; else if (!(k in v)) v[k] = x; })); return v; };
+    const core = it.blocks.filter(b => E.norm(b.part) !== 'ecom'), ec = it.blocks.filter(b => E.norm(b.part) === 'ecom');
+    core.forEach(line);
+    if (ec.length){
+      const nc = core.reduce((a, b) => a + b.n, 0);
+      rows.push({ label: 'Subtotal IT', sub: 'Hard + Soft', style: 'sub', cells: cellsOf(sumB(core), nc + ' SL'), drill: { title: 'IT Hard + Soft On going', sls: core.flatMap(b => b.groups.flatMap(g => g.sls)) } });
+      rows.push({ spacer: true });
+      ec.forEach(line);
+      rows.push({ spacer: true });
+    }
+    rows.push({ label: 'Total IT', sub: ec.length ? 'con ECOM' : '', style: 'total', cells: cellsOf(it.total, n + ' SL'), drill: { title: 'IT On going', sls: it.blocks.flatMap(b => b.groups.flatMap(g => g.sls)) } });
     const T = it.total, d = fVar(vr(T.P27, T.FC)), dAbs = fDelta(T.P27 - T.FC);
     return {
       eyebrow: `Presupuesto CAPEX ${(state.ds.params || {}).anioPpto || 2027} · IT`, title: 'IT · Resumen On going',
       sub: `En ${unitLbl()} · Cada línea cruza con el total de su cuadro de detalle · Real acumulado a ${mesTxt()}`,
-      note: 'Resumen de la porción On going de IT. IT = IT - Hard + IT - Soft + ECOM. Incremento = PPTO 2027 − FCTS 2026.',
+      note: 'Resumen de la porción On going de IT. Subtotal IT = IT - Hard + IT - Soft; ECOM aparte (lo informa otro equipo); Total IT = Subtotal IT + ECOM. Incremento = PPTO 2027 − FCTS 2026.',
       labelHead: 'Concepto', cols, rows,
       kpis: [
         { k: 'PPTO 2027 · IT On going', v: '$' + fAmt(T.P27).t + unitShort(), d: (d.t || '') + ' vs FCTS 9+3', up: d.up, hero: true, tone: 'ppto' },
@@ -4533,7 +4542,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="08/11/2026 10:56";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="08/11/2026 11:23";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
