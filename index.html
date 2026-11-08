@@ -495,7 +495,7 @@ html.share .slide [contenteditable]{cursor:text}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 06/11/2026 16:53</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 09:53</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -519,7 +519,7 @@ html.share .slide [contenteditable]{cursor:text}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 06/11/2026 16:53</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 09:53</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -644,12 +644,12 @@ html.share .slide [contenteditable]{cursor:text}
     { id:'TC', label:'TOTAL CAPEX', type:'sum', of:['SUB','CFNC'], style:'total' },
     { id:'TFM', label:'TFM', type:'leafTop', key:'TFM' },
     { id:'TCT', label:'TOTAL CAPEX C/ TFM', type:'sum', of:['TC','TFM'], style:'total' },
-    { id:'OPL', label:'Otros proyectos de logística', type:'group', children:['Farmacia Rio negro y Neuquen','Otros proyectos de logística'], style:'masterplan', sumInto:false, keep:true },
+    { id:'OPL', label:'Otros proyectos de logística', type:'group', children:['Farmacia Rio negro','Otros proyectos de logística'], style:'masterplan', sumInto:false, keep:true },
     { id:'TOT', label:'TOTAL CAPEX', type:'sum', of:['TCT','OPL'], style:'grand' }
   ];
 
   // nombres alternativos de una categoría particular (en PPTO27 o en la hoja del cuadro 2026)
-  const ALIAS = { 'farmacia rio negro y neuquen': ['farmacias rio negro y neuquen', 'farmacia rio negro y neuquén', 'farmacias del pueblo', 'farmacia del pueblo', 'rio negro y neuquen'] };
+  const ALIAS = { 'farmacia rio negro': ['farmacia rio negro y neuquen', 'farmacias rio negro y neuquen', 'farmacias rio negro', 'farmacia rio negro y neuquén', 'farmacias del pueblo', 'farmacia del pueblo', 'rio negro y neuquen', 'rio negro'] };
   const keysOf = k => [norm(k)].concat((ALIAS[norm(k)] || []).map(norm));
   /* ---------- Columnas ---------- */
   // src: 'snap' = valor congelado del cuadro 2026 · 'calc' = calculado desde PPTO27 · 'var' = variación
@@ -1551,7 +1551,7 @@ const General = {
     const rows = [], all = CATS.every(([id]) => o.cats.includes(id)), sel = new Set(o.cats);
     res.rows.forEach(r => {
       if (!all){ if (SUMS.has(r.id)) return; if (!sel.has(r.parent || r.id)) return; }
-      // Otros proyectos de logística: sin fila de grupo; Farmacia Rio negro y Neuquen y Otros proyectos de logística van como ítems del mismo nivel
+      // Otros proyectos de logística: sin fila de grupo; Farmacia Rio negro y Otros proyectos de logística van como ítems del mismo nivel
       if (r.id === 'OPL') return;
       const oplKid = r.parent === 'OPL';
       if (r.parent && !oplKid && !o.expand[r.parent]) return;
@@ -3096,7 +3096,7 @@ const Ctl = {
       if (full.cached){
         const cgc = full.cached['total capex|grand'], colL = cgc && cgc._cell ? cgc._cell.replace(/\d+/g, '') : '';
         const B2 = 'Cuadro General del motor vs ' + (full.snapName || 'Cuadro_Capex') + (colL ? ' (columna ' + colL + ')' : '') + ' · PPTO 2027 por línea';
-        const alias = { 'farmacia rio negro y neuquen': ['farmacias del pueblo', 'farmacias rio negro y neuquen'] };
+        const alias = { 'farmacia rio negro': ['farmacia rio negro y neuquen', 'farmacias del pueblo', 'farmacias rio negro y neuquen', 'farmacias rio negro'] };
         res.rows.forEach(r => {
           const n = E.norm(r.label), pre = r.parent === 'OPL' ? 'opl|' : '';
           const keys = r.id === 'TOT' ? ['total capex|grand'] : [pre + n, n].concat((alias[n] || []).flatMap(a => [pre + a, a]));
@@ -3289,7 +3289,7 @@ function kpiHtml(tm){
 /* ============ versiones (solo análisis) ============ */
 const LSV = 'capex-motor-versiones', LSN = 'capex-motor-justif';
 let SAVED_VERS = ls.get(LSV) || [], NOTES = ls.get(LSN) || {};
-const VER_ALIAS = { 'otros (cctv, celulares, otros)': 'otros (seguridad y telefonia)', 'oficina estomba': 'infraestructura corporativa', 'farmacias del pueblo': 'farmacia rio negro y neuquen' };
+const VER_ALIAS = { 'otros (cctv, celulares, otros)': 'otros (seguridad y telefonia)', 'oficina estomba': 'infraestructura corporativa', 'farmacias del pueblo': 'farmacia rio negro', 'farmacia rio negro y neuquen': 'farmacia rio negro', 'farmacias rio negro y neuquen': 'farmacia rio negro' };
 let XL_VER = null;
 /* la columna AX de Cuadro_Capex se asocia a las líneas del cuadro en orden (resuelve "TOTAL CAPEX" repetido) */
 function buildExcelVersion(){
@@ -4258,7 +4258,7 @@ function shareData(ids){
   if (ids.includes('general')) return { ds: full, mz: state.mz || null };
   const nodes = E.STRUCTURE.filter(n => ids.some(id => (SHARE_SCOPE[id] || []).includes(n.id)));
   const ok = new Set(); nodes.forEach(n => { [n.label, n.key].concat(n.children || []).forEach(x => { if (x) ok.add(E.norm(x)); }); });
-  if (nodes.some(n => n.id === 'OPL')) ['farmacias rio negro y neuquen', 'farmacias del pueblo', 'farmacia del pueblo'].forEach(x => ok.add(x));
+  if (nodes.some(n => n.id === 'OPL')) ['farmacia rio negro y neuquen', 'farmacias rio negro y neuquen', 'farmacias rio negro', 'farmacias del pueblo', 'farmacia del pueblo'].forEach(x => ok.add(x));
   const rows = full.rows.filter(r => ok.has(E.norm(r.part)) || ok.has(E.norm(r.gral)) || (ids.includes('itresp') && ItResp.isDD(r)));
   const keys = new Set(rows.map(r => E.slKey(r.sl)));
   const pick = (o, f) => { if (!o || typeof o !== 'object') return o; const x = {}; for (const k in o) if (f(k)) x[k] = o[k]; return x; };
@@ -4350,7 +4350,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="06/11/2026 16:53";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="08/11/2026 09:53";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
