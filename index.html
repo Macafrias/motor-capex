@@ -536,7 +536,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 18:10</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 18:16</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -560,7 +560,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 18:10</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 18:16</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -2357,7 +2357,9 @@ const ItPr = {
     const mx = G.filter(g => g.mixed);
     out.push({ label: 'Proyectos con SL en estados distintos', ok: !mx.length, warn: true, count: mx.length, detail: mx.map(g => `${nm(g)}: ` + g.items.map(x => `${x.r.sl} ${lbl[x.cat]}`).join(' · ') + ` → se toma ${lbl[g.est]}`), okTxt: 'cada proyecto tiene un solo estado' });
     const a = G.filter(g => g.est === 'curso' && !g.hasApr && !g.empty);
-    out.push({ label: 'En curso sin aprobado en 08_PROYECTOS', ok: !a.length, warn: true, count: a.length, detail: a.map(g => `${nm(g)} · PPTO 2027 ${f2(g.v.P27)}`), okTxt: 'todos los en curso tienen aprobado' });
+    const slTxt = x => !x.p ? `${x.r.sl}: no está en 08_PROYECTOS` : `${x.r.sl}: en 08 · aprobado ${f2((x.p.apr || 0) / 1e6)} · consumido ${f2((x.p.cons || 0) / 1e6)}${x.p.estado ? ' · estado 08 "' + x.p.estado + '"' : ''}`;
+    out.push({ label: 'En curso con Aprobado total en 0 (08_PROYECTOS)', ok: !a.length, warn: true, count: a.length,
+      detail: a.map(g => `${g.jer} · PPTO 2027 ${f2(g.v.P27)} → ` + g.items.map(slTxt).join(' · ')), okTxt: 'todos los en curso tienen aprobado' });
     const b = G.filter(g => g.est === 'nuevo' && g.hasApr);
     out.push({ label: 'Nuevos con monto aprobado en 08_PROYECTOS', ok: !b.length, warn: true, count: b.length, detail: b.map(g => `${nm(g)} · aprobado ${f2(g.v.APR)}`), okTxt: 'ningún nuevo tiene aprobado' });
     const c = G.filter(g => g.est === 'fin' && Math.abs(g.v.P27) >= 0.005);
@@ -4552,7 +4554,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="08/11/2026 18:10";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="08/11/2026 18:16";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
