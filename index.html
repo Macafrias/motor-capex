@@ -490,12 +490,35 @@ html.share .slide [contenteditable]{cursor:text}
 .ct tbody tr td.conc-sin{color:#9A6A0E;font-weight:700}
 .ct tbody tr td.conc-ok{color:#1F7A4D;font-weight:600}
 .ct tbody tr td.conc-fin{color:var(--ink-3,#8A93A6)}
+
+/* ---------- modo presentación ---------- */
+.stagebar .pres-btn{margin-left:auto;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.stagebar .pres-btn svg{width:16px;height:16px}
+.pres-ui{display:none}
+html.presenting .stage{position:fixed;inset:0;z-index:9000;width:100vw!important;height:100vh!important;border-radius:0;box-shadow:none;background:#0B1020}
+html.presenting .stage:fullscreen{background:#0B1020}
+html.presenting .pres-ui{display:block;position:absolute;inset:0;z-index:5;pointer-events:none}
+html.presenting .slide{transition:opacity .14s ease}
+html.presenting .slide.pres-fade{opacity:0}
+.pres-nav{pointer-events:auto;position:absolute;top:50%;transform:translateY(-50%);width:54px;height:54px;border-radius:50%;border:0;background:rgba(15,23,42,.55);color:#fff;display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .25s ease,background .15s ease;backdrop-filter:blur(6px)}
+.pres-nav svg{width:26px;height:26px}
+.pres-nav.prev{left:18px}.pres-nav.next{right:18px}
+.pres-nav:hover{background:rgba(15,23,42,.8)}
+.pres-nav:disabled{opacity:0!important;pointer-events:none}
+.pres-bar{pointer-events:auto;position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:8px 10px 8px 16px;border-radius:999px;background:rgba(15,23,42,.72);color:#E7ECF7;font:500 12.5px var(--f-body,system-ui);opacity:0;transition:opacity .25s ease;backdrop-filter:blur(8px);white-space:nowrap}
+.pres-name{font-weight:700;color:#fff}
+.pres-count{font-variant-numeric:tabular-nums;color:#AEB8D0}
+.pres-keys{color:#8792AD;font-size:11.5px}
+.pres-x{border:0;border-radius:999px;padding:5px 12px;background:rgba(255,255,255,.14);color:#fff;font:600 12px var(--f-body,system-ui);cursor:pointer}
+.pres-x:hover{background:rgba(255,255,255,.26)}
+.pres-ui.awake .pres-nav,.pres-ui.awake .pres-bar{opacity:1}
+html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable]{cursor:default}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 09:53</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 09:56</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -519,7 +542,7 @@ html.share .slide [contenteditable]{cursor:text}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 09:53</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 09:56</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -531,9 +554,15 @@ html.share .slide [contenteditable]{cursor:text}
     <div class="stagebar">
       <div class="seg" id="views" role="group" aria-label="Vista de columnas"></div>
       <span class="hint">Títulos y nota al pie se editan con un clic en la slide. Clic en una fila para ver sus SL.</span>
+      <button class="btn pres-btn" id="presGo" type="button" title="Pantalla completa · flechas para pasar de slide · Esc para salir"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="9" rx="1.2"/><path d="M6.6 5.2v3.6L9.6 7z" fill="currentColor"/><path d="M5.5 14h5M8 11.5V14"/></svg>Presentar</button>
     </div>
     <div class="ctlbar" id="ctlbar" hidden></div>
     <div class="stage" id="stage">
+      <div class="pres-ui" id="presUi" aria-hidden="true">
+        <button class="pres-nav prev" id="presPrev" type="button" aria-label="Slide anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button class="pres-nav next" id="presNext" type="button" aria-label="Slide siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+        <div class="pres-bar"><span class="pres-name" id="presName"></span><span class="pres-count" id="presCount"></span><span class="pres-keys">← → para pasar · Esc para salir</span><button class="pres-x" id="presExit" type="button">Salir</button></div>
+      </div>
       <div class="stage-inner" id="stageInner">
         <div class="slide" id="slide">
           <div class="s-head">
@@ -3572,10 +3601,68 @@ function fitTable(){
   fit.style.transform = `translateX(${left}px) scale(${s})`;
 }
 function scaleStage(){
-  const st = $('#stage'), s = st.clientWidth / 1280;
+  const st = $('#stage');
+  if (PRES.on){
+    const W = window.innerWidth, H = window.innerHeight, s = Math.min(W / 1280, H / 720);
+    st.style.height = '';
+    $('#stageInner').style.transform = `translate(${(W - 1280 * s) / 2}px, ${(H - 720 * s) / 2}px) scale(${s})`;
+    return;
+  }
+  const s = st.clientWidth / 1280;
   st.style.height = (720 * s) + 'px';
   $('#stageInner').style.transform = `scale(${s})`;
 }
+
+/* ============ modo presentación: la slide a pantalla completa, con flechas para recorrer todas ============ */
+const PRES = { on: false, t: null };
+const presPages = () => allPages().filter(p => p.cuadro !== Ctl);
+function presInfo(){
+  const P = presPages(), i = Math.max(0, P.findIndex(p => p.key === state.page)), p = P[i];
+  $('#presCount').textContent = (i + 1) + ' / ' + P.length;
+  $('#presName').textContent = p ? p.cuadro.name + (p.label ? ' · ' + p.label : '') : '';
+  $('#presPrev').disabled = i <= 0; $('#presNext').disabled = i >= P.length - 1;
+}
+function presGo(d){
+  const P = presPages(), i = P.findIndex(p => p.key === state.page), j = Math.min(P.length - 1, Math.max(0, (i < 0 ? 0 : i) + d));
+  if (j === i) return;
+  const sl = $('#slide'); sl.classList.add('pres-fade');
+  setTimeout(() => { state.page = P[j].key; state.drill = null; $('#drawer').hidden = true; rerender(); presInfo(); requestAnimationFrame(() => sl.classList.remove('pres-fade')); }, 140);
+}
+function presWake(){
+  const ui = $('#presUi'); ui.classList.add('awake'); clearTimeout(PRES.t);
+  PRES.t = setTimeout(() => ui.classList.remove('awake'), 2200);
+}
+async function presStart(){
+  if (!presPages().some(p => p.key === state.page)) state.page = presPages()[0].key;
+  if (document.activeElement) document.activeElement.blur();
+  PRES.on = true; document.documentElement.classList.add('presenting');
+  const st = $('#stage');
+  try { if (st.requestFullscreen) await st.requestFullscreen(); else if (st.webkitRequestFullscreen) st.webkitRequestFullscreen(); } catch (e) {}
+  rerender(); presInfo(); presWake(); scaleStage(); fitTable();
+}
+function presEnd(){
+  if (!PRES.on) return;
+  PRES.on = false; document.documentElement.classList.remove('presenting');
+  if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  $('#stageInner').style.transform = ''; scaleStage(); renderSlide();
+}
+$('#presGo').onclick = presStart;
+$('#presPrev').onclick = e => { e.stopPropagation(); presGo(-1); };
+$('#presNext').onclick = e => { e.stopPropagation(); presGo(1); };
+$('#presExit').onclick = e => { e.stopPropagation(); presEnd(); };
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && PRES.on) presEnd(); else scaleStage(); });
+window.addEventListener('resize', () => { if (PRES.on) scaleStage(); });
+$('#stage').addEventListener('mousemove', () => { if (PRES.on) presWake(); });
+document.addEventListener('keydown', e => {
+  if (!PRES.on) return;
+  const ed = document.activeElement && document.activeElement.isContentEditable;
+  if (ed) { if (e.key === 'Escape') document.activeElement.blur(); return; }
+  if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); presGo(1); }
+  else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); presGo(-1); }
+  else if (e.key === 'Home') { e.preventDefault(); presGo(-999); }
+  else if (e.key === 'End') { e.preventDefault(); presGo(999); }
+  else if (e.key === 'Escape') presEnd();
+});
 
 /* ============ paneles ============ */
 function renderSlidesList(){
@@ -4350,7 +4437,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="08/11/2026 09:53";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="08/11/2026 09:56";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
