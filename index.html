@@ -513,12 +513,19 @@ html.presenting .slide.pres-fade{opacity:0}
 .pres-x:hover{background:rgba(255,255,255,.26)}
 .pres-ui.awake .pres-nav,.pres-ui.awake .pres-bar{opacity:1}
 html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable]{cursor:default}
+
+.ver-share{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(124,140,255,.08);font-size:11.5px;line-height:1.4;color:var(--side-ink-2,#AEB8D0)}
+.ver-share b{color:var(--side-ink,#E7ECF7);font-weight:600}
+.ver-share:empty{display:none}
+.vs-dot{flex:none;width:8px;height:8px;border-radius:50%;margin-top:4px;background:#8792AD}
+.vs-dot.on{background:#3E9B6A}.vs-dot.warn{background:#D99A17}
+.linkbtn{background:none;border:0;padding:0;color:#9AA8FF;font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 12:00</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 12:04</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -542,7 +549,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 12:00</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 12:04</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -623,7 +630,8 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
         <div class="ver-save"><input id="verName" type="text" placeholder="Ej.: Comité 05.11" maxlength="40"><button class="btn primary" type="button" id="verSave">Guardar</button></div></div>
       <div class="fbtns" style="margin-top:8px"><button class="btn" type="button" id="verExport">Exportar historial</button><button class="btn" type="button" id="verImport">Importar</button></div>
       <input type="file" id="verFile" accept=".json,application/json" hidden>
-      <p class="empty" style="font-size:11.5px;padding:0;margin-top:6px">Solo para análisis: por defecto no sale en PowerPoint, imagen ni Excel. Las versiones guardadas y las justificaciones quedan en este navegador; con "Exportar historial" las pasás a otra computadora.</p>
+      <div class="ver-share" id="verShare"></div>
+      <p class="empty" style="font-size:11.5px;padding:0;margin-top:6px">Solo para análisis: por defecto no sale en PowerPoint, imagen ni Excel.</p>
     </section>
     <section class="panel">
       <h2 class="ph">Exportar</h2>
@@ -3440,7 +3448,51 @@ function kpiHtml(tm){
 /* en filas de total/subtotal no se muestra responsable */
 /* ============ versiones (solo análisis) ============ */
 const LSV = 'capex-motor-versiones', LSN = 'capex-motor-justif';
-let SAVED_VERS = ls.get(LSV) || [], NOTES = ls.get(LSN) || {};
+let SAVED_VERS = ls.get(LSV) || [], NOTES = ls.get(LSN) || {}, VER_GONE = ls.get(LSV + '|borradas') || [];
+/* versiones compartidas: un archivo "Aurea - versiones.json" en la carpeta conectada (OneDrive/SharePoint),
+   así quien conecte la misma carpeta ve las mismas versiones y justificaciones */
+const VFILE = 'Aurea - versiones.json', VSH = { st: 'local', when: null, pend: false };
+function mergeVers(j){
+  if (!j || j.app !== 'motor-capex') return false;
+  const gone = new Set(VER_GONE.concat(j.borradas || [])), ids = new Set(SAVED_VERS.map(v => v.id));
+  (j.versiones || []).forEach(v => { if (!ids.has(v.id)) SAVED_VERS.push(v); });
+  SAVED_VERS = SAVED_VERS.filter(v => !gone.has(v.id)).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  VER_GONE = [...gone];
+  Object.entries(j.justificaciones || {}).forEach(([k, v]) => { if (!(k in NOTES)) NOTES[k] = v; });
+  ls.set(LSV, SAVED_VERS); ls.set(LSV + '|borradas', VER_GONE); ls.set(LSN, NOTES);
+  return true;
+}
+async function readSharedVers(dir){
+  try{ const h = await dir.getFileHandle(VFILE); const j = JSON.parse(await (await h.getFile()).text()); mergeVers(j); VSH.st = 'shared'; VSH.when = new Date(); }
+  catch(e){ VSH.st = e && e.name === 'NotFoundError' ? 'none' : 'local'; }
+  renderVerShare();
+}
+async function writeSharedVers(gesture){
+  const dir = state.dir; if (!dir || SHARE) return;
+  try{
+    let perm = await dir.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted' && gesture) perm = await dir.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted'){ VSH.pend = true; renderVerShare(); return; }
+    try{ const h0 = await dir.getFileHandle(VFILE); mergeVers(JSON.parse(await (await h0.getFile()).text())); }catch(e){}
+    const h = await dir.getFileHandle(VFILE, { create: true }), w = await h.createWritable();
+    await w.write(JSON.stringify({ app: 'motor-capex', actualizado: new Date().toISOString(), versiones: SAVED_VERS, borradas: VER_GONE, justificaciones: NOTES }, null, 1)); await w.close();
+    VSH.st = 'shared'; VSH.when = new Date(); VSH.pend = false;
+  }catch(e){ console.error(e); VSH.pend = true; }
+  renderVerShare();
+}
+let VSH_T = null;
+window.__aureaTest = () => ({ state, readSharedVers, saveVersion, renderVer });
+const shareVersSoon = () => { clearTimeout(VSH_T); VSH_T = setTimeout(() => writeSharedVers(false), 1500); };
+function renderVerShare(){
+  const el = $('#verShare'); if (!el) return;
+  if (SHARE){ el.innerHTML = ''; return; }
+  const hh = d => d ? d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '';
+  if (!state.dir) el.innerHTML = `<span class="vs-dot off"></span><span>Solo en este navegador. <b>Conectá la carpeta</b> para compartirlas con quien use la misma carpeta.</span>`;
+  else if (VSH.pend) el.innerHTML = `<span class="vs-dot warn"></span><span>Hay cambios sin compartir. <button type="button" class="linkbtn" id="vsGo">Compartir en la carpeta</button></span>`;
+  else if (VSH.st === 'shared') el.innerHTML = `<span class="vs-dot on"></span><span>Compartidas en <b>${esc(state.dirName)}</b> · ${esc(VFILE)}${VSH.when ? ' · ' + hh(VSH.when) : ''}</span>`;
+  else el.innerHTML = `<span class="vs-dot off"></span><span>Todavía no hay versiones en la carpeta. <button type="button" class="linkbtn" id="vsGo">Compartir las mías</button></span>`;
+  const b = $('#vsGo'); if (b) b.onclick = () => writeSharedVers(true);
+}
 const VER_ALIAS = { 'otros (cctv, celulares, otros)': 'otros (seguridad y telefonia)', 'oficina estomba': 'infraestructura corporativa', 'farmacias del pueblo': 'farmacia rio negro', 'farmacia rio negro y neuquen': 'farmacia rio negro', 'farmacias rio negro y neuquen': 'farmacia rio negro' };
 let XL_VER = null;
 /* la columna AX de Cuadro_Capex se asocia a las líneas del cuadro en orden (resuelve "TOTAL CAPEX" repetido) */
@@ -3516,13 +3568,13 @@ function saveVersion(name){
   const nm = (name || '').trim() || 'Versión ' + d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
   SAVED_VERS.push({ id, name: nm, short: nm.slice(0, 18), src: 'saved', date: d.toISOString(), file: state.dsName, vals, sls });
   ls.set(LSV, SAVED_VERS); persist();
-  toast('Versión guardada: ' + nm); renderVer(); renderSlide();
+  toast('Versión guardada: ' + nm); renderVer(); renderSlide(); writeSharedVers(true);
 }
 function copyExcelVersion(){
   if (!XL_VER) return;
   const d = new Date(), id = 'v' + d.getTime().toString(36);
   SAVED_VERS.push({ id, name: XL_VER.name, short: XL_VER.short, src: 'saved', from: 'excel', date: d.toISOString(), file: state.dsName, vals: JSON.parse(JSON.stringify(XL_VER.vals)) });
-  ls.set(LSV, SAVED_VERS); toast('Copia guardada: queda aunque cambie la columna AX.'); renderVer();
+  ls.set(LSV, SAVED_VERS); toast('Copia guardada: queda aunque cambie la columna AX.'); renderVer(); writeSharedVers(true);
 }
 let VER_DEL = null;
 function renderVer(){
@@ -3564,7 +3616,7 @@ function renderWhy(){
   $('#drClose').onclick = () => { el.hidden = true; };
   el.querySelectorAll('.why-in').forEach(t => {
     const fit = () => { t.style.height = 'auto'; t.style.height = Math.min(120, t.scrollHeight) + 'px'; }; fit();
-    t.oninput = () => { const k = t.dataset.nk, val = t.value.trim(); if (val) NOTES[k] = t.value; else delete NOTES[k]; ls.set(LSN, NOTES); fit(); };
+    t.oninput = () => { const k = t.dataset.nk, val = t.value.trim(); if (val) NOTES[k] = t.value; else delete NOTES[k]; ls.set(LSN, NOTES); fit(); shareVersSoon(); };
     t.onchange = () => { if (state.ver.on && state.ver.note) renderSlide(); };
   });
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -4104,7 +4156,8 @@ $('#verList').addEventListener('click', e => {
   const d = e.target.closest('[data-vdel]'); if (!d) return; const id = d.dataset.vdel;
   if (VER_DEL !== id){ VER_DEL = id; renderVer(); setTimeout(() => { if (VER_DEL === id){ VER_DEL = null; renderVer(); } }, 4000); return; }
   VER_DEL = null; SAVED_VERS = SAVED_VERS.filter(v => v.id !== id); ls.set(LSV, SAVED_VERS);
-  state.ver.sel = (state.ver.sel || []).filter(x => x !== id); persist(); renderVer(); renderSlide(); toast('Versión borrada.');
+  if (!VER_GONE.includes(id)){ VER_GONE.push(id); ls.set(LSV + '|borradas', VER_GONE); }
+  state.ver.sel = (state.ver.sel || []).filter(x => x !== id); persist(); renderVer(); renderSlide(); toast('Versión borrada.'); writeSharedVers(true);
 });
 $('#verSave').onclick = () => { saveVersion($('#verName').value); $('#verName').value = ''; };
 $('#verName').onkeydown = e => { if (e.key === 'Enter'){ e.preventDefault(); $('#verSave').click(); } };
@@ -4115,7 +4168,7 @@ $('#verFile').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   try{ const j = JSON.parse(await f.text()); if (!j || j.app !== 'motor-capex') throw new Error('formato');
     const ids = new Set(SAVED_VERS.map(v => v.id)); (j.versiones || []).forEach(v => { if (!ids.has(v.id)) SAVED_VERS.push(v); });
-    Object.assign(NOTES, j.justificaciones || {}); ls.set(LSV, SAVED_VERS); ls.set(LSN, NOTES); renderVer(); renderSlide(); toast('Historial importado.');
+    Object.assign(NOTES, j.justificaciones || {}); ls.set(LSV, SAVED_VERS); ls.set(LSN, NOTES); renderVer(); renderSlide(); toast('Historial importado.'); writeSharedVers(true);
   }catch(err){ toast('No es un historial del motor (.json exportado desde "Exportar historial").'); }
 };
 $('#optUnit').onchange = e => { state.unit = e.target.value; persist(); renderSlide(); renderDrill(); };
@@ -4412,6 +4465,7 @@ function renderFolder(){
       ${state.lastErr ? `<span class="st" style="color:#C9584A;font-weight:600">⚠ ${esc(state.lastErr)}</span>` : ''}</div>`;
   const p = $('#fPick'), s = $('#fSync');
   if (p) p.onclick = pickFolder; if (s) s.onclick = () => syncFolder(true);
+  renderVerShare();
 }
 async function pickFolder(){
   try{
@@ -4456,6 +4510,7 @@ async function syncFolder(ask){
     else state.lastErr = null;
     const when = f => new Date(f.lastModified).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     state.lastSync = [ppto && `PPTO: ${ppto.name} (${when(ppto)})`, mz && `Matriz: ${mz.name} (${when(mz)})`].filter(Boolean).join(' · ');
+    await readSharedVers(dir); renderVer();
     await loadFiles([mz, ppto].filter(Boolean), true);
   }catch(e){ console.error(e); state.lastErr = 'No pude leer la carpeta: ' + (e.message || e); toast(state.lastErr, 12000); renderFolder(); }
 }
@@ -4567,7 +4622,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="08/11/2026 12:00";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="08/11/2026 12:04";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
