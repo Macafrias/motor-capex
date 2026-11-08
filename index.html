@@ -518,7 +518,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 09:56</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 08/11/2026 10:17</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -542,7 +542,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 09:56</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 08/11/2026 10:17</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -994,11 +994,75 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
         r25Src = realName + ' · col. ' + XLSX.utils.encode_col(iR + (wb.Sheets[realName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[realName]['!ref']).s.c : 0));
       }
     }
+    /* 2026 por SL: PPTO 2026 y real 2025 de 05_Consolidado_REAL, 9+3 de FCTS, clasificados con 03_SL (si un SL cambia de línea, su 2026 lo acompaña) */
+    let sl26 = null, snap26 = null, sl26Src = null, sl26Out = [];
+    { const c05 = {};
+      if (realName){
+        const R = aoa(realName), rh = R.findIndex(r => r && r.some(x => norm(x) === 'subledger') && r.some(x => norm(x) === 'ppto 2026'));
+        if (rh >= 0){
+          const H = Array.from(R[rh], norm), ix = h => H.indexOf(h);
+          const iS = ix('subledger'), iP = ix('ppto 2026'), iR = ix('real 2025'), iG = ix('categoria gral en cuadros'), iC = ix('categoria particular para cuadros'), iN = ix('nombre subledger'), iT = ix('clasifica en 2026');
+          for (let i = rh + 1; i < R.length; i++){ const r = R[i]; if (!r || r[iS] == null || r[iS] === '') continue;
+            const k = slKey(r[iS]), o = c05[k] || (c05[k] = { sl: r[iS], p26: 0, r25: 0, g: '', p: '', nom: '', t: '' });
+            o.p26 += num(r[iP]); if (iR >= 0) o.r25 += num(r[iR]);
+            if (!o.g && iG >= 0) o.g = r[iG] || ''; if (!o.p && iC >= 0) o.p = r[iC] || ''; if (!o.nom && iN >= 0) o.nom = r[iN] || ''; if (!o.t && iT >= 0) o.t = r[iT] || ''; }
+        }
+      }
+      const m03 = {}; let n03 = null;
+      for (const n of names.filter(n => /^03/.test(n.trim()) && /sl/i.test(n))){
+        const A = aoa(n), hh = A.findIndex(r => r && r.some(x => ['sl_real', 'sl_activo'].includes(norm(x))));
+        if (hh < 0) continue;
+        const H = Array.from(A[hh], norm), ix = f => H.findIndex(f);
+        const iSl = ['sl_real', 'sl_activo', 'sl_prov'].map(h => H.indexOf(h)).filter(i => i >= 0);
+        const iE = ix(h => h.startsWith('criter')), iF = ix(h => h.startsWith('agrupacion')), iFm = ix(h => h === 'formato'), iCl = ix(h => h === 'clasificacion'), iEs = ix(h => h.startsWith('estado'));
+        for (let i = hh + 1; i < A.length; i++){ const r = A[i]; if (!r) continue;
+          const o = { e: iE >= 0 ? r[iE] : '', f: iF >= 0 ? r[iF] : '', fmt: iFm >= 0 ? r[iFm] : '', cl: iCl >= 0 ? r[iCl] : '', es: iEs >= 0 ? r[iEs] : '' };
+          if (!o.e && !o.f) continue;
+          iSl.forEach(j => { if (r[j] != null && String(r[j]).trim() !== '') { const k = slKey(r[j]); if (!m03[k]) m03[k] = o; } }); }
+        n03 = n; break;
+      }
+      const fcM = fcB || fc26;
+      if (Object.keys(c05).length && n03){
+        const lineOf = (g, p) => {
+          const G = norm(g), P = norm(p); if (!G && !P) return null;
+          for (const nd of STRUCTURE){
+            if ((nd.type === 'leafTop' || nd.type === 'cfnc') && (keysOf(nd.key).includes(P) || (!P && keysOf(nd.key).includes(G)) || (keysOf(nd.key).includes(G) && P === G))) return { key: norm(nd.label), gkey: null, label: nd.label };
+          }
+          const grp = STRUCTURE.filter(nd => nd.type === 'group');
+          const order = grp.filter(nd => keysOf(nd.label).includes(G)).concat(grp.filter(nd => !keysOf(nd.label).includes(G) && nd.id !== 'OPL'));
+          for (const nd of order) for (const ch of nd.children) if (keysOf(ch).includes(P)) return { key: (nd.id === 'OPL' ? 'opl|' : '') + norm(ch), gkey: norm(nd.label), label: nd.label + ' · ' + ch };
+          return null;
+        };
+        const crec = x => /^crecimiento/.test(norm(x));
+        const pRow = {}; rows.forEach(r => { const k = slKey(r.sl); if (!pRow[k]) pRow[k] = r; });
+        const keys = new Set(Object.keys(c05).filter(k => Math.abs(c05[k].p26) >= 1 || Math.abs(c05[k].r25) >= 1).concat(Object.keys(fcM).filter(k => Math.abs(fcM[k].fc) >= 1)));
+        sl26 = []; snap26 = {};
+        const add = (key, cls, v) => { const o = snap26[key] || (snap26[key] = { R25: 0, A84: null, P26: 0, P26O: 0, P26P: 0, P26F: 0, A93: 0, A93O: 0, A93P: 0 });
+          o.R25 += v.r25 / 1e6; o.P26 += v.p26 / 1e6; o.A93 += v.a93 / 1e6;
+          o['P26' + cls] += v.p26 / 1e6; o[cls === 'O' ? 'A93O' : 'A93P'] += v.a93 / 1e6; };
+        keys.forEach(k => {
+          const a = m03[k], pr0 = pRow[k], b = c05[k] || {}, f = fcM[k] || {};
+          const cands = [];
+          if (a) cands.push({ g: a.e, p: crec(a.e) && (!a.f || norm(a.f) === norm(a.e)) ? a.fmt : a.f, src: '03_SL' });
+          if (pr0) cands.push({ g: pr0.gral, p: pr0.part, src: 'PPTO27' });
+          if (b.g || b.p) cands.push({ g: b.g, p: b.p, src: '05' });
+          let ln = null, src = null; for (const c of cands){ ln = lineOf(c.g, c.p); if (ln){ src = c.src; break; } }
+          const t = norm(a ? a.cl : pr0 ? pr0.tipo : b.t), e = norm(a ? a.es : pr0 ? pr0.estado : '');
+          const cls = /on ?going/.test(t) ? 'O' : /sin aprob/.test(e) ? 'F' : 'P';
+          const v = { k, sl: b.sl != null ? b.sl : (f.sl != null ? f.sl : (pr0 ? pr0.sl : k)), nom: b.nom || f.nom || (pr0 ? pr0.nom : ''), p26: b.p26 || 0, r25: b.r25 || 0, a93: f.fc || 0, cls, src, line: ln ? ln.label : null,
+            was: lineOf(b.g, b.p) ? lineOf(b.g, b.p).label : null, c03: a ? (a.e || '') + ' · ' + (a.f || '') : '' };
+          sl26.push(v);
+          if (!ln){ sl26Out.push(v); return; }
+          add(ln.key, cls, v); if (ln.gkey) add(ln.gkey, cls, v);
+        });
+        sl26Src = realName + ' + ' + (fcLabel || 'FCTS') + ' · clasificación ' + n03;
+      }
+    }
     const pr = {}; // 08_PROYECTOS se lee aparte, en streaming (readProyectos)
     let mzInside = null;
     for (const n of jerCands) { mzInside = jerFromAoA(aoa(n), n); if (mzInside) break; }
     const jerCol = c.jer >= 0 ? XLSX.utils.encode_col(c.jer + (wb.Sheets[pptoName]['!ref'] ? XLSX.utils.decode_range(wb.Sheets[pptoName]['!ref']).s.c : 0)) : null;
-    return { rows, fcOut, fcCol, fcCands: fcCands.map(c => ({ col: c.col, name: c.name, tot: c.tot, dif: c.dif })), p27Cell, r25Src, r25Out, verX, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
+    return { rows, sl26, snap26, sl26Src, sl26Out, fcOut, fcCol, fcCands: fcCands.map(c => ({ col: c.col, name: c.name, tot: c.tot, dif: c.dif })), p27Cell, r25Src, r25Out, verX, params, snap, cached, snapName, pptoName, jerCol, fcName: fcLabel, mzInside, og, ogName, pr, prName, lastReal, loadedAt: new Date().toISOString() };
   }
 
   /* ---------- Cálculo ---------- */
@@ -1006,6 +1070,8 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
   const isProj = t => norm(t) === 'proyectos';
   const est = e => norm(e);
 
+  let SRC26 = 'sl';
+  const setSrc26 = v => { SRC26 = v === 'excel' ? 'excel' : 'sl'; };
   function compute(ds, opts = {}) {
     const U = 1e6; // montos en millones
     const leafCalc = (key, filterOPL) => {
@@ -1024,8 +1090,9 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       o.P27 = o.P27O + o.P27P + o.P27F;
       return o;
     };
+    const use26 = SRC26 === 'sl' && ds.snap26 && !ds.filtered, SNAP = use26 ? ds.snap26 : ds.snap;
     const snapOf = (label, opl) => {
-      for (const n of keysOf(label)) { const v = ds.snap[(opl ? 'opl|' : '') + n] || ds.snap[n]; if (v) return v; }
+      for (const n of keysOf(label)) { const v = SNAP[(opl ? 'opl|' : '') + n] || (opl ? null : SNAP[n]); if (v) return v; }
       return {};
     };
     const SN = ['R25','P26O','P26P','P26F','P26','A84','A93O','A93P','A93'];
@@ -1055,7 +1122,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
         });
         // ¿el Excel suma bien sus aperturas en los valores congelados?
         SN.forEach(k => {
-          if (k === 'R25' || gs[k] == null) return;
+          if (use26 || k === 'R25' || gs[k] == null) return;
           if (Math.abs(num(gs[k]) - num(gv[k])) > 0.5) snapWarn.push({ row: node.label, col: k, excel: gs[k], calc: gv[k] });
         });
         const g = mkRow(node.id, node.label, 0, node.style || 'group', gv, { hasKids: true });
@@ -1143,7 +1210,17 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
     checks.push({ label: 'Contraste con valores del Excel', count: diffs, compared, ok: diffs === 0, detail: diffDet });
     checks.push({ label: 'Aperturas 2026 que no suman en el Excel', count: snapWarn.length, ok: snapWarn.length === 0, detail: snapWarn.map(w => { const nm = { P26: 'PPTO 2026', P26O: 'PPTO 2026 On going', P26P: 'PPTO 2026 Proyectos', P26F: 'PPTO 2026 Futuros', A84: 'Aterrizaje 8+4', A93O: 'Aterrizaje 9+3 On going', A93P: 'Aterrizaje 9+3 Proyectos', A93: 'Aterrizaje 9+3', R26: 'Real 2026', RACU: 'Real acumulado', P27: 'PPTO 2027', P27O: 'PPTO 2027 On going', P27P: 'PPTO 2027 Proyectos', P27F: 'PPTO 2027 Futuros', VER: 'Versión' }[w.col] || w.col, f = v => num(v).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       return `${w.row} · ${nm}: el Excel muestra ${f(w.excel)} y sus aperturas suman ${f(w.calc)} (dif. ${f(num(w.excel) - num(w.calc))})`; }), warn: true });
-    return { rows: out, checks, bajasReal, totalP27, lastReal: ds.lastReal, params: ds.params };
+    if (use26){
+      const f2 = v => num(v).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const T = ds.snap['total capex|grand'] || {}, tr = out.find(r => r.id === 'TOT'), L = [];
+      ['P26', 'A93'].forEach(k => { if (T[k] != null && tr && Math.abs(num(tr.v[k]) - num(T[k])) > 0.5) L.push(`${k === 'P26' ? 'PPTO 2026' : 'Aterrizaje 9+3'}: por SL ${f2(tr.v[k])} vs cuadro del Excel ${f2(T[k])} · dif. ${f2(num(tr.v[k]) - num(T[k]))}`); });
+      checks.push({ label: '2026 por SL (03_SL) · total vs cuadro del Excel', ok: !L.length, warn: true, count: L.length, detail: L.concat((ds.sl26Out || []).length ? ['Hay SL sin línea del cuadro: ver el control de abajo'] : []), okTxt: 'el total 2026 cruza; solo cambia la apertura por línea' });
+      const O = ds.sl26Out || [];
+      checks.push({ label: 'SL con 2026 sin línea del cuadro', ok: !O.length, warn: true, count: O.length, detail: O.map(v => `${v.sl} · ${v.nom} · 03_SL: ${v.c03 || 'no está'} · PPTO 26 ${f2(v.p26 / 1e6)} · 9+3 ${f2(v.a93 / 1e6)}`), okTxt: 'todos los SL tienen línea' });
+      const mv = (ds.sl26 || []).filter(v => v.line && v.was && v.line !== v.was && (Math.abs(v.p26) + Math.abs(v.a93)) >= 1);
+      checks.push({ label: 'SL reclasificados respecto de 05_Consolidado_REAL', ok: true, warn: true, info: true, count: mv.length, detail: mv.map(v => `${v.sl} · ${v.nom}: ${v.was} → ${v.line} · PPTO 26 ${f2(v.p26 / 1e6)} · 9+3 ${f2(v.a93 / 1e6)}`), okTxt: mv.length ? mv.length + ' SL cambiaron de línea: su 2026 se movió con ellos (informativo)' : 'ningún SL cambió de línea' });
+    }
+    return { rows: out, checks, bajasReal, totalP27, lastReal: ds.lastReal, params: ds.params, src26: use26 ? 'sl' : 'excel' };
   }
 
   /* ---------- Matriz de Subledgers (jerarquización de exposición) ---------- */
@@ -1390,7 +1467,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
     return { items, no08, mism };
   }
 
-  root.CapexEngine = { STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, computeITProyectos, jerOf, respOf, readAnyAsync, readProyectos, PR_CATS, norm, slKey };
+  root.CapexEngine = { setSrc26, STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, computeITProyectos, jerOf, respOf, readAnyAsync, readProyectos, PR_CATS, norm, slKey };
   if (typeof module !== 'undefined') module.exports = root.CapexEngine;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1420,10 +1497,11 @@ const state = {
   page: saved.page || 'general',
   unit: saved.unit || 'M', pctDec: +(saved.pctDec || 0), dec: saved.dec == null ? 2 : +saved.dec, kpis: saved.kpis !== false, sem: saved.sem !== false,
   texts: saved.texts || {}, opts: saved.opts || {}, drill: null, res: null, zoom: new Set(),
-  tipoSel: Array.isArray(saved.tipoSel) ? saved.tipoSel : null, tipoCol: !!saved.tipoCol, dsFull: null, _view: null,
+  tipoSel: Array.isArray(saved.tipoSel) ? saved.tipoSel : null, tipoCol: !!saved.tipoCol, dsFull: null, _view: null, src26: saved.src26 === 'excel' ? 'excel' : 'sl',
   ver: Object.assign({ on: false, exp: false, note: false, sel: ['xl'] }, saved.ver || {}), _noVer: false,
   ppt: Object.assign({ title: '', sub: '', cover: true }, saved.ppt || {})
 };
+E.setSrc26(state.src26);
 function persist(){
   const opts = {};
   for (const k in state.opts){
@@ -1431,7 +1509,7 @@ function persist(){
     if (o.byPage){ const bp = {}; for (const p in o.byPage){ const x = Object.assign({}, o.byPage[p]); if (x.cols instanceof Set) x.cols = [...x.cols]; bp[p] = x; } o.byPage = bp; }
     opts[k] = o;
   }
-  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts, tipoSel: state.tipoSel, tipoCol: state.tipoCol, ver: state.ver, ppt: state.ppt });
+  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts, tipoSel: state.tipoSel, tipoCol: state.tipoCol, ver: state.ver, ppt: state.ppt, src26: state.src26 });
 }
 
 /* ============ formato ============ */
@@ -3705,6 +3783,11 @@ function renderCuadroOpts(){
   if (c.locked && c.locked(pg0.key)){ $('#cuadroOpts').innerHTML = ''; return; }
   $('#cuadroOpts').innerHTML = c.optsHtml(optsOf(c));
 }
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-src26]'); if (!b) return;
+  state.src26 = b.dataset.src26; E.setSrc26(state.src26); persist(); renderAll(true);
+  toast(state.src26 === 'sl' ? '2026 armado por SL con la clasificación de 03_SL.' : '2026 tomado del cuadro del Excel (valores congelados).');
+});
 function renderFiles(){
   renderFolder();
   const st = s => s === 'file' || s === 'live' ? 'live' : 'demo';
@@ -3716,6 +3799,8 @@ function renderFiles(){
   $('#files').innerHTML = `
     <div class="fileline"><span class="tag">Presupuesto</span><b>${esc(state.dsName)}</b><span class="st ${state.dsSrc === 'file' ? 'live' : 'demo'}">${state.dsSrc === 'file' ? 'Cargado' : 'Ejemplo · datos ficticios'}</span></div>
     ${state.ds.fcCol ? `<div class="fileline"><span class="tag">Aterrizaje 9+3 por SL</span><b>${esc(state.ds.fcName || '06_FCTS26')} · columna ${esc(state.ds.fcCol)}</b><span class="st live">${(state.ds.fcCands || []).length > 1 ? 'Elegida entre ' + state.ds.fcCands.map(c => c.col).join(', ') + ': la que cruza con el 9+3 del cuadro' : 'Se usa en los cuadros particulares'}</span></div>` : ''}
+    <div class="fileline"><span class="tag">2026 del Cuadro General</span><b>${state.ds.sl26 && state.src26 === 'sl' ? 'Por SL · ' + esc(state.ds.sl26Src) : 'Valores del cuadro del Excel · ' + esc(state.ds.snapName || 'Cuadro_Capex')}</b>
+      ${state.ds.sl26 ? `<span class="seg mini src26" role="group"><button type="button" data-src26="sl" aria-pressed="${state.src26 === 'sl'}">Por SL (03_SL)</button><button type="button" data-src26="excel" aria-pressed="${state.src26 !== 'sl'}">Cuadro del Excel</button></span>` : `<span class="st demo">Falta 03_SL o 05_Consolidado_REAL para armarlo por SL</span>`}</div>
     ${state.ds.jerCol ? `<div class="fileline"><span class="tag">Jerarquización</span><b>PPTO27 · columna ${esc(state.ds.jerCol)}</b><span class="st live">Se usa primero; la Matriz completa los vacíos</span></div>` : ''}
     <div class="fileline"><span class="tag">Matriz de Subledgers</span><b>${esc(state.mzName)}</b><span class="st ${state.mzSrc === 'live' || (!state.mz && curMz()) ? 'live' : 'demo'}"${curMz() ? '' : ' style="color:var(--bad)"'}>${state.mzSrc === 'live' ? 'Cargada · ' + state.mz.count + ' SL' : state.mz ? 'Ejemplo · ' + state.mz.count + ' SL' : curMz() ? 'Tomada del archivo de presupuesto · ' + curMz().count + ' SL' : 'Sin cargar: las jerarquías salen vacías'}</span></div>`;
   const hc = state.ds.og && state.ds.og.__cols;
@@ -3735,7 +3820,7 @@ function checkLi(c){
   else if (c.compared != null) sub = c.ok ? `${c.compared} celdas iguales al Excel` : `${c.count} de ${c.compared} celdas difieren (subrayadas)`;
   else sub = c.ok ? (c.okTxt || 'sin casos') : `${c.count} caso${c.count === 1 ? '' : 's'}`;
   let det = '';
-  if (!c.ok && c.detail){
+  if ((!c.ok || c.info) && c.detail && (!Array.isArray(c.detail) || c.detail.length)){
     const lines = Array.isArray(c.detail) ? c.detail.map(d => typeof d === 'string' ? d : `${d.row} · ${colName(d.col)}: Excel ${f0(d.excel)} vs aperturas ${f0(d.calc)}`)
       : Object.entries(c.detail).map(([k, v]) => `${k}: ${v.n} SL · PPTO 27 $${f0(v.p27)} M`);
     det = `<details><summary>Ver detalle</summary><ul class="det">${lines.slice(0, 25).map(l => `<li>${esc(l)}</li>`).join('')}</ul></details>`;
@@ -4437,7 +4522,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="08/11/2026 09:56";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="08/11/2026 10:17";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
