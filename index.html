@@ -553,7 +553,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 18:58</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 19:07</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -577,7 +577,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 18:58</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 19:07</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -1572,9 +1572,12 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       let iTot = -1; for (let j = AH.length - 1; j >= 0; j--) if (AH[j] === 'total'){ iTot = j; break; }
       const dic = AH.lastIndexOf('diciembre'), months = dic >= 11 ? Array.from({ length: 12 }, (_, m) => dic - 11 + m) : [];
       for (let i = ah + 1; i < A.length; i++){
-        const r = A[i]; if (!r || r[iS] == null || String(r[iS]).trim() === '') continue;
+        // el Cuadro suma por Tipo (SUMIFS): una obra futura puede no tener Subledger todavía
+        const r = A[i]; if (!r) continue;
+        const hasSl = r[iS] != null && String(r[iS]).trim() !== '', hasT = r[iT] != null && String(r[iT]).trim() !== '';
+        if (!hasSl && !hasT) continue;
         const tot = iTot >= 0 && r[iTot] != null ? num(r[iTot]) : months.reduce((a, m) => a + num(r[m]), 0);
-        obras.push({ fila: i + 1, tipo: r[iT] == null ? '' : String(r[iT]).trim(), sl: String(r[iS]).trim(), nom: iN >= 0 && r[iN] != null ? String(r[iN]).trim() : '', est: iE >= 0 && r[iE] != null ? String(r[iE]).trim() : '', cla: iCl >= 0 && r[iCl] != null ? String(r[iCl]) : '', tot: tot / 1e6 });
+        obras.push({ fila: i + 1, tipo: r[iT] == null ? '' : String(r[iT]).trim(), sl: hasSl ? String(r[iS]).trim() : 'sin SL', nom: iN >= 0 && r[iN] != null ? String(r[iN]).trim() : '', est: iE >= 0 && r[iE] != null ? String(r[iE]).trim() : '', cla: iCl >= 0 && r[iCl] != null ? String(r[iCl]) : '', tot: tot / 1e6 });
       }
     }
     return { c26, curso, sinap, obras, sheetC: nC, sheetA: nA };
@@ -3622,8 +3625,10 @@ const CrecS = {
       out.push({ label: 'Cuadro: tipos de obra = TOTAL', ok: !L.length, warn: true, count: L.length, detail: L, okTxt: 'cruza' }); }
     if (T && cs.curso != null && cs.sinap != null){ const s = cs.curso + cs.sinap, ok = Math.abs(s - T.v.p27[0]) <= 0.01;
       out.push({ label: 'En curso + sin aprobación = PPTO 2027 del Cuadro', ok, count: ok ? 0 : 1, detail: [`En curso ${f2(cs.curso)} + sin aprobación ${f2(cs.sinap)} = ${f2(s)} vs PPTO 2027 ${f2(T.v.p27[0])} · dif. ${f2(s - T.v.p27[0])}. Revisá los rangos que suman las filas EN CURSO y SIN APROBACION en ANALISIS CRECIMIENTO.`], okTxt: 'cruza: ' + f2(s) }); }
-    const ob = cs.obras.reduce((a, x) => a + x.tot, 0);
-    if (T) out.push({ label: 'Obras de ANALISIS = PPTO 2027 del Cuadro', ok: Math.abs(ob - T.v.p27[0]) <= 0.01, warn: true, count: 1, detail: [`Suma de obras ${f2(ob)} vs Cuadro ${f2(T.v.p27[0])}`], okTxt: 'cruza: ' + f2(ob) });
+    const tipos = new Set(lines.map(r => E.norm(r.label))), obT = cs.obras.filter(x => tipos.has(E.norm(x.tipo))), ob = obT.reduce((a, x) => a + x.tot, 0);
+    const fuera = cs.obras.filter(x => !tipos.has(E.norm(x.tipo)) && Math.abs(x.tot) >= 0.005);
+    if (T) out.push({ label: 'Obras de ANALISIS = PPTO 2027 del Cuadro', ok: Math.abs(ob - T.v.p27[0]) <= 0.01, warn: true, count: 1,
+      detail: [`Suma de obras por tipo ${f2(ob)} vs Cuadro ${f2(T.v.p27[0])} · dif. ${f2(ob - T.v.p27[0])}`].concat(fuera.map(x => `Fila ${x.fila} · ${x.sl} ${x.nom}: tipo "${x.tipo || 'vacío'}" no está en el Cuadro · ${f2(x.tot)}`)), okTxt: 'cruza: ' + f2(ob) });
     const all = state.ds ? (state.dsFull || state.ds).rows : [];
     const bySl = all.filter(r => /crecimiento\s*_?\s*simpli/i.test(String(r.sl || '') + ' ' + String(r.nom || '') + ' ' + String(r.cod || '')));
     const rows = bySl.length ? bySl : all.filter(r => /^crecimiento/.test(E.norm(r.gral)) && E.norm(r.part) === 'simplicity' && E.norm(r.tipo) === 'proyectos');
@@ -4902,7 +4907,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="09/11/2026 18:58";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="09/11/2026 19:07";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
