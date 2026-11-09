@@ -529,12 +529,16 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
   .rail::-webkit-scrollbar-thumb,.side::-webkit-scrollbar-thumb{background:rgba(120,130,160,.4);border-radius:6px}
 }
 .sl-item:not(.active) > span > span{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+
+/* bloques marcados (Crecimiento): separador vertical y encabezado de bloque más visible */
+.ct .gs{border-left:2px solid #C9CFDD!important}
+.ct thead th.gblk{font-size:.86em;letter-spacing:.04em;border-bottom:2px solid currentColor;padding-top:7px;padding-bottom:7px}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 12:40</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 12:53</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -558,7 +562,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 12:40</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 12:53</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -3366,30 +3370,33 @@ Me.checksOfi = function(o){
 };
 /* ============ CUADRO · Crecimiento Farmacity (libro "PPTO 2027 - CAPEX - Crecimiento Farma") ============
    2026: hoja CUADRO tal cual (+ 9+3) · 2027: hoja ANALISIS obra por obra → pase de año (en curso), búsquedas 2027 y 2027→2028 */
-const CF_B26 = [['p26', 'PPTO 2026', 'ppto'], ['ap25', 'Aprobados 2025 → 2026', 'aux'], ['b2626', 'Obras 2026 fin 2026 · búsqueda', 'aux'], ['b2627', 'Obras 2026 fin 2027 · búsqueda', 'aux'], ['real', 'Real 2026', 'real'], ['fc', 'Aterrizaje 9+3', 'ater']];
-const CF_B27 = [['tot', 'PPTO 2027', 'ppto'], ['pase', 'Pase de año 2026 → PPTO 2027', 'aux'], ['b27', 'Obras inician y fin 2027 · búsqueda', 'aux'], ['b28', 'Obras inician 2027 y fin 2028 · búsqueda', 'aux']];
+const CF_B26 = [['p26', 'PPTO 2026', 'ppto'], ['ap25', 'Aprobados 2025 → 2026', 'real'], ['b2626', 'Obras 2026 fin 2026 · búsqueda', 'fut'], ['b2627', 'Obras 2026 fin 2027 · búsqueda', 'var'], ['real', 'Real 2026', 'real'], ['fc', 'Aterrizaje 9+3', 'ater']];
+const CF_B27 = [['tot', 'PPTO 2027', 'ppto'], ['pase', 'Pase de año 2026 → PPTO 2027', 'real'], ['b27', 'Obras inician y fin 2027 · búsqueda', 'fut'], ['b28', 'Obras inician 2027 y fin 2028 · búsqueda', 'ater']];
 const CF_BLBL = { pase: 'Pase de año 2026 → 2027 (aprobadas, en curso)', b27: 'Búsqueda · inician y finalizan 2027', b28: 'Búsqueda · inician 2027 y finalizan 2028' };
 const CF_GRP = [['org', 'TOTAL ORGÁNICO'], ['inorg', 'TOTAL INORGÁNICO'], ['reop', 'TOTAL REOPENING']];
 const CrecF = {
   id: 'cfarma', name: 'Crecimiento Farmacity', blurb: 'PPTO 2026 y 9+3 · PPTO 2027 por pase de año y búsquedas · obras por local',
-  kind(page){ return page.split('|')[1] || '26'; },
+  kind(page){ return page.split('|')[1] || 'res'; },
   views(page){
     const a = k => [k + '_m', k + '_n', k + '_u'];
+    if (this.kind(page) === 'res') return { completo: { label: '2026 vs 2027', cols: [].concat(a('p26'), a('fc'), a('tot'), ['var_p']) }, bloques: { label: 'Con bloques 2027', cols: ['p26_m', 'fc_m', 'tot_m', 'pase_m', 'b27_m', 'b28_m', 'var_p'] }, montos: { label: 'Solo montos', cols: ['p26_m', 'fc_m', 'tot_m', 'var_p'] } };
     return this.kind(page) === '26'
       ? { completo: { label: 'Completo', cols: [].concat(a('p26'), a('ap25'), a('b2626'), a('b2627'), a('fc')) }, corto: { label: 'PPTO 2026 vs 9+3', cols: [].concat(a('p26'), a('fc')) }, montos: { label: 'Solo montos', cols: ['p26_m', 'ap25_m', 'b2626_m', 'b2627_m', 'real_m', 'fc_m'] } }
       : { completo: { label: 'Completo', cols: [].concat(a('tot'), a('pase'), a('b27'), a('b28')) }, montos: { label: 'Solo montos', cols: ['tot_m', 'pase_m', 'b27_m', 'b28_m'] }, obras: { label: 'Solo # obras', cols: ['tot_n', 'pase_n', 'b27_n', 'b28_n'] } };
   },
   colDefs(page){
-    const B = this.kind(page) === '26' ? CF_B26 : CF_B27, out = [];
+    const k0 = this.kind(page), out = [];
+    const B = k0 === '26' ? CF_B26 : k0 === '27' ? CF_B27 : [CF_B26[0], CF_B26[5], CF_B27[0], CF_B27[1], CF_B27[2], CF_B27[3]];
     B.forEach(([k, lab, tone]) => {
-      out.push({ k: k + '_m', label: '$', grp: lab, kind: 'amt', tone, gtone: tone === 'aux' ? null : tone, strong: k === 'p26' || k === 'tot' || k === 'fc' });
-      if (k !== 'real'){ out.push({ k: k + '_n', label: '# obras', grp: lab, kind: 'amt', tone, gtone: tone === 'aux' ? null : tone }); out.push({ k: k + '_u', label: '$/obra', grp: lab, kind: 'amt', tone, gtone: tone === 'aux' ? null : tone }); }
+      out.push({ k: k + '_m', label: '$', grp: lab, kind: 'amt', tone, gtone: tone, strong: k === 'p26' || k === 'tot' || k === 'fc', sepl: true });
+      if (k !== 'real'){ out.push({ k: k + '_n', label: '# obras', grp: lab, kind: 'amt', tone, gtone: tone }); out.push({ k: k + '_u', label: '$/obra', grp: lab, kind: 'amt', tone, gtone: tone }); }
     });
+    if (k0 === 'res') out.push({ k: 'var_p', label: 'Δ % vs 9+3', grp: 'Variación', kind: 'var', tone: 'var', sepl: true });
     return out;
   },
   defaults(){ return { byPage: {} }; },
   colState(page, o){ return ItPr.colState.call(this, page, o); },
-  pages(){ return [{ key: 'cfarma|26', label: '2026 · PPTO y 9+3' }, { key: 'cfarma|27', label: '2027 · pase de año y búsquedas' }]; },
+  pages(){ return [{ key: 'cfarma|res', label: 'Resumen 2026 vs 2027' }, { key: 'cfarma|26', label: '2026 · PPTO y 9+3' }, { key: 'cfarma|27', label: '2027 · pase de año y búsquedas' }]; },
   optsHtml(){
     return `<p class="empty" style="font-size:11.5px;padding:0">Fuente: libro <b>PPTO 2027 - CAPEX - Crecimiento Farma</b> de la carpeta. 2026 tal cual la hoja CUADRO. 2027 desde ANALISIS: $ = TOTAL (col. BB), # obras = Σ % 2027 PROY, $/obra = $ ÷ # obras.<br>Pase de año = estado EN CURSO · Búsqueda 2027 = SL que empieza con 2, estado N/A y 100% en 2027 · Búsqueda 2027→2028 = ídem con % 2028 PROY mayor a 1%. Reopening se abre por tipología (▾ para cerrar). Clic en una fila para ver las obras.</p>`;
   },
@@ -3409,7 +3416,30 @@ const CrecF = {
     const p = (state.ds && state.ds.params) || {};
     const base = { eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · Crecimiento Brick`, labelHead: 'Modelo', cols };
     if (!cf) return Object.assign(base, { title: 'Crecimiento Farmacity', sub: 'Falta el libro "PPTO 2027 - CAPEX - Crecimiento Farma" en la carpeta conectada', note: 'Conectá la carpeta (o arrastrá el archivo) y tocá Actualizar.', rows: [], kpis: [] });
-    const cells = (vals) => { const out = {}; cols.forEach(c => { const [b, q] = c.k.split('_'), v = vals[b]; out[c.k] = v ? this.fmtTrip(v)[q] : { t: '', cls: 'na' }; }); return out; };
+    const cells = (vals) => { const out = {}; cols.forEach(c => { if (c.k === 'var_p'){ out[c.k] = vals.tot && vals.fc ? fVar(vr(vals.tot[0], vals.fc[0])) : { t: '–', cls: 'na' }; return; } const [b, q] = c.k.split('_'), v = vals[b]; out[c.k] = v ? this.fmtTrip(v)[q] : { t: '', cls: 'na' }; }); return out; };
+    base.blockSep = true;
+    const agg = L => { const v = {}; ['tot', 'pase', 'b27', 'b28'].forEach(b => { const S = b === 'tot' ? L.filter(x => x.b) : L.filter(x => x.b === b); const m = S.reduce((a, x) => a + x.tot, 0), n = S.reduce((a, x) => a + x.p27, 0); v[b] = [m, n, n ? m / n : 0]; }); return v; };
+    if (k === 'res'){
+      // resumen: totales orgánico / inorgánico / reopening con 2026 (CUADRO) y 2027 (ANALISIS); ▸ abre los modelos
+      const FL = this.fcLines(cf), O = cf.obras, c26 = lab => cf.c26.find(r => E.norm(r.label) === E.norm(lab)) || null;
+      const c26L = l => cf.c26.find(r => !/^total/.test(E.norm(r.label)) && (E.cfLineOf(r.label) || {}).label === l.label) || null;
+      const tri = v => v ? [v[0], v[1], v[1] ? v[0] / v[1] : 0] : null;
+      CF_GRP.forEach(([g, lab]) => {
+        const t = c26(lab), LG = O.filter(x => x.grp === g), zk = page + '|' + g, open = state.zoom.has(zk);
+        rows.push({ label: lab.charAt(0) + lab.slice(1).toLowerCase(), style: 'jer', zoom: zk, open, cells: cells(Object.assign({ p26: t ? t.v.p26 : null, fc: t && t.v.fc ? tri(t.v.fc) : null }, agg(LG))), drill: { title: lab, sls: this.sls(LG) } });
+        if (open) E.CF_LINES.filter(l => l.grp === g).forEach(l => {
+          const r = c26L(l), L = O.filter(x => x.line === l.label), f = FL ? (FL[l.label] || { m: 0, n: 0 }) : null;
+          rows.push({ label: l.label, style: 'child', cells: cells(Object.assign({ p26: r ? r.v.p26 : null, fc: f ? [f.m, f.n, f.n ? f.m / f.n : 0] : null }, agg(L))), drill: { title: l.label, sls: this.sls(L) } });
+        });
+      });
+      const T = c26('TOTAL CRECIMIENTO');
+      rows.push({ spacer: true }, { label: 'TOTAL CRECIMIENTO', style: 'total', cells: cells(Object.assign({ p26: T ? T.v.p26 : null, fc: T && T.v.fc ? tri(T.v.fc) : null }, agg(O))), drill: { title: 'Crecimiento Farmacity', sls: this.sls(O) } });
+      const A = agg(O), d = T && T.v.fc ? fVar(vr(A.tot[0], T.v.fc[0])) : null;
+      return Object.assign(base, { title: 'Crecimiento Farmacity', sub: `En ${unitLbl()} · PPTO 2026 y aterrizaje 9+3 vs PPTO 2027 · orgánico, inorgánico y reopening (▸ abre los modelos)`,
+        note: 'PPTO 2026 y 9+3 de la hoja CUADRO; PPTO 2027 de ANALISIS (pase de año + búsquedas). # obras 2027 = Σ % 2027 PROY.',
+        rows, kpis: [{ k: 'PPTO 2027', v: '$' + fAmt(A.tot[0]).t + unitShort(), d: (d && d.t ? d.t + ' vs 9+3 · ' : '') + nf(1).format(A.tot[1]) + ' obras', plain: true, hero: true, tone: 'ppto' },
+          T ? { k: 'PPTO 2026', tone: 'var', plain: true, v: '$' + fAmt(T.v.p26[0]).t + unitShort(), d: nf(1).format(T.v.p26[1]) + ' obras' } : null].filter(Boolean) });
+    }
     if (k === '26'){
       const FL = this.fcLines(cf);
       cf.c26.forEach(r => {
@@ -3424,7 +3454,6 @@ const CrecF = {
         rows, kpis: t ? [{ k: 'PPTO 2026', v: '$' + fAmt(t.v.p26[0]).t + unitShort(), d: nf(1).format(t.v.p26[1]) + ' obras', plain: true, hero: true, tone: 'ppto' }, t.v.fc ? { k: 'Aterrizaje 9+3', tone: 'ater', plain: true, v: '$' + fAmt(t.v.fc[0]).t + unitShort(), d: nf(1).format(t.v.fc[1] || 0) + ' obras' } : null].filter(Boolean) : [] });
     }
     // 2027
-    const agg = L => { const v = {}; ['tot', 'pase', 'b27', 'b28'].forEach(b => { const S = b === 'tot' ? L.filter(x => x.b) : L.filter(x => x.b === b); const m = S.reduce((a, x) => a + x.tot, 0), n = S.reduce((a, x) => a + x.p27, 0); v[b] = [m, n, n ? m / n : 0]; }); return v; };
     const O = cf.obras;
     CF_GRP.forEach(([g, lab]) => {
       E.CF_LINES.filter(l => l.grp === g).forEach(l => {
@@ -3456,8 +3485,11 @@ const CrecF = {
     const noL = O.filter(x => !x.line && Math.abs(x.tot) >= 0.005);
     out.push({ label: 'MODELO sin línea del cuadro', ok: !noL.length, warn: true, count: noL.length, detail: noL.map(x => `Fila ${x.fila} · "${x.modelo}" · ${x.sl} ${x.nom}`), okTxt: 'todos los modelos tienen línea' });
     const sumB = b => O.filter(x => x.b === b).reduce((a, x) => a + x.tot, 0);
-    const rows = state.ds ? (state.dsFull || state.ds).rows.filter(r => E.slKey(r.sl) === 'sl_crecimientofarma') : [];
-    if (!rows.length) out.push({ label: 'Cruce con PPTO27 (SL_CRECIMIENTOFARMA)', ok: false, warn: true, count: 1, detail: ['No encontré SL_CRECIMIENTOFARMA en PPTO27.'] });
+    // PPTO27: Crecimiento Brick · Farmacity, proyectos (SL_CRECIMIENTOFARMA en curso / sin aprobación)
+    const all = state.ds ? (state.dsFull || state.ds).rows : [];
+    const bySl = all.filter(r => /crecimiento\s*_?\s*farma/i.test(String(r.sl || '') + ' ' + String(r.nom || '') + ' ' + String(r.cod || '')));
+    const rows = bySl.length ? bySl : all.filter(r => /^crecimiento/.test(E.norm(r.gral)) && E.norm(r.part) === 'farmacity' && E.norm(r.tipo) === 'proyectos');
+    if (!rows.length) out.push({ label: 'Cruce con PPTO27 · Crecimiento Brick Farmacity', ok: false, warn: true, count: 1, detail: ['En PPTO27 no hay filas de Crecimiento Brick · Farmacity con tipo PROYECTOS (SL_CRECIMIENTOFARMA en curso / sin aprobación).'] });
     else {
       const p27 = f => rows.filter(f).reduce((a, r) => a + (r.p27 || 0), 0) / 1e6, L = [];
       const cur = p27(r => E.estProy(r.estado) === 'curso'), fut = p27(r => E.estProy(r.estado) === 'nuevo');
@@ -3518,11 +3550,11 @@ function oneTable(tm, rowsIn){
     else { const tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var'));
       // grupo de una sola columna con título largo: el título va en dos renglones para no ensanchar la columna
       const wrap = span === 1 && grp.length > 9 ? ' style="white-space:normal;max-width:96px;line-height:1.15"' : '';
-      g += `<th colspan="${span}" class="t-${cols[i].gtone || (tones.size === 1 ? [...tones][0] : 'mix')}"${wrap}>${esc(grp)}</th>`; }
+      g += `<th colspan="${span}" class="t-${cols[i].gtone || (tones.size === 1 ? [...tones][0] : 'mix')}${tm.blockSep ? ' gs gblk' : ''}"${wrap}>${esc(grp)}</th>`; }
     i = j + 1;
   }
   g += '</tr>';
-  const h = `<tr><th>${esc(tm.labelHead)}</th>` + cols.map(c => `<th class="h-${c.tone || 'none'}" style="${c.kind === 'sl' ? 'text-align:left' : ''}">${esc(c.label)}</th>`).join('') + '</tr>';
+  const h = `<tr><th>${esc(tm.labelHead)}</th>` + cols.map(c => `<th class="h-${c.tone || 'none'}${tm.blockSep && c.sepl ? ' gs' : ''}" style="${c.kind === 'sl' ? 'text-align:left' : ''}">${esc(c.label)}</th>`).join('') + '</tr>';
   let b = '';
   rowsIn.forEach(r => {
     const ri = tm.rows.indexOf(r);
@@ -3533,6 +3565,7 @@ function oneTable(tm, rowsIn){
       let cls = f.cls || '';
       if (c.tone) cls += ' t-' + c.tone;
       if (c.hero) cls += ' c-hero'; else if (c.strong) cls += ' c-strong';
+      if (tm.blockSep && c.sepl) cls += ' gs';
       const ar = (f.arrow && state.sem) ? `<span class="ar">${f.up ? '▲' : '▼'}</span>` : '';
       b += `<td class="${cls.trim()}">${ar}${esc(f.t)}</td>`;
     });
@@ -4728,7 +4761,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="09/11/2026 12:40";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="09/11/2026 12:53";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
