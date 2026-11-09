@@ -422,6 +422,13 @@ table.ct{font-family:var(--f-light);color:var(--ink)}
 .ct tr.sub td.t-fut,.ct tr.total td.t-fut,.ct tr.grand td.t-fut{background:var(--fut-t)}
 .ct tr.blockhead td.t-fut{background:transparent}
 .kpi.k-fut .k{color:var(--fut-ht)}
+/* segundo verde (más intenso), para bloques que van juntos con el verde pastel */
+:root{--fut2-h:#A9D8B8;--fut2-ht:#1E5634;--fut2-c:#E4F3E9;--fut2-t:#CDE9D6}
+.ct thead th.h-fut2,.ct thead tr.g th.t-fut2{color:var(--fut2-ht)}
+.ct thead tr.g th.t-fut2{background:var(--fut2-h)}
+.ct td.t-fut2,.ct tr.group td.t-fut2,.ct tr.jer td.t-fut2,.ct tr.aparte td.t-fut2{background:var(--fut2-c)}
+.ct tr.sub td.t-fut2,.ct tr.total td.t-fut2,.ct tr.grand td.t-fut2{background:var(--fut2-t)}
+.ct tr.blockhead td.t-fut2{background:transparent}
 /* subtotales remarcados */
 .ct tr.sub td{border-top:2px solid #3D4663;border-bottom:1.5px solid #9AA3BA;font-weight:700}
 .ct tr.sub td.lbl{color:#1F2747}
@@ -538,7 +545,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 12:53</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 12:55</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -562,7 +569,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 12:53</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 12:55</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -3370,8 +3377,8 @@ Me.checksOfi = function(o){
 };
 /* ============ CUADRO · Crecimiento Farmacity (libro "PPTO 2027 - CAPEX - Crecimiento Farma") ============
    2026: hoja CUADRO tal cual (+ 9+3) · 2027: hoja ANALISIS obra por obra → pase de año (en curso), búsquedas 2027 y 2027→2028 */
-const CF_B26 = [['p26', 'PPTO 2026', 'ppto'], ['ap25', 'Aprobados 2025 → 2026', 'real'], ['b2626', 'Obras 2026 fin 2026 · búsqueda', 'fut'], ['b2627', 'Obras 2026 fin 2027 · búsqueda', 'var'], ['real', 'Real 2026', 'real'], ['fc', 'Aterrizaje 9+3', 'ater']];
-const CF_B27 = [['tot', 'PPTO 2027', 'ppto'], ['pase', 'Pase de año 2026 → PPTO 2027', 'real'], ['b27', 'Obras inician y fin 2027 · búsqueda', 'fut'], ['b28', 'Obras inician 2027 y fin 2028 · búsqueda', 'ater']];
+const CF_B26 = [['p26', 'PPTO 2026', 'ppto'], ['ap25', 'Aprobados 2025 → 2026', 'real'], ['b2626', 'Obras 2026 fin 2026 · búsqueda', 'fut'], ['b2627', 'Obras 2026 fin 2027 · búsqueda', 'fut2'], ['real', 'Real 2026', 'real'], ['fc', 'Aterrizaje 9+3', 'ater']];
+const CF_B27 = [['tot', 'PPTO 2027', 'ppto'], ['pase', 'Pase de año 2026 → PPTO 2027', 'real'], ['b27', 'Obras inician y fin 2027 · búsqueda', 'fut'], ['b28', 'Obras inician 2027 y fin 2028 · búsqueda', 'fut2']];
 const CF_BLBL = { pase: 'Pase de año 2026 → 2027 (aprobadas, en curso)', b27: 'Búsqueda · inician y finalizan 2027', b28: 'Búsqueda · inician 2027 y finalizan 2028' };
 const CF_GRP = [['org', 'TOTAL ORGÁNICO'], ['inorg', 'TOTAL INORGÁNICO'], ['reop', 'TOTAL REOPENING']];
 const CrecF = {
@@ -4358,6 +4365,7 @@ const TN = {
   real: { h: 'C9DDF5', ht: '1F4E86', c: 'F1F6FD', t: 'DCE9F9' },
   ppto: { h: 'DED3F3', ht: '4B3A86', c: 'F7F3FD', t: 'EAE1F8' },
   fut: { h: 'CFE8D6', ht: '2F6B45', c: 'F2F9F4', t: 'E1F1E6' },
+  fut2: { h: 'A9D8B8', ht: '1E5634', c: 'E4F3E9', t: 'CDE9D6' },
   ater: { h: 'F9D9B8', ht: '8A4B12', c: 'FEF6EE', t: 'FCE6CF' },
   var:  { h: 'E6E9F0', ht: '47506A', c: 'FFFFFF', t: 'EEF0F5' },
   aux:  { h: 'F1F2F6', ht: '8A91A6', c: 'FFFFFF', t: 'F3F4F7' },
@@ -4761,7 +4769,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="09/11/2026 12:53";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="09/11/2026 12:55";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
