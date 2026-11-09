@@ -540,12 +540,15 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 /* bloques marcados (Crecimiento): separador vertical y encabezado de bloque más visible */
 .ct .gs{border-left:2px solid #C9CFDD!important}
 .ct thead th.gblk{font-size:.86em;letter-spacing:.04em;border-bottom:2px solid currentColor;padding-top:7px;padding-bottom:7px}
+
+.ct th.cgap,.ct td.cgap,.ct tr td.cgap,.ct tr.sub td.cgap,.ct tr.total td.cgap,.ct tr.jer td.cgap{width:16px;min-width:16px;max-width:16px;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.ct tr.g th.gap.cgap{background:transparent!important}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 12:55</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 13:03</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -569,7 +572,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 12:55</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 13:03</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -3395,8 +3398,9 @@ const CrecF = {
     const k0 = this.kind(page), out = [];
     const B = k0 === '26' ? CF_B26 : k0 === '27' ? CF_B27 : [CF_B26[0], CF_B26[5], CF_B27[0], CF_B27[1], CF_B27[2], CF_B27[3]];
     B.forEach(([k, lab, tone]) => {
-      out.push({ k: k + '_m', label: '$', grp: lab, kind: 'amt', tone, gtone: tone, strong: k === 'p26' || k === 'tot' || k === 'fc', sepl: true });
-      if (k !== 'real'){ out.push({ k: k + '_n', label: '# obras', grp: lab, kind: 'amt', tone, gtone: tone }); out.push({ k: k + '_u', label: '$/obra', grp: lab, kind: 'amt', tone, gtone: tone }); }
+      const big = k === 'p26' || k === 'tot';
+      out.push({ k: k + '_m', label: '$', grp: lab, kind: 'amt', tone, gtone: tone, strong: big || k === 'fc', hero: k === 'tot', sepl: true });
+      if (k !== 'real'){ out.push({ k: k + '_n', label: '# obras', grp: lab, kind: 'amt', tone, gtone: tone, strong: big }); out.push({ k: k + '_u', label: '$/obra', grp: lab, kind: 'amt', tone, gtone: tone, strong: big }); }
     });
     if (k0 === 'res') out.push({ k: 'var_p', label: 'Δ % vs 9+3', grp: 'Variación', kind: 'var', tone: 'var', sepl: true });
     return out;
@@ -3419,11 +3423,17 @@ const CrecF = {
   fmtTrip(v, k){ return { m: fAmt(v[0]), n: v[1] == null ? { t: '', cls: 'na' } : (Math.abs(v[1]) < 0.0005 ? { t: '–', cls: 'na' } : { t: nf(1).format(v[1]), cls: '' }), u: v[2] == null || !isFinite(v[2]) || Math.abs(v[2]) < 0.0005 ? { t: '–', cls: 'na' } : fAmt(v[2]) }; },
   sls(obras){ return obras.filter(x => Math.abs(x.tot) >= 0.0005).map(x => ({ sl: x.sl || '—', nom: x.nom || x.modelo, jer: CF_BLBL[x.b] || (x.tot ? 'Sin bloque' : 'Sin monto 2027'), part: x.modelo, tipo: 'PROYECTOS', estado: x.est, r25: 0, p26: 0, real26: x.real * 1e6, fc26: x.fc * 1e6, p27: x.tot * 1e6 })); },
   build(page, o){
-    const k = this.kind(page), st = this.colState(page, o), cols = this.colDefs(page).filter(c => st.cols.has(c.k)), cf = this.cf(), rows = [];
+    const k = this.kind(page), st = this.colState(page, o), cf = this.cf(), rows = [];
+    // separación visual entre el total y sus bloques (como el cuadro del Excel)
+    const cols = []; this.colDefs(page).filter(c => st.cols.has(c.k)).forEach((c, i, A) => {
+      const prev = A[i - 1], bk = c.k.split('_')[0], pb = prev ? prev.k.split('_')[0] : null;
+      if (prev && bk !== pb && (['tot', 'p26'].includes(pb) || bk === 'fc' || bk === 'tot' || bk === 'var')) cols.push({ k: '_gap' + i, kind: 'gap', grp: null, label: '' });
+      cols.push(c);
+    });
     const p = (state.ds && state.ds.params) || {};
     const base = { eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · Crecimiento Brick`, labelHead: 'Modelo', cols };
     if (!cf) return Object.assign(base, { title: 'Crecimiento Farmacity', sub: 'Falta el libro "PPTO 2027 - CAPEX - Crecimiento Farma" en la carpeta conectada', note: 'Conectá la carpeta (o arrastrá el archivo) y tocá Actualizar.', rows: [], kpis: [] });
-    const cells = (vals) => { const out = {}; cols.forEach(c => { if (c.k === 'var_p'){ out[c.k] = vals.tot && vals.fc ? fVar(vr(vals.tot[0], vals.fc[0])) : { t: '–', cls: 'na' }; return; } const [b, q] = c.k.split('_'), v = vals[b]; out[c.k] = v ? this.fmtTrip(v)[q] : { t: '', cls: 'na' }; }); return out; };
+    const cells = (vals) => { const out = {}; cols.forEach(c => { if (c.kind === 'gap') return; if (c.k === 'var_p'){ out[c.k] = vals.tot && vals.fc ? fVar(vr(vals.tot[0], vals.fc[0])) : { t: '–', cls: 'na' }; return; } const [b, q] = c.k.split('_'), v = vals[b]; out[c.k] = v ? this.fmtTrip(v)[q] : { t: '', cls: 'na' }; }); return out; };
     base.blockSep = true;
     const agg = L => { const v = {}; ['tot', 'pase', 'b27', 'b28'].forEach(b => { const S = b === 'tot' ? L.filter(x => x.b) : L.filter(x => x.b === b); const m = S.reduce((a, x) => a + x.tot, 0), n = S.reduce((a, x) => a + x.p27, 0); v[b] = [m, n, n ? m / n : 0]; }); return v; };
     if (k === 'res'){
@@ -3553,7 +3563,7 @@ function oneTable(tm, rowsIn){
   while (i < cols.length){
     let j = i; while (j + 1 < cols.length && cols[j + 1].grp === cols[i].grp) j++;
     const grp = cols[i].grp, span = j - i + 1;
-    if (!grp) g += `<th class="gap" colspan="${span}"></th>`;
+    if (!grp) g += `<th class="gap${cols[i].kind === 'gap' ? ' cgap' : ''}" colspan="${span}"></th>`;
     else { const tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var'));
       // grupo de una sola columna con título largo: el título va en dos renglones para no ensanchar la columna
       const wrap = span === 1 && grp.length > 9 ? ' style="white-space:normal;max-width:96px;line-height:1.15"' : '';
@@ -3561,13 +3571,14 @@ function oneTable(tm, rowsIn){
     i = j + 1;
   }
   g += '</tr>';
-  const h = `<tr><th>${esc(tm.labelHead)}</th>` + cols.map(c => `<th class="h-${c.tone || 'none'}${tm.blockSep && c.sepl ? ' gs' : ''}" style="${c.kind === 'sl' ? 'text-align:left' : ''}">${esc(c.label)}</th>`).join('') + '</tr>';
+  const h = `<tr><th>${esc(tm.labelHead)}</th>` + cols.map(c => c.kind === 'gap' ? '<th class="cgap"></th>' : `<th class="h-${c.tone || 'none'}${tm.blockSep && c.sepl ? ' gs' : ''}" style="${c.kind === 'sl' ? 'text-align:left' : ''}">${esc(c.label)}</th>`).join('') + '</tr>';
   let b = '';
   rowsIn.forEach(r => {
     const ri = tm.rows.indexOf(r);
     if (r.spacer){ b += `<tr class="spacer"><td colspan="${cols.length + 1}"></td></tr>`; return; }
     b += `<tr class="${r.style}${r.zoom ? ' zoomable' : ''}"${r.drill || r.zoom || r.goto || r.expandId ? ` data-i="${ri}"` : ''}><td class="lbl">${r.zoom || r.expandId ? `<span class="chev">${r.open ? '▾' : '▸'}</span>` : ''}${esc(r.label)}${r.goto ? '<span class="goto">ver detalle →</span>' : ''}${r.sub ? `<span class="sub">${esc(r.sub)}</span>` : ''}</td>`;
     cols.forEach(c => {
+      if (c.kind === 'gap'){ b += '<td class="cgap"></td>'; return; }
       const f = r.cells[c.k] || { t: '', cls: '' };
       let cls = f.cls || '';
       if (c.tone) cls += ' t-' + c.tone;
@@ -4423,7 +4434,7 @@ function addSlide(pptx, tm, tx){
   const parts = splitRows(tm) || [tm.rows.filter(r => !r.spacer)];
   const GAP = 0.3, partW = (12.45 - GAP * (parts.length - 1)) / parts.length, maxLen = Math.max(...parts.map(p => p.length));
   parts.forEach((rows, pi) => {
-  const cols = tm.cols;
+  const cols = tm.cols.filter(c => c.kind !== 'gap');
   // tamaño de letra: el menor entre lo que permite el alto (filas) y el ancho (texto más largo por columna), sin cortes de línea
   const hasNote = cols.some(c => c.kind === 'note');
   const avail = 7.5 - 1.35 - 0.5; let rh = Math.min(hasNote ? 0.5 : 0.36, avail / (maxLen + 2.2));
@@ -4566,6 +4577,7 @@ $('#xXlsx').onclick = async () => {
   const wb = XLSX.utils.book_new();
   allPages().forEach((p, n) => {
     const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p, true), rows = tm.rows.filter(r => !r.spacer);
+    tm.cols = tm.cols.filter(c => c.kind !== 'gap');
     const aoa = [[tm.labelHead].concat(tm.cols.map(c => (c.grp ? c.grp + ' · ' : '') + c.label))];
     rows.forEach(r => aoa.push([(ROWSTYLE[r.style] && ROWSTYLE[r.style].indent ? '   ' : '') + r.label + (r.sub ? ' · ' + r.sub : '')].concat(tm.cols.map(c => (r.cells[c.k] || {}).t || ''))));
     const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -4576,7 +4588,7 @@ $('#xXlsx').onclick = async () => {
   await saveFile(`Cuadros_CAPEX_${stamp()}.xlsx`, new Blob([out]));
 };
 $('#xCopy').onclick = async () => {
-  const tm = TM, cols = tm.cols, rows = tm.rows.filter(r => !r.spacer);
+  const tm = TM, cols = tm.cols.filter(c => c.kind !== 'gap'), rows = tm.rows.filter(r => !r.spacer);
   const tsv = [[tm.labelHead].concat(cols.map(c => c.label)).join('\t')].concat(rows.map(r => [r.label + (r.sub ? ' · ' + r.sub : '')].concat(cols.map(c => (r.cells[c.k] || {}).t || '')).join('\t'))).join('\n');
   const th = a => `style="font:700 10pt Calibri,sans-serif;color:#6B7390;text-align:${a === 'left' ? 'left' : 'center'};border-bottom:1.25pt solid #9AA3BA;padding:2pt 6pt"`;
   const html = `<table style="border-collapse:collapse;font:10pt Calibri,sans-serif"><tr><th ${th('left')}>${esc(tm.labelHead)}</th>${cols.map(c => `<th ${th(c.kind === 'sl' ? 'left' : 'right')}>${esc(c.label)}</th>`).join('')}</tr>` +
@@ -4769,7 +4781,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="09/11/2026 12:55";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="09/11/2026 13:03";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
