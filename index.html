@@ -543,12 +543,17 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 
 .ct th.cgap,.ct td.cgap,.ct tr td.cgap,.ct tr.sub td.cgap,.ct tr.total td.cgap,.ct tr.jer td.cgap{width:16px;min-width:16px;max-width:16px;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
 .ct tr.g th.gap.cgap{background:transparent!important}
+
+/* Crecimiento: todos los bloques del mismo ancho y el total bien separado */
+.ct.cfx tbody td:not(.lbl):not(.cgap),.ct.cfx thead tr:not(.g) th:not(:first-child):not(.cgap){width:84px;min-width:84px;max-width:84px;box-sizing:border-box}
+.ct.cfx th.cgap,.ct.cfx td.cgap,.ct.cfx tr td.cgap,.ct.cfx tr.sub td.cgap,.ct.cfx tr.total td.cgap,.ct.cfx tr.jer td.cgap{width:44px;min-width:44px;max-width:44px}
+.ct.cfx thead tr.g th:not(.gap){white-space:normal;line-height:1.2}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 13:03</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 13:05</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -572,7 +577,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 13:03</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 13:05</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -3434,7 +3439,7 @@ const CrecF = {
     const base = { eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · Crecimiento Brick`, labelHead: 'Modelo', cols };
     if (!cf) return Object.assign(base, { title: 'Crecimiento Farmacity', sub: 'Falta el libro "PPTO 2027 - CAPEX - Crecimiento Farma" en la carpeta conectada', note: 'Conectá la carpeta (o arrastrá el archivo) y tocá Actualizar.', rows: [], kpis: [] });
     const cells = (vals) => { const out = {}; cols.forEach(c => { if (c.kind === 'gap') return; if (c.k === 'var_p'){ out[c.k] = vals.tot && vals.fc ? fVar(vr(vals.tot[0], vals.fc[0])) : { t: '–', cls: 'na' }; return; } const [b, q] = c.k.split('_'), v = vals[b]; out[c.k] = v ? this.fmtTrip(v)[q] : { t: '', cls: 'na' }; }); return out; };
-    base.blockSep = true;
+    base.blockSep = true; base.tableCls = 'cfx';
     const agg = L => { const v = {}; ['tot', 'pase', 'b27', 'b28'].forEach(b => { const S = b === 'tot' ? L.filter(x => x.b) : L.filter(x => x.b === b); const m = S.reduce((a, x) => a + x.tot, 0), n = S.reduce((a, x) => a + x.p27, 0); v[b] = [m, n, n ? m / n : 0]; }); return v; };
     if (k === 'res'){
       // resumen: totales orgánico / inorgánico / reopening con 2026 (CUADRO) y 2027 (ANALISIS); ▸ abre los modelos
@@ -3590,7 +3595,7 @@ function oneTable(tm, rowsIn){
     b += '</tr>';
   });
   const dense = rowsIn.filter(r => !r.spacer).length > 24;
-  return `<table class="ct${state.sem ? '' : ' mono'}${dense ? ' dense' : ''}" style="width:max-content"><thead>${g}${h}</thead><tbody>${b}</tbody></table>`;
+  return `<table class="ct${state.sem ? '' : ' mono'}${dense ? ' dense' : ''}${tm.tableCls ? ' ' + tm.tableCls : ''}" style="width:max-content"><thead>${g}${h}</thead><tbody>${b}</tbody></table>`;
 }
 function kpiHtml(tm){
   if (!state.kpis || !tm.kpis) return '';
@@ -4781,7 +4786,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="09/11/2026 13:03";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="09/11/2026 13:05";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
