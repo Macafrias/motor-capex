@@ -534,7 +534,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 10:18</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 12:40</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -558,7 +558,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 10:18</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 12:40</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -1463,6 +1463,61 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
     const Q = await readSheetStream(JSZip, data, sheetName, 8000);
     return Q ? parsePr(Q) : {};
   }
+  /* ============ Crecimiento Farmacity (libro "PPTO 2027 - CAPEX - Crecimiento Farma") ============
+     CUADRO: 2026 tal cual (PPTO 2026, aprobados 2025 → 2026, búsquedas, 9+3) · ANALISIS: obra por obra para armar 2027 */
+  const CF_LINES = [
+    { label: 'Apertura Tradicional', grp: 'org', keys: ['apertura tradicional'] },
+    { label: 'Apertura F150', grp: 'org', keys: ['apertura f150'] },
+    { label: 'Mudanza', grp: 'org', keys: ['mudanza'] },
+    { label: 'Ampliación', grp: 'org', keys: ['ampliacion'] },
+    { label: 'Fondo de Comercio', grp: 'inorg', keys: ['fondo de comercio'] },
+    { label: 'Franquicia Inversor', grp: 'inorg', keys: ['franquicia inversor'] },
+    { label: 'Híbrido GBA', grp: 'inorg', keys: ['hibrido gba'] },
+    { label: 'Reopening', grp: 'reop', keys: ['reopening'], prefix: true }
+  ];
+  const cfLineOf = modelo => { const m = norm(modelo); return CF_LINES.find(l => l.keys.some(k => l.prefix ? m.startsWith(k) : m === k)) || null; };
+  function readCrecFarma(XLSX, data) {
+    const wb = XLSX.read(data, { type: 'array', cellDates: false });
+    const sh = n => wb.SheetNames.find(x => norm(x) === n);
+    const nC = sh('cuadro'), nA = sh('analisis');
+    if (!nC || !nA) throw new Error('El libro de Crecimiento Farma tiene que tener las hojas CUADRO y ANALISIS.');
+    const aoa = n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null });
+    // CUADRO (montos ya en millones)
+    const C = aoa(nC), hr = C.findIndex(r => r && r.some(x => /^ppto 2026$/.test(norm(x))));
+    if (hr < 0) throw new Error('No encontré el encabezado "PPTO 2026" en la hoja CUADRO.');
+    const H = C[hr].map(norm), blk = [];
+    const BL = [['p26', /^ppto 2026$/], ['ap25', /aprobados 2025/], ['b2626', /2026 fin 2026/], ['b2627', /2026 fin 2027/], ['real', /^real 2026$/], ['fc', /^9\+3$/]];
+    BL.forEach(([k, re]) => { const c = H.findIndex(h => re.test(h)); if (c >= 0) blk.push({ k, c, single: k === 'real' }); });
+    const lc = (() => { for (let i = hr + 1; i < C.length; i++){ const r = C[i] || []; const j = r.findIndex(x => typeof x === 'string' && /apertura|total crecimiento/i.test(x)); if (j >= 0) return j; } return 1; })();
+    const c26 = [];
+    for (let i = hr + 2; i < C.length; i++){
+      const r = C[i] || [], lab = r[lc]; if (lab == null || String(lab).trim() === '') continue;
+      const o = { label: String(lab).trim(), v: {} };
+      blk.forEach(b => { o.v[b.k] = b.single ? [num(r[b.c]), null, null] : [num(r[b.c]), num(r[b.c + 1]), num(r[b.c + 2])]; o.v[b.k + '_has'] = r[b.c] != null; });
+      c26.push(o);
+      if (/^total crecimiento/i.test(norm(lab))) break;
+    }
+    // ANALISIS (montos en pesos)
+    const A = aoa(nA), ah = A.findIndex(r => r && norm(r[0]) === 'modelo');
+    if (ah < 0) throw new Error('No encontré el encabezado MODELO en la hoja ANALISIS.');
+    const AH = A[ah].map(norm), col = (re, last) => { const ix = AH.map((h, i) => re.test(h) ? i : -1).filter(i => i >= 0); return ix.length ? (last ? ix[ix.length - 1] : ix[0]) : -1; };
+    const ci = { mod: 0, sl: col(/^subledger real$/), nom: col(/^nombre subledger$/), cla: col(/^clasificacion$/), est: col(/^estado$/), real: col(/^real 2026$/), fc: col(/^9\+3$/),
+      p26: col(/^% 2026 proy$/), p27: col(/^% 2027 proy$/), p28: col(/^% 2028 proy$/), tot: col(/^total$/, true), clas: col(/^clasifica$/) };
+    if (ci.tot < 0 || ci.p27 < 0) throw new Error('En ANALISIS faltan las columnas TOTAL o "% 2027 PROY".');
+    const obras = [];
+    for (let i = ah + 1; i < A.length; i++){
+      const r = A[i]; if (!r || r[0] == null || String(r[0]).trim() === '') continue;
+      const sl = r[ci.sl] == null ? '' : String(r[ci.sl]).trim(), est = norm(r[ci.est]), tot = num(r[ci.tot]), p27 = num(r[ci.p27]), p28 = ci.p28 >= 0 ? num(r[ci.p28]) : 0;
+      let b = null;
+      if (est === 'en curso') b = 'pase';
+      else if (/^2/.test(sl) && (!est || est === 'n/a' || est === '#n/a' || est === '#n/d')) b = p27 >= 0.999 ? 'b27' : p28 > 0.01 ? 'b28' : null;
+      const ln = cfLineOf(r[0]);
+      obras.push({ fila: i + 1, modelo: String(r[0]).trim(), line: ln ? ln.label : null, grp: ln ? ln.grp : null, sl, nom: r[ci.nom] == null ? '' : String(r[ci.nom]), est: r[ci.est] == null ? '' : String(r[ci.est]),
+        cla: ci.cla >= 0 && r[ci.cla] != null ? String(r[ci.cla]) : '', clas: ci.clas >= 0 && r[ci.clas] != null ? String(r[ci.clas]) : '',
+        tot: tot / 1e6, p27, p28, x26: ci.p26 >= 0 ? num(r[ci.p26]) : 0, fc: ci.fc >= 0 ? num(r[ci.fc]) / 1e6 : 0, real: ci.real >= 0 ? num(r[ci.real]) / 1e6 : 0, b });
+    }
+    return { c26, blocks26: blk.map(b => b.k), obras, sheetC: nC, sheetA: nA };
+  }
   async function readAnyAsync(XLSX, JSZip, data) {
     const out = readAny(XLSX, data);
     if (out.kind === 'ppto' && out.ds.prName && JSZip) out.ds.pr = await readProyectos(JSZip, data, out.ds.prName);
@@ -1520,7 +1575,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
     return { items, no08, mism };
   }
 
-  root.CapexEngine = { estProy, setSrc26, STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, computeITProyectos, jerOf, respOf, readAnyAsync, readProyectos, PR_CATS, norm, slKey };
+  root.CapexEngine = { readCrecFarma, CF_LINES, cfLineOf, estProy, setSrc26, STRUCTURE, COLS, VIEWS, MES, MES_L, readWorkbook, readMatriz, readAny, compute, computeITOngoing, computeITProyectos, jerOf, respOf, readAnyAsync, readProyectos, PR_CATS, norm, slKey };
   if (typeof module !== 'undefined') module.exports = root.CapexEngine;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1545,7 +1600,8 @@ if (SHARE) document.documentElement.classList.add('share');
 /* ============ estado ============ */
 const state = {
   ds: SHARE ? SHARE.ds : DEMO, dsSrc: SHARE ? 'share' : DEMO ? 'demo' : 'none', dsName: SHARE ? 'Vista compartida' : DEMO ? 'PPTO 2027 - CAPEX - Prueba 2.xlsx' : 'Sin cargar',
-  mz: SHARE ? SHARE.mz : savedMz ? savedMz.mz : DEMO_MZ, mzSrc: savedMz ? 'live' : (DEMO_MZ ? 'demo' : 'none'), mzName: savedMz ? savedMz.name : (DEMO_MZ ? 'Subledger_matriz.xlsx' : 'Sin cargar'),
+  mz: SHARE ? SHARE.mz : savedMz ? savedMz.mz : DEMO_MZ,
+  cf: SHARE ? (SHARE.cf || null) : ((ls.get('capex-motor-cf') || {}).cf || null), cfName: SHARE ? '' : ((ls.get('capex-motor-cf') || {}).name || ''), mzSrc: savedMz ? 'live' : (DEMO_MZ ? 'demo' : 'none'), mzName: savedMz ? savedMz.name : (DEMO_MZ ? 'Subledger_matriz.xlsx' : 'Sin cargar'),
   dir: null, dirName: null, dirPerm: null,
   page: saved.page || 'general',
   unit: saved.unit || 'M', pctDec: +(saved.pctDec || 0), dec: saved.dec == null ? 2 : +saved.dec, kpis: saved.kpis !== false, sem: saved.sem !== false,
@@ -3308,7 +3364,117 @@ Me.checksOfi = function(o){
   }
   return out;
 };
-const CUADROS = [General, ItRes, ItResp, ItOg, ItPr, Me, Log, Oi, Ctl];
+/* ============ CUADRO · Crecimiento Farmacity (libro "PPTO 2027 - CAPEX - Crecimiento Farma") ============
+   2026: hoja CUADRO tal cual (+ 9+3) · 2027: hoja ANALISIS obra por obra → pase de año (en curso), búsquedas 2027 y 2027→2028 */
+const CF_B26 = [['p26', 'PPTO 2026', 'ppto'], ['ap25', 'Aprobados 2025 → 2026', 'aux'], ['b2626', 'Obras 2026 fin 2026 · búsqueda', 'aux'], ['b2627', 'Obras 2026 fin 2027 · búsqueda', 'aux'], ['real', 'Real 2026', 'real'], ['fc', 'Aterrizaje 9+3', 'ater']];
+const CF_B27 = [['tot', 'PPTO 2027', 'ppto'], ['pase', 'Pase de año 2026 → PPTO 2027', 'aux'], ['b27', 'Obras inician y fin 2027 · búsqueda', 'aux'], ['b28', 'Obras inician 2027 y fin 2028 · búsqueda', 'aux']];
+const CF_BLBL = { pase: 'Pase de año 2026 → 2027 (aprobadas, en curso)', b27: 'Búsqueda · inician y finalizan 2027', b28: 'Búsqueda · inician 2027 y finalizan 2028' };
+const CF_GRP = [['org', 'TOTAL ORGÁNICO'], ['inorg', 'TOTAL INORGÁNICO'], ['reop', 'TOTAL REOPENING']];
+const CrecF = {
+  id: 'cfarma', name: 'Crecimiento Farmacity', blurb: 'PPTO 2026 y 9+3 · PPTO 2027 por pase de año y búsquedas · obras por local',
+  kind(page){ return page.split('|')[1] || '26'; },
+  views(page){
+    const a = k => [k + '_m', k + '_n', k + '_u'];
+    return this.kind(page) === '26'
+      ? { completo: { label: 'Completo', cols: [].concat(a('p26'), a('ap25'), a('b2626'), a('b2627'), a('fc')) }, corto: { label: 'PPTO 2026 vs 9+3', cols: [].concat(a('p26'), a('fc')) }, montos: { label: 'Solo montos', cols: ['p26_m', 'ap25_m', 'b2626_m', 'b2627_m', 'real_m', 'fc_m'] } }
+      : { completo: { label: 'Completo', cols: [].concat(a('tot'), a('pase'), a('b27'), a('b28')) }, montos: { label: 'Solo montos', cols: ['tot_m', 'pase_m', 'b27_m', 'b28_m'] }, obras: { label: 'Solo # obras', cols: ['tot_n', 'pase_n', 'b27_n', 'b28_n'] } };
+  },
+  colDefs(page){
+    const B = this.kind(page) === '26' ? CF_B26 : CF_B27, out = [];
+    B.forEach(([k, lab, tone]) => {
+      out.push({ k: k + '_m', label: '$', grp: lab, kind: 'amt', tone, gtone: tone === 'aux' ? null : tone, strong: k === 'p26' || k === 'tot' || k === 'fc' });
+      if (k !== 'real'){ out.push({ k: k + '_n', label: '# obras', grp: lab, kind: 'amt', tone, gtone: tone === 'aux' ? null : tone }); out.push({ k: k + '_u', label: '$/obra', grp: lab, kind: 'amt', tone, gtone: tone === 'aux' ? null : tone }); }
+    });
+    return out;
+  },
+  defaults(){ return { byPage: {} }; },
+  colState(page, o){ return ItPr.colState.call(this, page, o); },
+  pages(){ return [{ key: 'cfarma|26', label: '2026 · PPTO y 9+3' }, { key: 'cfarma|27', label: '2027 · pase de año y búsquedas' }]; },
+  optsHtml(){
+    return `<p class="empty" style="font-size:11.5px;padding:0">Fuente: libro <b>PPTO 2027 - CAPEX - Crecimiento Farma</b> de la carpeta. 2026 tal cual la hoja CUADRO. 2027 desde ANALISIS: $ = TOTAL (col. BB), # obras = Σ % 2027 PROY, $/obra = $ ÷ # obras.<br>Pase de año = estado EN CURSO · Búsqueda 2027 = SL que empieza con 2, estado N/A y 100% en 2027 · Búsqueda 2027→2028 = ídem con % 2028 PROY mayor a 1%. Reopening se abre por tipología (▾ para cerrar). Clic en una fila para ver las obras.</p>`;
+  },
+  cf(){ return state.cf || null; },
+  // 9+3 por línea desde ANALISIS (solo si cruza con los totales de CUADRO; si no, quedan solo los totales)
+  fcLines(cf){
+    const L = {}; cf.obras.forEach(x => { if (!x.line) return; const o = L[x.line] || (L[x.line] = { m: 0, n: 0 }); o.m += x.fc; o.n += x.x26; });
+    const G = {}; E.CF_LINES.forEach(l => { const v = L[l.label] || { m: 0, n: 0 }; const g = G[l.grp] || (G[l.grp] = { m: 0, n: 0 }); g.m += v.m; g.n += v.n; });
+    const tot = r => cf.c26.find(x => E.norm(x.label).startsWith(r));
+    const ok = CF_GRP.every(([g, lab]) => { const t = tot(E.norm(lab)); return t && t.v.fc && Math.abs(t.v.fc[0] - (G[g] || { m: 0 }).m) <= Math.max(0.5, Math.abs(t.v.fc[0]) * 0.002); });
+    return ok ? L : null;
+  },
+  fmtTrip(v, k){ return { m: fAmt(v[0]), n: v[1] == null ? { t: '', cls: 'na' } : (Math.abs(v[1]) < 0.0005 ? { t: '–', cls: 'na' } : { t: nf(1).format(v[1]), cls: '' }), u: v[2] == null || !isFinite(v[2]) || Math.abs(v[2]) < 0.0005 ? { t: '–', cls: 'na' } : fAmt(v[2]) }; },
+  sls(obras){ return obras.filter(x => Math.abs(x.tot) >= 0.0005).map(x => ({ sl: x.sl || '—', nom: x.nom || x.modelo, jer: CF_BLBL[x.b] || (x.tot ? 'Sin bloque' : 'Sin monto 2027'), part: x.modelo, tipo: 'PROYECTOS', estado: x.est, r25: 0, p26: 0, real26: x.real * 1e6, fc26: x.fc * 1e6, p27: x.tot * 1e6 })); },
+  build(page, o){
+    const k = this.kind(page), st = this.colState(page, o), cols = this.colDefs(page).filter(c => st.cols.has(c.k)), cf = this.cf(), rows = [];
+    const p = (state.ds && state.ds.params) || {};
+    const base = { eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · Crecimiento Brick`, labelHead: 'Modelo', cols };
+    if (!cf) return Object.assign(base, { title: 'Crecimiento Farmacity', sub: 'Falta el libro "PPTO 2027 - CAPEX - Crecimiento Farma" en la carpeta conectada', note: 'Conectá la carpeta (o arrastrá el archivo) y tocá Actualizar.', rows: [], kpis: [] });
+    const cells = (vals) => { const out = {}; cols.forEach(c => { const [b, q] = c.k.split('_'), v = vals[b]; out[c.k] = v ? this.fmtTrip(v)[q] : { t: '', cls: 'na' }; }); return out; };
+    if (k === '26'){
+      const FL = this.fcLines(cf);
+      cf.c26.forEach(r => {
+        const n = E.norm(r.label), isTot = /^total/.test(n), grand = /^total crecimiento/.test(n), vals = Object.assign({}, r.v);
+        if (!isTot){ const ln = E.cfLineOf(r.label); const f = FL && ln ? (FL[ln.label] || { m: 0, n: 0 }) : null; vals.fc = f ? [f.m, f.n, f.n ? f.m / f.n : 0] : null; vals.real = null; }
+        if (grand) rows.push({ spacer: true });
+        rows.push({ label: r.label, style: grand ? 'total' : isTot ? 'sub' : 'child', cells: cells(vals) });
+      });
+      const t = cf.c26.find(r => /^total crecimiento/.test(E.norm(r.label)));
+      return Object.assign(base, { title: 'Crecimiento Farmacity · 2026', sub: `En ${unitLbl()} · presupuesto 2026, aprobados que pasan de 2025 y obras en búsqueda · aterrizaje 9+3`,
+        note: 'Fuente: hoja CUADRO del libro de Crecimiento Farma, tal cual.' + (FL ? ' 9+3 por modelo desde ANALISIS (col. 9+3 y % 2026 PROY).' : ' 9+3 solo en los totales (como en la hoja CUADRO).'),
+        rows, kpis: t ? [{ k: 'PPTO 2026', v: '$' + fAmt(t.v.p26[0]).t + unitShort(), d: nf(1).format(t.v.p26[1]) + ' obras', plain: true, hero: true, tone: 'ppto' }, t.v.fc ? { k: 'Aterrizaje 9+3', tone: 'ater', plain: true, v: '$' + fAmt(t.v.fc[0]).t + unitShort(), d: nf(1).format(t.v.fc[1] || 0) + ' obras' } : null].filter(Boolean) : [] });
+    }
+    // 2027
+    const agg = L => { const v = {}; ['tot', 'pase', 'b27', 'b28'].forEach(b => { const S = b === 'tot' ? L.filter(x => x.b) : L.filter(x => x.b === b); const m = S.reduce((a, x) => a + x.tot, 0), n = S.reduce((a, x) => a + x.p27, 0); v[b] = [m, n, n ? m / n : 0]; }); return v; };
+    const O = cf.obras;
+    CF_GRP.forEach(([g, lab]) => {
+      E.CF_LINES.filter(l => l.grp === g).forEach(l => {
+        const L = O.filter(x => x.line === l.label);
+        if (l.grp === 'reop'){
+          const zk = page + '|reop', open = !state.zoom.has(zk);
+          const tip = [...new Set(L.filter(x => x.b && Math.abs(x.tot) >= 0.0005).map(x => x.modelo))].sort();
+          rows.push({ label: l.label, sub: tip.length > 1 ? tip.length + ' tipologías' : '', style: 'child', cells: cells(agg(L)), drill: { title: 'Reopening', sls: this.sls(L) }, zoom: tip.length > 1 ? zk : null, open });
+          if (open && tip.length > 1) tip.forEach(t => { const T = L.filter(x => x.modelo === t); if (!T.some(x => x.b && Math.abs(x.tot) >= 0.0005)) return; const nm = E.norm(t) === 'reopening' ? 'Reopening · sin tipología' : t; rows.push({ label: nm, style: 'sl', cells: cells(agg(T)), drill: { title: nm, sls: this.sls(T) } }); });
+        } else rows.push({ label: l.label, style: 'child', cells: cells(agg(L)), drill: { title: l.label, sls: this.sls(L) } });
+      });
+      const LG = O.filter(x => x.grp === g);
+      rows.push({ label: lab, style: 'sub', cells: cells(agg(LG)), drill: { title: lab, sls: this.sls(LG) } });
+    });
+    const T = agg(O), sinL = O.filter(x => !x.line && x.tot);
+    if (sinL.length) rows.push({ label: 'Otros modelos', sub: 'sin línea del cuadro', style: 'child', cells: cells(agg(sinL)), drill: { title: 'Otros modelos', sls: this.sls(sinL) } });
+    rows.push({ spacer: true }, { label: 'TOTAL CRECIMIENTO', style: 'total', cells: cells(T), drill: { title: 'Crecimiento Farmacity 2027', sls: this.sls(O.filter(x => x.tot)) } });
+    const busq = T.b27[0] + T.b28[0];
+    return Object.assign(base, { title: 'Crecimiento Farmacity · PPTO 2027', sub: `En ${unitLbl()} · pase de año de obras aprobadas y obras en búsqueda · # obras = proporción que se ejecuta en 2027`,
+      note: 'Fuente: hoja ANALISIS. $ = TOTAL 2027 (col. BB); # obras = Σ % 2027 PROY; $/obra = $ ÷ # obras. Pase de año = obras EN CURSO con monto 2027. Búsquedas = SL que empiezan con 2, estado N/A: 100% en 2027, o con más de 1% en 2028.',
+      rows, kpis: [{ k: 'PPTO 2027', v: '$' + fAmt(T.tot[0]).t + unitShort(), d: nf(1).format(T.tot[1]) + ' obras', plain: true, hero: true, tone: 'ppto' },
+        { k: 'Pase de año · búsqueda', tone: 'ater', plain: true, v: '$' + fAmt(T.pase[0]).t + ' · $' + fAmt(busq).t, d: (T.tot[0] ? nf(0).format(T.pase[0] / T.tot[0] * 100) : '0') + '% ya aprobado' }] });
+  },
+  checks(page){
+    const cf = this.cf(), out = [], f2 = v => nf(2).format(v);
+    if (!cf){ out.push({ label: 'Libro de Crecimiento Farma', ok: false, warn: true, count: 1, detail: ['No está cargado: tiene que estar en la carpeta con "Crecimiento Farma" en el nombre.'] }); return out; }
+    const O = cf.obras, nob = O.filter(x => !x.b && Math.abs(x.tot) >= 0.005);
+    out.push({ label: 'Obras con monto 2027 sin bloque', ok: !nob.length, count: nob.length, detail: nob.map(x => `Fila ${x.fila} · ${x.sl} ${x.nom} · estado "${x.est}" · % 2027 ${nf(0).format(x.p27 * 100)}% · % 2028 ${nf(0).format(x.p28 * 100)}% · ${f2(x.tot)}`), okTxt: 'todas entran en pase de año o búsqueda' });
+    const noL = O.filter(x => !x.line && Math.abs(x.tot) >= 0.005);
+    out.push({ label: 'MODELO sin línea del cuadro', ok: !noL.length, warn: true, count: noL.length, detail: noL.map(x => `Fila ${x.fila} · "${x.modelo}" · ${x.sl} ${x.nom}`), okTxt: 'todos los modelos tienen línea' });
+    const sumB = b => O.filter(x => x.b === b).reduce((a, x) => a + x.tot, 0);
+    const rows = state.ds ? (state.dsFull || state.ds).rows.filter(r => E.slKey(r.sl) === 'sl_crecimientofarma') : [];
+    if (!rows.length) out.push({ label: 'Cruce con PPTO27 (SL_CRECIMIENTOFARMA)', ok: false, warn: true, count: 1, detail: ['No encontré SL_CRECIMIENTOFARMA en PPTO27.'] });
+    else {
+      const p27 = f => rows.filter(f).reduce((a, r) => a + (r.p27 || 0), 0) / 1e6, L = [];
+      const cur = p27(r => E.estProy(r.estado) === 'curso'), fut = p27(r => E.estProy(r.estado) === 'nuevo');
+      if (Math.abs(cur - sumB('pase')) > 0.01) L.push(`Pase de año ${f2(sumB('pase'))} vs PPTO27 en curso ${f2(cur)} · dif. ${f2(sumB('pase') - cur)}`);
+      if (Math.abs(fut - sumB('b27') - sumB('b28')) > 0.01) L.push(`Búsquedas ${f2(sumB('b27') + sumB('b28'))} vs PPTO27 sin aprobación ${f2(fut)} · dif. ${f2(sumB('b27') + sumB('b28') - fut)}`);
+      out.push({ label: 'Cruce con PPTO27 · Crecimiento Brick Farmacity', ok: !L.length, count: L.length, detail: L, okTxt: `cruza: en curso ${f2(cur)} · sin aprobación ${f2(fut)}` });
+    }
+    const t = cf.c26.find(r => /^total crecimiento/.test(E.norm(r.label)));
+    if (t){ const s = cf.c26.filter(r => !/^total/.test(E.norm(r.label))).reduce((a, r) => a + r.v.p26[0], 0);
+      out.push({ label: 'CUADRO 2026: modelos = TOTAL CRECIMIENTO', ok: Math.abs(s - t.v.p26[0]) <= 0.01, warn: true, count: 1, detail: [`Suma de modelos ${f2(s)} vs total ${f2(t.v.p26[0])}`], okTxt: 'cruza: ' + f2(s) }); }
+    const map = { pase: /pase de a.o a 2027/i, b27: /inicio y fin 2027/i, b28: /2028/ }, mm = O.filter(x => x.b && x.clas && !map[x.b].test(x.clas));
+    out.push({ label: 'Bloque vs columna CLASIFICA de ANALISIS', ok: true, warn: true, info: true, count: mm.length, detail: mm.map(x => `${x.sl} ${x.nom}: ${CF_BLBL[x.b]} · CLASIFICA "${x.clas}"`), okTxt: mm.length ? mm.length + ' obras con CLASIFICA distinta (informativo)' : 'coinciden con CLASIFICA' });
+    return out;
+  }
+};
+
+const CUADROS = [General, ItRes, ItResp, ItOg, ItPr, CrecF, Me, Log, Oi, Ctl];
 const CUADROS_ALL = CUADROS.slice();
 if (SHARE) for (let i = CUADROS.length - 1; i >= 0; i--) if (!SHARE.cuadros.includes(CUADROS[i].id)) CUADROS.splice(i, 1);
 const cuadroOf = key => CUADROS.find(c => key === c.id || key.startsWith(c.id + '|'));
@@ -3833,7 +3999,8 @@ function renderFiles(){
     <div class="fileline"><span class="tag">2026 del Cuadro General</span><b>${state.ds.sl26 && state.src26 === 'sl' ? 'Por SL · ' + esc(state.ds.sl26Src) : 'Valores del cuadro del Excel · ' + esc(state.ds.snapName || 'Cuadro_Capex')}</b>
       ${state.ds.sl26 ? `<span class="seg mini src26" role="group"><button type="button" data-src26="sl" aria-pressed="${state.src26 === 'sl'}">Por SL (03_SL)</button><button type="button" data-src26="excel" aria-pressed="${state.src26 !== 'sl'}">Cuadro del Excel</button></span>` : `<span class="st demo">Falta 03_SL o 05_Consolidado_REAL para armarlo por SL</span>`}</div>
     ${state.ds.jerCol ? `<div class="fileline"><span class="tag">Jerarquización</span><b>PPTO27 · columna ${esc(state.ds.jerCol)}</b><span class="st live">Se usa primero; la Matriz completa los vacíos</span></div>` : ''}
-    <div class="fileline"><span class="tag">Matriz de Subledgers</span><b>${esc(state.mzName)}</b><span class="st ${state.mzSrc === 'live' || (!state.mz && curMz()) ? 'live' : 'demo'}"${curMz() ? '' : ' style="color:var(--bad)"'}>${state.mzSrc === 'live' ? 'Cargada · ' + state.mz.count + ' SL' : state.mz ? 'Ejemplo · ' + state.mz.count + ' SL' : curMz() ? 'Tomada del archivo de presupuesto · ' + curMz().count + ' SL' : 'Sin cargar: las jerarquías salen vacías'}</span></div>`;
+    <div class="fileline"><span class="tag">Matriz de Subledgers</span><b>${esc(state.mzName)}</b><span class="st ${state.mzSrc === 'live' || (!state.mz && curMz()) ? 'live' : 'demo'}"${curMz() ? '' : ' style="color:var(--bad)"'}>${state.mzSrc === 'live' ? 'Cargada · ' + state.mz.count + ' SL' : state.mz ? 'Ejemplo · ' + state.mz.count + ' SL' : curMz() ? 'Tomada del archivo de presupuesto · ' + curMz().count + ' SL' : 'Sin cargar: las jerarquías salen vacías'}</span></div>
+    <div class="fileline"><span class="tag">Crecimiento Farma</span><b>${esc(state.cfName || 'Sin cargar')}</b><span class="st ${state.cf ? 'live' : 'demo'}">${state.cf ? state.cf.obras.length + ' obras · hojas CUADRO y ANALISIS' : 'Buscá "PPTO 2027 - CAPEX - Crecimiento Farma" en la carpeta'}</span></div>`;
   const hc = state.ds.og && state.ds.og.__cols;
   const items = [['FCTS 2026', '9+3 · ' + (state.ds.fcName || state.ds.snapName)], ['Real cargado hasta', mesTxt()], ['SL en PPTO27', state.ds.rows.length]];
   $('#meta').innerHTML = items.map(([a, b]) => `<dt>${a}</dt><dd>${esc(b)}</dd>`).join('')
@@ -3977,6 +4144,10 @@ async function loadFiles(list, from){
     busy(true, 'Leyendo ' + f.name + '…');
     await new Promise(r => setTimeout(r, 40));
     try{
+      if (/crecimiento/i.test(f.name)){
+        state.cf = E.readCrecFarma(XLSX, new Uint8Array(await f.arrayBuffer())); state.cfName = f.name;
+        ls.set('capex-motor-cf', { cf: state.cf, name: f.name }); msgs.push('crecimiento Farma (' + state.cf.obras.length + ' obras)'); continue;
+      }
       const out = await E.readAnyAsync(XLSX, window.JSZip, new Uint8Array(await f.arrayBuffer()));
       if (out.kind === 'ppto'){ state.ds = out.ds; state.dsSrc = 'file'; state.dsName = f.name; msgs.push('presupuesto'); }
       else { state.mz = out.mz; state.mzSrc = 'live'; state.mzName = f.name; ls.set(LSMZ, { mz: out.mz, name: f.name }); msgs.push('matriz (' + out.mz.count + ' SL)'); }
@@ -4426,16 +4597,17 @@ async function syncFolder(ask){
     // PPTO: primero el nombre exacto "PPTO 2027 - CAPEX", después el más nuevo; se valida que tenga la hoja PPTO27
     if (!(await ensureLib('XLSX', LIBS.XLSX))){ toast('No se pudo cargar la librería para leer Excel.'); return; }
     const exact = f => /^ppto\s*20\d\d\s*[-–]\s*capex(\s*\(\d+\))?\.xls[xm]?$/i.test(f.name.trim()) ? 0 : 1;
-    const pcands = cands.filter(f => /ppto/i.test(f.name) && /capex/i.test(f.name)).sort((a, b) => exact(a) - exact(b) || b.lastModified - a.lastModified);
+    const cfFile = newest(cands.filter(f => /crecimiento\s*farma/i.test(f.name)));
+    const pcands = cands.filter(f => /ppto/i.test(f.name) && /capex/i.test(f.name) && !/crecimiento/i.test(f.name)).sort((a, b) => exact(a) - exact(b) || b.lastModified - a.lastModified);
     let ppto = null; const skipped = [];
     for (const f of pcands){
       try{ const wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), { type: 'array', bookSheets: true }); if (wb.SheetNames.some(n => E.norm(n) === 'ppto27' || /ppto\s*2?7/i.test(n))){ ppto = f; break; } skipped.push(f.name); }
       catch(e){ skipped.push(f.name + ' (no se pudo abrir)'); }
     }
-    let mz = newest(cands.filter(f => f !== ppto && /subledger|matriz|jerarq/i.test(f.name)));
+    let mz = newest(cands.filter(f => f !== ppto && f !== cfFile && /subledger|matriz|jerarq/i.test(f.name)));
     if (!mz && !state.mz){
       // sin nombre reconocible: busca la columna de jerarquización en los demás Excel livianos
-      for (const f of cands.filter(f => f !== ppto && f.size < 20e6).sort((a, b) => a.size - b.size)){
+      for (const f of cands.filter(f => f !== ppto && f !== cfFile && f.size < 20e6).sort((a, b) => a.size - b.size)){
         try{ E.readMatriz(XLSX, new Uint8Array(await f.arrayBuffer())); mz = f; break; }catch(e){}
       }
     }
@@ -4443,9 +4615,9 @@ async function syncFolder(ask){
     if (!ppto) state.lastErr = `No encontré el PPTO en "${dir.name}": tiene que ser un Excel con "PPTO" y "CAPEX" en el nombre y la hoja PPTO27.${skipped.length ? ' Descarté: ' + skipped.join(', ') + '.' : ''} Si es otra carpeta, usá "Cambiar".`;
     else state.lastErr = null;
     const when = f => new Date(f.lastModified).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    state.lastSync = [ppto && `PPTO: ${ppto.name} (${when(ppto)})`, mz && `Matriz: ${mz.name} (${when(mz)})`].filter(Boolean).join(' · ');
+    state.lastSync = [ppto && `PPTO: ${ppto.name} (${when(ppto)})`, mz && `Matriz: ${mz.name} (${when(mz)})`, cfFile && `Crecimiento: ${cfFile.name} (${when(cfFile)})`].filter(Boolean).join(' · ');
     await readSharedVers(dir); renderVer();
-    await loadFiles([mz, ppto].filter(Boolean), true);
+    await loadFiles([cfFile, mz, ppto].filter(Boolean), true);
   }catch(e){ console.error(e); state.lastErr = 'No pude leer la carpeta: ' + (e.message || e); toast(state.lastErr, 12000); renderFolder(); }
 }
 (async () => {
@@ -4458,7 +4630,7 @@ async function syncFolder(ask){
 
 /* ============ compartir: motor estático con los datos de hoy ============ */
 // genera un HTML único con los datos ya adentro (solo los de los cuadros elegidos), sin carpeta, controles ni versiones
-const SHARE_SCOPE = { itres: ['IT'], itresp: ['IT'], itog: ['IT'], itpr: ['IT'], me: ['ME'], log: ['LOG', 'OPL'], oi: ['OI'] };
+const SHARE_SCOPE = { cfarma: ['CB'], itres: ['IT'], itresp: ['IT'], itog: ['IT'], itpr: ['IT'], me: ['ME'], log: ['LOG', 'OPL'], oi: ['OI'] };
 function shareData(ids){
   const full = state.dsFull || state.ds;
   if (ids.includes('general')) return { ds: full, mz: state.mz || null };
@@ -4525,7 +4697,7 @@ async function buildShare(ids, fecha, para){
     ui.opts = Object.fromEntries(Object.entries(ui.opts || {}).filter(([k]) => ids.includes(k)));
     if (!ids.includes(ui.page && String(ui.page).split('|')[0])) ui.page = (CUADROS_ALL.find(c => c.id === ids[0]).pages(optsOf(CUADROS_ALL.find(c => c.id === ids[0])))[0] || {}).key;
     const d = shareData(ids);
-    const payload = { id: Date.now().toString(36), fecha, para, cuadros: ids, ds: d.ds, mz: d.mz, ui };
+    const payload = { id: Date.now().toString(36), fecha, para, cuadros: ids, ds: d.ds, mz: d.mz, cf: ids.includes('cfarma') ? state.cf : null, ui };
     const json = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
     html = html.replace(MARK, () => json);
     const name = 'Áurea CAPEX' + (para ? ' - ' + para.replace(/[\\/:*?"<>|]/g, '') : '') + ' - ' + fecha.replace(/\//g, '-') + '.html';
@@ -4556,7 +4728,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="09/11/2026 10:18";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="09/11/2026 12:40";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
