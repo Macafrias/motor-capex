@@ -562,12 +562,15 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 .ct.roomy tbody td{padding-top:10px!important;padding-bottom:10px!important;font-size:1.08em}
 .ct.roomy thead th{padding-top:8px;padding-bottom:8px}
 .ct.cfx tr.sub td.lbl{text-transform:none;letter-spacing:.02em}
+
+.ct .ge{border-right:2px solid #C9CFDD!important}
+.ct.cfx tbody tr:last-child td:not(.lbl):not(.cgap){border-bottom:2px solid #C9CFDD}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 20:46</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 20:52</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -591,7 +594,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 20:46</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 20:52</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -3710,11 +3713,13 @@ function oneTable(tm, rowsIn){
     else { const tones = new Set(cols.slice(i, j + 1).map(c => c.tone || 'var'));
       // grupo de una sola columna con título largo: el título va en dos renglones para no ensanchar la columna
       const wrap = span === 1 && grp.length > 9 ? ' style="white-space:normal;max-width:96px;line-height:1.15"' : '';
-      g += `<th colspan="${span}" class="t-${cols[i].gtone || (tones.size === 1 ? [...tones][0] : 'mix')}${tm.blockSep ? ' gs gblk' : ''}"${wrap}>${esc(grp)}</th>`; }
+      g += `<th colspan="${span}" class="t-${cols[i].gtone || (tones.size === 1 ? [...tones][0] : 'mix')}${tm.blockSep ? ' gs ge gblk' : ''}"${wrap}>${esc(grp)}</th>`; }
     i = j + 1;
   }
   g += '</tr>';
-  const h = `<tr><th>${esc(tm.labelHead)}</th>` + cols.map(c => c.kind === 'gap' ? '<th class="cgap"></th>' : `<th class="h-${c.tone || 'none'}${tm.blockSep && c.sepl ? ' gs' : ''}" style="${c.kind === 'sl' ? 'text-align:left' : ''}">${esc(c.label)}</th>`).join('') + '</tr>';
+  // fin de bloque: la última columna de cada grupo cierra con un borde (bloques "encajonados")
+  if (tm.blockSep) cols.forEach((c, i) => { const n = cols[i + 1]; c._ge = c.kind !== 'gap' && c.grp && (!n || n.kind === 'gap' || n.grp !== c.grp); });
+  const h = `<tr><th>${esc(tm.labelHead)}</th>` + cols.map(c => c.kind === 'gap' ? '<th class="cgap"></th>' : `<th class="h-${c.tone || 'none'}${tm.blockSep && c.sepl ? ' gs' : ''}${tm.blockSep && c._ge ? ' ge' : ''}" style="${c.kind === 'sl' ? 'text-align:left' : ''}">${esc(c.label)}</th>`).join('') + '</tr>';
   let b = '';
   rowsIn.forEach(r => {
     const ri = tm.rows.indexOf(r);
@@ -3727,6 +3732,7 @@ function oneTable(tm, rowsIn){
       if (c.tone) cls += ' t-' + c.tone;
       if (c.hero) cls += ' c-hero'; else if (c.strong) cls += ' c-strong';
       if (tm.blockSep && c.sepl) cls += ' gs';
+      if (tm.blockSep && c._ge) cls += ' ge';
       const ar = (f.arrow && state.sem) ? `<span class="ar">${f.up ? '▲' : '▼'}</span>` : '';
       b += `<td class="${cls.trim()}">${ar}${esc(f.t)}</td>`;
     });
@@ -4929,7 +4935,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="09/11/2026 20:46";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="09/11/2026 20:52";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
