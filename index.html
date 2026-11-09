@@ -548,12 +548,21 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 .ct.cfx tbody td:not(.lbl):not(.cgap),.ct.cfx thead tr:not(.g) th:not(:first-child):not(.cgap){width:84px;min-width:84px;max-width:84px;box-sizing:border-box}
 .ct.cfx th.cgap,.ct.cfx td.cgap,.ct.cfx tr td.cgap,.ct.cfx tr.sub td.cgap,.ct.cfx tr.total td.cgap,.ct.cfx tr.jer td.cgap{width:44px;min-width:44px;max-width:44px}
 .ct.cfx thead tr.g th:not(.gap){white-space:normal;line-height:1.2}
+
+/* apertura por estado (Crecimiento Simplicity): solo la columna del PPTO 2027, sin celdas vacías teñidas */
+.ct tr.estrow td.blank{background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+.ct tr.estrow td.lbl{background:transparent}
+.ct tr.estrow td.share{color:var(--ink-3,#8A93A6);font-size:.9em}
+.ct tr.estrow.estend td.lbl,.ct tr.estrow.estend td:not(.blank):not(.cgap){border-top:1.5px solid var(--ink,#1B2333);font-weight:700}
+.ct tr.estrow.estend td.lbl{background:transparent}
+.ct tr.blockhead.estrow td:not(.lbl){background:transparent!important;border:0!important;box-shadow:none!important}
+.ct tr.blockhead.estrow td.lbl{border-bottom:1px solid var(--line,#E3E7EF)}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 19:07</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 19:09</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -577,7 +586,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 19:07</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 19:09</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -3606,10 +3615,16 @@ const CrecS = {
     lines.forEach(r => { const L = cs.obras.filter(x => E.norm(x.tipo) === E.norm(r.label)); rows.push({ label: r.label, style: 'child', cells: cells(r.v), drill: { title: r.label, sls: this.sls(L) } }); });
     if (T) rows.push({ spacer: true }, { label: 'TOTAL', style: 'total', cells: cells(T.v), drill: { title: 'Crecimiento Simplicity', sls: this.sls(cs.obras) } });
     if (cs.curso != null || cs.sinap != null){
-      const one = x => ({ p27: [x, null, null] });
-      rows.push({ spacer: true }, { label: 'PPTO 2027 por estado', sub: 'filas EN CURSO y SIN APROBACION de ANALISIS CRECIMIENTO', style: 'blockhead', cells: {} });
-      if (cs.curso != null) rows.push({ label: 'En curso', sub: 'proyectos on going', style: 'child', cells: cells(one(cs.curso)) });
-      if (cs.sinap != null) rows.push({ label: 'Sin aprobación', sub: 'proyectos futuros', style: 'child', cells: cells(one(cs.sinap)) });
+      // apertura del PPTO 2027 por estado: solo la columna $ del PPTO 2027, con su participación y un cierre
+      const tot27 = T ? T.v.p27[0] : (cs.curso || 0) + (cs.sinap || 0);
+      const est = (x, n) => { const c = {}; cols.forEach(k => { if (k.kind === 'gap') return; c[k.k] = { t: '', cls: 'blank' }; });
+        if (c.p27_m) c.p27_m = fAmt(x); if (c.p27_n) c.p27_n = { t: '', cls: '' };
+        if (c.p27_u) c.p27_u = tot27 ? { t: nf(0).format(x / tot27 * 100) + '%', cls: 'share' } : { t: '', cls: 'blank' };
+        if (c.var_p) c.var_p = { t: '', cls: 'blank' }; return c; };
+      rows.push({ spacer: true }, { label: 'PPTO 2027 por estado', sub: '$ y % del total', style: 'blockhead', cls: 'estrow', cells: {} });
+      if (cs.curso != null) rows.push({ label: 'En curso', sub: 'proyectos on going', style: 'child', cls: 'estrow', cells: est(cs.curso) });
+      if (cs.sinap != null) rows.push({ label: 'Sin aprobación', sub: 'proyectos futuros', style: 'child', cls: 'estrow', cells: est(cs.sinap) });
+      rows.push({ label: 'Total PPTO 2027', style: 'sub', cls: 'estrow estend', cells: est((cs.curso || 0) + (cs.sinap || 0)) });
     }
     const d = T && T.v.fc ? fVar(vr(T.v.p27[0], T.v.fc[0])) : null;
     return Object.assign(base, { title: 'Crecimiento Simplicity', sub: `En ${unitLbl()} · PPTO 2026 y aterrizaje 9+3 vs PPTO 2027 por tipo de obra`,
@@ -3697,7 +3712,7 @@ function oneTable(tm, rowsIn){
   rowsIn.forEach(r => {
     const ri = tm.rows.indexOf(r);
     if (r.spacer){ b += `<tr class="spacer"><td colspan="${cols.length + 1}"></td></tr>`; return; }
-    b += `<tr class="${r.style}${r.zoom ? ' zoomable' : ''}"${r.drill || r.zoom || r.goto || r.expandId ? ` data-i="${ri}"` : ''}><td class="lbl">${r.zoom || r.expandId ? `<span class="chev">${r.open ? '▾' : '▸'}</span>` : ''}${esc(r.label)}${r.goto ? '<span class="goto">ver detalle →</span>' : ''}${r.sub ? `<span class="sub">${esc(r.sub)}</span>` : ''}</td>`;
+    b += `<tr class="${r.style}${r.cls ? ' ' + r.cls : ''}${r.zoom ? ' zoomable' : ''}"${r.drill || r.zoom || r.goto || r.expandId ? ` data-i="${ri}"` : ''}><td class="lbl">${r.zoom || r.expandId ? `<span class="chev">${r.open ? '▾' : '▸'}</span>` : ''}${esc(r.label)}${r.goto ? '<span class="goto">ver detalle →</span>' : ''}${r.sub ? `<span class="sub">${esc(r.sub)}</span>` : ''}</td>`;
     cols.forEach(c => {
       if (c.kind === 'gap'){ b += '<td class="cgap"></td>'; return; }
       const f = r.cells[c.k] || { t: '', cls: '' };
@@ -4907,7 +4922,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="09/11/2026 19:07";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="09/11/2026 19:09";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
