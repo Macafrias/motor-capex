@@ -557,12 +557,17 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 .ct tr.estrow.estend td.lbl{background:transparent}
 .ct tr.blockhead.estrow td:not(.lbl){background:transparent!important;border:0!important;box-shadow:none!important}
 .ct tr.blockhead.estrow td.lbl{border-bottom:1px solid var(--line,#E3E7EF)}
+
+/* cuadros cortos: filas más altas y letra más grande para que no queden perdidos en la slide */
+.ct.roomy tbody td{padding-top:10px!important;padding-bottom:10px!important;font-size:1.08em}
+.ct.roomy thead th{padding-top:8px;padding-bottom:8px}
+.ct.cfx tr.sub td.lbl{text-transform:none;letter-spacing:.02em}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 19:09</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 20:46</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -586,7 +591,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 19:09</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 20:46</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -3502,16 +3507,18 @@ const CrecF = {
       const c26L = l => cf.c26.find(r => !/^total/.test(E.norm(r.label)) && (E.cfLineOf(r.label) || {}).label === l.label) || null;
       const tri = v => v ? [v[0], v[1], v[1] ? v[0] / v[1] : 0] : null;
       CF_GRP.forEach(([g, lab]) => {
+        // como en el Excel: los modelos arriba y el total del grupo debajo (▸ en el total abre los modelos)
         const t = c26(lab), LG = O.filter(x => x.grp === g), zk = page + '|' + g, open = state.zoom.has(zk);
-        rows.push({ label: lab.charAt(0) + lab.slice(1).toLowerCase(), style: 'jer', zoom: zk, open, cells: cells(Object.assign({ p26: t ? t.v.p26 : null, fc: t && t.v.fc ? tri(t.v.fc) : null }, agg(LG))), drill: { title: lab, sls: this.sls(LG) } });
         if (open) E.CF_LINES.filter(l => l.grp === g).forEach(l => {
           const r = c26L(l), L = O.filter(x => x.line === l.label), f = FL ? (FL[l.label] || { m: 0, n: 0 }) : null;
           rows.push({ label: l.label, style: 'child', cells: cells(Object.assign({ p26: r ? r.v.p26 : null, fc: f ? [f.m, f.n, f.n ? f.m / f.n : 0] : null }, agg(L))), drill: { title: l.label, sls: this.sls(L) } });
         });
+        rows.push({ label: lab, style: 'sub', zoom: zk, open, cells: cells(Object.assign({ p26: t ? t.v.p26 : null, fc: t && t.v.fc ? tri(t.v.fc) : null }, agg(LG))), drill: { title: lab, sls: this.sls(LG) } });
       });
       const T = c26('TOTAL CRECIMIENTO');
       rows.push({ spacer: true }, { label: 'TOTAL CRECIMIENTO', style: 'total', cells: cells(Object.assign({ p26: T ? T.v.p26 : null, fc: T && T.v.fc ? tri(T.v.fc) : null }, agg(O))), drill: { title: 'Crecimiento Farmacity', sls: this.sls(O) } });
       const A = agg(O), d = T && T.v.fc ? fVar(vr(A.tot[0], T.v.fc[0])) : null;
+      base.tableCls = 'cfx roomy';
       return Object.assign(base, { title: 'Crecimiento Farmacity', sub: `En ${unitLbl()} · PPTO 2026 y aterrizaje 9+3 vs PPTO 2027 · orgánico, inorgánico y reopening (▸ abre los modelos)`,
         note: 'PPTO 2026 y 9+3 de la hoja CUADRO; PPTO 2027 de ANALISIS (pase de año + búsquedas). # obras 2027 = Σ % 2027 PROY.',
         rows, kpis: [{ k: 'PPTO 2027', v: '$' + fAmt(A.tot[0]).t + unitShort(), d: (d && d.t ? d.t + ' vs 9+3 · ' : '') + nf(1).format(A.tot[1]) + ' obras', plain: true, hero: true, tone: 'ppto' },
@@ -3539,7 +3546,7 @@ const CrecF = {
           const zk = page + '|reop', open = !state.zoom.has(zk);
           const tip = [...new Set(L.filter(x => x.b && Math.abs(x.tot) >= 0.0005).map(x => x.modelo))].sort();
           rows.push({ label: l.label, sub: tip.length > 1 ? tip.length + ' tipologías' : '', style: 'child', cells: cells(agg(L)), drill: { title: 'Reopening', sls: this.sls(L) }, zoom: tip.length > 1 ? zk : null, open });
-          if (open && tip.length > 1) tip.forEach(t => { const T = L.filter(x => x.modelo === t); if (!T.some(x => x.b && Math.abs(x.tot) >= 0.0005)) return; const nm = E.norm(t) === 'reopening' ? 'Reopening · sin tipología' : t; rows.push({ label: nm, style: 'sl', cells: cells(agg(T)), drill: { title: nm, sls: this.sls(T) } }); });
+          if (open && tip.length > 1) tip.forEach(t => { const T = L.filter(x => x.modelo === t); if (!T.some(x => x.b && Math.abs(x.tot) >= 0.0005)) return; const nm = E.norm(t) === 'reopening' ? 'Reopening · sin tipología' : t; rows.push({ label: nm, style: 'rsl', cells: cells(agg(T)), drill: { title: nm, sls: this.sls(T) } }); });
         } else rows.push({ label: l.label, style: 'child', cells: cells(agg(L)), drill: { title: l.label, sls: this.sls(L) } });
       });
       const LG = O.filter(x => x.grp === g);
@@ -3608,7 +3615,7 @@ const CrecS = {
   build(page, o){
     const cs = this.cs(), rows = [], p = (state.ds && state.ds.params) || {};
     const cols = []; this.colDefs().filter(c => o.cols.has(c.k)).forEach((c, i, A) => { const prev = A[i - 1]; if (prev && c.k.split('_')[0] !== prev.k.split('_')[0] && ['p27', 'var'].includes(c.k.split('_')[0])) cols.push({ k: '_gap' + i, kind: 'gap', grp: null, label: '' }); cols.push(c); });
-    const base = { eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · Crecimiento Brick`, labelHead: 'Tipo de obra', cols, blockSep: true, tableCls: 'cfx' };
+    const base = { eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · Crecimiento Brick`, labelHead: 'Tipo de obra', cols, blockSep: true, tableCls: 'cfx roomy' };
     if (!cs) return Object.assign(base, { title: 'Crecimiento Simplicity', sub: 'Falta el libro "PPTO 2027 - CAPEX - Crecimiento Simplicity" en la carpeta conectada', note: 'Conectá la carpeta (o arrastrá el archivo) y tocá Actualizar.', rows: [], kpis: [] });
     const cells = v => { const out = {}; cols.forEach(c => { if (c.kind === 'gap') return; if (c.k === 'var_p'){ out[c.k] = v.p27 && v.fc ? fVar(vr(v.p27[0], v.fc[0])) : { t: '–', cls: 'na' }; return; } const [b, q] = c.k.split('_'); out[c.k] = v[b] ? CrecF.fmtTrip(v[b])[q] : { t: '', cls: 'na' }; }); return out; };
     const lines = cs.c26.filter(r => !/^total/.test(E.norm(r.label))), T = cs.c26.find(r => /^total/.test(E.norm(r.label)));
@@ -4922,7 +4929,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="09/11/2026 19:09";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="09/11/2026 20:46";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
