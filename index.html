@@ -739,7 +739,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 18:48</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 18:53</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -763,7 +763,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 18:48</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 18:53</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -3665,7 +3665,10 @@ const CrecF = {
   kind(page){ return page.split('|')[1] || 'res'; },
   views(page){
     const a = k => [k + '_m', k + '_n', k + '_u'];
-    if (this.kind(page) === 'cant'){ const q = ['p26', 'ap25', 'b2626', 'b2627', 'real', 'fc', 'tot', 'pase', 'b27', 'b28'].map(k => k + '_q'); return { completo: { label: 'Completo', cols: q.concat(['dq']) }, corto: { label: 'Solo PPTO y 9+3', cols: ['p26_q', 'fc_q', 'tot_q', 'dq'] } }; }
+    if (this.kind(page) === 'cant'){
+      const KS = ['p26', 'ap25', 'b2626', 'b2627', 'fc', 'tot', 'pase', 'b27', 'b28'], f = s => KS.flatMap(k => s.map(x => k + x));
+      return { completo: { label: 'Solo locales', cols: f(['_q']).concat(['dq']) }, todo: { label: 'Locales + $ + equivalencias', cols: f(['_m', '_n', '_q']).concat(['dq']) }, montos: { label: 'Locales + $', cols: f(['_m', '_q']).concat(['dq']) }, equiv: { label: 'Locales + equivalencias', cols: f(['_n', '_q']).concat(['dq']) }, corto: { label: 'Solo PPTO y 9+3', cols: ['p26_m', 'p26_n', 'p26_q', 'fc_m', 'fc_n', 'fc_q', 'tot_m', 'tot_n', 'tot_q', 'dq'] } };
+    }
     if (this.kind(page) === 'res') return { completo: { label: 'Completo', cols: [].concat(a('p26'), a('ap25'), a('b2626'), a('b2627'), a('fc'), a('tot'), a('pase'), a('b27'), a('b28'), ['var_p']) }, montos: { label: 'Solo montos', cols: ['p26_m', 'ap25_m', 'b2626_m', 'b2627_m', 'fc_m', 'tot_m', 'pase_m', 'b27_m', 'b28_m', 'var_p'] }, obras: { label: 'Solo # obras', cols: ['p26_n', 'ap25_n', 'b2626_n', 'b2627_n', 'fc_n', 'tot_n', 'pase_n', 'b27_n', 'b28_n'] } };
     return this.kind(page) === '26'
       ? { completo: { label: 'Completo', cols: [].concat(a('p26'), a('ap25'), a('b2626'), a('b2627'), a('fc')) }, corto: { label: 'PPTO 2026 vs 9+3', cols: [].concat(a('p26'), a('fc')) }, montos: { label: 'Solo montos', cols: ['p26_m', 'ap25_m', 'b2626_m', 'b2627_m', 'real_m', 'fc_m'] } }
@@ -3674,7 +3677,12 @@ const CrecF = {
   colDefs(page){
     const k0 = this.kind(page), out = [];
     if (k0 === 'cant'){
-      CF_B26.concat(CF_B27).forEach(([k, lab, tone]) => out.push({ k: k + '_q', label: '# locales', grp: lab, kind: 'amt', tone, gtone: tone, strong: k === 'p26' || k === 'tot' || k === 'fc', hero: k === 'tot', sepl: true }));
+      CF_B26.concat(CF_B27).forEach(([k, lab, tone]) => {
+        const big = k === 'p26' || k === 'tot' || k === 'fc';
+        out.push({ k: k + '_m', label: '$', grp: lab, kind: 'amt', tone, gtone: tone, strong: big, sepl: true });
+        if (k !== 'real') out.push({ k: k + '_n', label: '# obras (equiv.)', grp: lab, kind: 'amt', tone, gtone: tone });
+        out.push({ k: k + '_q', label: '# locales', grp: lab, kind: 'amt', tone, gtone: tone, strong: big, hero: k === 'tot' });
+      });
       out.push({ k: 'dq', label: 'locales', grp: 'Δ PPTO 27 vs 9+3', kind: 'amt', tone: 'var', sepl: true });
       return out;
     }
@@ -3726,14 +3734,19 @@ const CrecF = {
       const hasQ = cf.c26.some(r => r.q);
       const K26 = ['p26', 'ap25', 'b2626', 'b2627', 'real', 'fc'], K27 = ['tot', 'pase', 'b27', 'b28', 'dq'];
       const qAvail = new Set(hasQ ? Object.keys((cf.c26.find(r => r.q) || {}).q || {}) : []);
-      const sel = this.colDefs(page).filter(c => st.cols.has(c.k) && (!K26.includes(c.k.split('_')[0]) || qAvail.has(c.k.split('_')[0])) && (c.k !== 'dq' || qAvail.has('fc')));
+      const sel = this.colDefs(page).filter(c => st.cols.has(c.k) && (!c.k.endsWith('_q') || !K26.includes(c.k.split('_')[0]) || qAvail.has(c.k.split('_')[0])) && (c.k !== 'dq' || qAvail.has('fc')) && (K27.includes(c.k.split('_')[0]) || cf.c26.some(r => r.v[c.k.split('_')[0]])));
       const colsA = gapped(sel.filter(c => K26.includes(c.k.split('_')[0])), 'a'), colsB = gapped(sel.filter(c => K27.includes(c.k.split('_')[0])), 'b');
       const nInt = v => v == null || !isFinite(v) ? { t: '', cls: 'na' } : Math.abs(v) < 0.5 ? { t: '–', cls: 'na' } : { t: nf(0).format(v), cls: '' };
       const nDif = v => v == null || !isFinite(v) ? { t: '–', cls: 'na' } : Math.abs(v) < 0.5 ? { t: '0', cls: 'na' } : { t: (v > 0 ? '+' : '−') + nf(0).format(Math.abs(v)), cls: v > 0 ? 'pos' : 'neg' };
       // locales 2027: SL distintos con PPTO 2027 distinto de cero (sin SL: cada obra cuenta como un local)
       const locs = L => { const m = new Map(); L.forEach((x, i) => { const key = String(x.sl || '').trim() || '#' + (x.fila || i); m.set(key, (m.get(key) || 0) + (x.tot || 0)); }); return [...m.values()].filter(v => Math.abs(v) >= 1e-9).length; };
       const q27 = L => ({ tot: locs(L), pase: locs(L.filter(x => x.b === 'pase')), b27: locs(L.filter(x => x.b === 'b27')), b28: locs(L.filter(x => x.b === 'b28')) });
-      const cellsFor = (C, q) => { const out = {}; C.forEach(c => { if (c.kind === 'gap') return; if (c.k === 'dq'){ out.dq = q.fc != null && q.tot != null ? nDif(q.tot - q.fc) : { t: '–', cls: 'na' }; return; } out[c.k] = nInt(q[c.k.split('_')[0]]); }); return out; };
+      // q = locales; q.$v = montos y equivalencias ($, # obras, $/obra) del mismo renglón
+      const cellsFor = (C, q) => { const out = {}, V = q.$v || {}; C.forEach(c => { if (c.kind === 'gap') return; if (c.k === 'dq'){ out.dq = q.fc != null && q.tot != null ? nDif(q.tot - q.fc) : { t: '–', cls: 'na' }; return; } const [b, s] = c.k.split('_'); out[c.k] = s === 'q' ? nInt(q[b]) : V[b] ? this.fmtTrip(V[b])[s] : { t: '', cls: 'na' }; }); return out; };
+      const FL = this.fcLines(cf), tri = v => v ? [v[0], v[1], v[1] ? v[0] / v[1] : 0] : null;
+      const v26G = lab => { const r = c26(lab), v = r ? Object.assign({}, r.v) : {}; if (v.fc) v.fc = tri(v.fc); return v; };
+      const v26L = l => { const r = c26L(l), v = r ? Object.assign({}, r.v) : {}; const f = FL ? (FL[l.label] || { m: 0, n: 0 }) : null; v.fc = f ? [f.m, f.n, f.n ? f.m / f.n : 0] : null; return v; };
+      const W = (q, v) => Object.assign({}, q, { $v: v });
       const part = (tag, C, qG, qL, qT) => {
         const R = [];
         CF_GRP.forEach(([g, lab]) => {
@@ -3746,11 +3759,12 @@ const CrecF = {
       };
       const qOf = r => (r && r.q) || {};
       const fcG = lab => qOf(c26(lab)).fc, fcL = l => qOf(c26L(l)).fc;
-      const rowsA = hasQ && colsA.length ? part('26', colsA, lab => qOf(c26(lab)), l => qOf(c26L(l)), () => qOf(c26('TOTAL CRECIMIENTO'))) : [];
-      const rowsB = colsB.length ? part('27', colsB, (lab, LG) => Object.assign({ fc: fcG(lab) }, q27(LG)), (l, L) => Object.assign({ fc: fcL(l) }, q27(L)), () => Object.assign({ fc: fcG('TOTAL CRECIMIENTO') }, q27(O))) : [];
+      const rowsA = (hasQ || colsA.some(c => !c.k.endsWith('_q'))) && colsA.length ? part('26', colsA, lab => W(qOf(c26(lab)), v26G(lab)), l => W(qOf(c26L(l)), v26L(l)), () => W(qOf(c26('TOTAL CRECIMIENTO')), v26G('TOTAL CRECIMIENTO'))) : [];
+      const rowsB = colsB.length ? part('27', colsB, (lab, LG) => W(Object.assign({ fc: fcG(lab) }, q27(LG)), agg(LG)), (l, L) => W(Object.assign({ fc: fcL(l) }, q27(L)), agg(L)), () => W(Object.assign({ fc: fcG('TOTAL CRECIMIENTO') }, q27(O)), agg(O))) : [];
       const stack = [];
-      if (rowsA.length) stack.push({ cap: '2026', capSub: 'cantidad de locales · hoja CUADRO › CANTIDADES', cols: colsA, rows: rowsA });
-      if (rowsB.length) stack.push({ cap: '2027', capSub: 'cantidad de locales · SL con PPTO 2027', cols: colsB, rows: rowsB });
+      const wide = sel.some(c => !c.k.endsWith('_q') && c.k !== 'dq');
+      if (rowsA.length) stack.push({ cap: '2026', capSub: wide ? 'hoja CUADRO · locales del bloque CANTIDADES' : 'cantidad de locales · hoja CUADRO › CANTIDADES', cols: colsA, rows: rowsA });
+      if (rowsB.length) stack.push({ cap: '2027', capSub: wide ? 'ANALISIS · locales = SL con PPTO 2027' : 'cantidad de locales · SL con PPTO 2027', cols: colsB, rows: rowsB });
       rows.push(...rowsA); if (rowsA.length && rowsB.length) rows.push({ spacer: true }); rows.push(...rowsB);
       base.tableCls = 'cfx'; base.stack = stack; base.cols = colsA.concat(colsB);
       const QT = q27(O), F = fcG('TOTAL CRECIMIENTO'), P26 = qOf(c26('TOTAL CRECIMIENTO')).p26;
@@ -5523,7 +5537,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="10/11/2026 18:48";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="10/11/2026 18:53";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
