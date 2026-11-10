@@ -739,7 +739,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 16:45</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 16:49</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -763,7 +763,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 16:45</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 16:49</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -1742,18 +1742,29 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
     const nC = wb.SheetNames.find(x => norm(x) === 'cuadro'), nA = wb.SheetNames.find(x => /^analisis/.test(norm(x)));
     if (!nC || !nA) throw new Error('El libro de Crecimiento Simplicity tiene que tener las hojas Cuadro y ANALISIS CRECIMIENTO.');
     const aoa = n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null });
-    const C = aoa(nC), hr = C.findIndex(r => r && r.some(x => /^ppto 2026$/.test(norm(x))));
-    if (hr < 0) throw new Error('No encontré "PPTO 2026" en la hoja Cuadro.');
-    const H = C[hr].map(norm), blk = [];
-    [['p26', /^ppto 2026$/], ['fc', /^9\+3$/], ['p27', /^ppto 2027$/]].forEach(([k, re]) => { const c = H.findIndex(h => re.test(h)); if (c >= 0) blk.push({ k, c }); });
-    const lc = (() => { for (let i = hr + 1; i < C.length; i++){ const r = C[i] || []; const j = r.findIndex(x => typeof x === 'string' && /^(apertura|total)/i.test(x.trim())); if (j >= 0) return j; } return 1; })();
-    const c26 = [];
-    for (let i = hr + 2; i < C.length; i++){
-      const r = C[i] || [], lab = r[lc]; if (lab == null || String(lab).trim() === '') continue;
-      const o = { label: String(lab).trim(), v: {} };
-      blk.forEach(b => { o.v[b.k] = [num(r[b.c]), num(r[b.c + 1]), num(r[b.c + 2])]; });
-      c26.push(o); if (/^total/.test(norm(lab))) break;
-    }
+    /* hoja Cuadro: uno o varios cuadros (2026 arriba, 2027 abajo), cada uno con su fila de bloques ($ · # obras · $/obra)
+       PPTO 2026 · 9+3 · PPTO 2027 · Obras aprobadas · Obras en búsqueda; se unen por tipo de obra (Apertura, Mudanza, Reopening, TOTAL) */
+    const C = aoa(nC);
+    const KB = [['p26', /^ppto 2026$/], ['fc', /^9\+3$/], ['p27', /^ppto 2027$/], ['apr', /^obras aprobadas/], ['bus', /^obras en busqueda/]];
+    const byL = new Map(), c26 = []; let any = false;
+    C.forEach((row, hr) => {
+      if (!row) return;
+      const H = row.map(norm), blk = [];
+      KB.forEach(([k, re]) => { const c = H.findIndex(h => re.test(h)); if (c >= 0) blk.push({ k, c }); });
+      if (!blk.length) return;
+      any = true;
+      let lc = 1; for (let i = hr + 1; i < Math.min(C.length, hr + 30); i++){ const r = C[i] || []; const j = r.findIndex(x => typeof x === 'string' && /^(apertura|total)/i.test(x.trim())); if (j >= 0){ lc = j; break; } }
+      for (let i = hr + 2; i < C.length; i++){
+        const r = C[i] || [], lab = r[lc]; if (lab == null || String(lab).trim() === '') continue;
+        const key = norm(lab); let o = byL.get(key);
+        if (!o){ o = { label: String(lab).trim(), v: {} }; byL.set(key, o); c26.push(o); }
+        blk.forEach(b => { o.v[b.k] = [num(r[b.c]), num(r[b.c + 1]), num(r[b.c + 2])]; });
+        if (/^total/.test(key)) break;
+      }
+    });
+    if (!any) throw new Error('No encontré "PPTO 2026" en la hoja Cuadro.');
+    // el TOTAL siempre al final
+    c26.sort((a, b) => (/^total/.test(norm(a.label)) ? 1 : 0) - (/^total/.test(norm(b.label)) ? 1 : 0));
     const A = aoa(nA);
     // filas resumen EN CURSO / SIN APROBACION (suman los meses 2027)
     let curso = null, sinap = null;
@@ -1782,8 +1793,9 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
     }
     /* en curso / sin aprobación desde las obras (no desde las filas 6-7, que suman rangos fijos y quedan viejas si se agregan o mueven obras):
        en curso = CLASIFICACIÓN "PASE DE AÑO A 2027"; sin aprobación = el resto de las obras con monto 2027 */
-    const cursoXl = curso, sinapXl = sinap;
-    if (obras.some(x => x.c27)){
+    const cursoXl = curso, sinapXl = sinap, TT = c26.find(r => /^total/.test(norm(r.label)));
+    if (TT && TT.v.apr && TT.v.bus){ curso = TT.v.apr[0]; sinap = TT.v.bus[0]; }
+    else if (obras.some(x => x.c27)){
       const M = obras.filter(x => Math.abs(x.tot) >= 1e-9);
       curso = M.filter(x => /pase de a.o/i.test(norm(x.c27))).reduce((a, x) => a + x.tot, 0);
       sinap = M.filter(x => !/pase de a.o/i.test(norm(x.c27))).reduce((a, x) => a + x.tot, 0);
@@ -3821,53 +3833,55 @@ const CrecF = {
 
 /* ============ CUADRO · Crecimiento Simplicity (libro "PPTO 2027 - CAPEX - Crecimiento Simplicity") ============
    hoja Cuadro tal cual · PPTO 2027 en curso / sin aprobación desde las filas EN CURSO y SIN APROBACION de ANALISIS CRECIMIENTO */
-const CS_B = [['p26', 'PPTO 2026', 'ppto'], ['fc', 'Aterrizaje 9+3', 'ater'], ['p27', 'PPTO 2027', 'ppto']];
+const CS_B = [['p26', 'PPTO 2026', 'ppto'], ['fc', 'Aterrizaje 9+3', 'ater'], ['p27', 'PPTO 2027', 'ppto'], ['apr', 'Obras aprobadas', 'real'], ['bus', 'Obras en búsqueda', 'fut']];
+const CS_K26 = ['p26', 'fc'], CS_K27 = ['p27', 'apr', 'bus'];
 const CrecS = {
-  id: 'csimpli', name: 'Crecimiento Simplicity', blurb: 'PPTO 2026, 9+3 y PPTO 2027 por tipo de obra · en curso y sin aprobación',
-  views(){ const a = k => [k + '_m', k + '_n', k + '_u']; return { completo: { label: 'Completo', cols: [].concat(a('p26'), a('fc'), a('p27'), ['var_p']) }, montos: { label: 'Solo montos', cols: ['p26_m', 'fc_m', 'p27_m', 'var_p'] }, obras: { label: 'Solo # obras', cols: ['p26_n', 'fc_n', 'p27_n'] } }; },
+  id: 'csimpli', name: 'Crecimiento Simplicity', blurb: 'PPTO 2026 y 9+3 · PPTO 2027 por obras aprobadas y en búsqueda · por tipo de obra',
+  views(){ const a = k => [k + '_m', k + '_n', k + '_u']; return { completo: { label: 'Completo', cols: [].concat(...CS_B.map(b => a(b[0]))) }, montos: { label: 'Solo montos', cols: CS_B.map(b => b[0] + '_m') }, obras: { label: 'Solo # obras', cols: CS_B.map(b => b[0] + '_n') } }; },
   colDefs(){
     const out = [];
     CS_B.forEach(([k, lab, tone]) => {
-      const big = k === 'p27';
-      out.push({ k: k + '_m', label: '$', grp: lab, kind: 'amt', tone, gtone: tone, strong: true, hero: big, sepl: true });
+      const big = k === 'p27' || k === 'p26';
+      out.push({ k: k + '_m', label: '$', grp: lab, kind: 'amt', tone, gtone: tone, strong: true, hero: k === 'p27', sepl: true });
       out.push({ k: k + '_n', label: '# obras', grp: lab, kind: 'amt', tone, gtone: tone, strong: big });
       out.push({ k: k + '_u', label: '$/obra', grp: lab, kind: 'amt', tone, gtone: tone, strong: big });
     });
-    out.push({ k: 'var_p', label: 'Δ % vs 9+3', grp: 'Variación', kind: 'var', tone: 'var', sepl: true });
     return out;
   },
   defaults(){ return { view: 'completo', cols: this.views().completo.cols.slice() }; },
   pages(){ return [{ key: 'csimpli', label: null }]; },
-  optsHtml(){ return `<p class="empty" style="font-size:11.5px;padding:0">Fuente: libro <b>PPTO 2027 - CAPEX - Crecimiento Simplicity</b> de la carpeta. Cuadro tal cual la hoja Cuadro. En curso y sin aprobación: filas EN CURSO y SIN APROBACION de ANALISIS CRECIMIENTO (suma de los meses 2027). Clic en una fila para ver las obras.</p>`; },
+  optsHtml(){ return `<p class="empty" style="font-size:11.5px;padding:0">Fuente: hoja <b>Cuadro</b> del libro <b>PPTO 2027 - CAPEX - Crecimiento Simplicity</b>, tal cual: arriba 2026 (PPTO 2026 y 9+3), abajo 2027 abierto en obras aprobadas (proyectos on going) y obras en búsqueda (proyectos futuros). Clic en una fila para ver las obras.</p>`; },
   cs(){ return state.cs || null; },
-  sls(L){ return L.filter(x => Math.abs(x.tot) >= 0.0005).map(x => ({ sl: x.sl, nom: x.nom, jer: x.est || 'Sin estado', part: x.tipo, tipo: 'PROYECTOS', estado: x.est, r25: 0, p26: 0, real26: 0, fc26: 0, p27: x.tot * 1e6 })); },
+  sls(L){ return L.filter(x => Math.abs(x.tot) >= 0.0005).map(x => ({ sl: x.sl, nom: x.nom, jer: x.c27 || x.est || 'Sin clasificación', part: x.tipo, tipo: 'PROYECTOS', estado: x.est, r25: 0, p26: 0, real26: 0, fc26: 0, p27: x.tot * 1e6 })); },
   build(page, o){
     const cs = this.cs(), rows = [], p = (state.ds && state.ds.params) || {};
-    const cols = []; this.colDefs().filter(c => o.cols.has(c.k)).forEach((c, i, A) => { const prev = A[i - 1]; if (prev && c.k.split('_')[0] !== prev.k.split('_')[0] && ['p27', 'var'].includes(c.k.split('_')[0])) cols.push({ k: '_gap' + i, kind: 'gap', grp: null, label: '' }); cols.push(c); });
-    const base = { eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · Crecimiento Brick`, labelHead: 'Tipo de obra', cols, blockSep: true, tableCls: 'cfx roomy' };
+    const gapped = (A0, tag) => { const out = []; A0.forEach((c, i, A) => { const prev = A[i - 1]; if (prev && c.k.split('_')[0] !== prev.k.split('_')[0] && ['p27', 'p26'].includes(prev.k.split('_')[0])) out.push({ k: '_gap' + tag + i, kind: 'gap', grp: null, label: '' }); out.push(c); }); return out; };
+    const vw = this.views()[o.view], want = vw && o.view !== 'custom' ? new Set(vw.cols) : (o.cols instanceof Set ? o.cols : new Set(o.cols || []));
+    const sel = this.colDefs().filter(c => want.has(c.k));
+    const colsA = gapped(sel.filter(c => CS_K26.includes(c.k.split('_')[0])), 'a'), colsB = gapped(sel.filter(c => CS_K27.includes(c.k.split('_')[0])), 'b');
+    const base = { eyebrow: `Presupuesto CAPEX ${p.anioPpto || 2027} · Crecimiento Brick`, labelHead: 'Tipo de obra', cols: colsA.concat(colsB), blockSep: true, tableCls: 'cfx' };
     if (!cs) return Object.assign(base, { title: 'Crecimiento Simplicity', sub: 'Falta el libro "PPTO 2027 - CAPEX - Crecimiento Simplicity" en la carpeta conectada', note: 'Conectá la carpeta (o arrastrá el archivo) y tocá Actualizar.', rows: [], kpis: [] });
-    const cells = v => { const out = {}; cols.forEach(c => { if (c.kind === 'gap') return; if (c.k === 'var_p'){ out[c.k] = v.p27 && v.fc ? fVar(vr(v.p27[0], v.fc[0])) : { t: '–', cls: 'na' }; return; } const [b, q] = c.k.split('_'); out[c.k] = v[b] ? CrecF.fmtTrip(v[b])[q] : { t: '', cls: 'na' }; }); return out; };
     const lines = cs.c26.filter(r => !/^total/.test(E.norm(r.label))), T = cs.c26.find(r => /^total/.test(E.norm(r.label)));
-    lines.forEach(r => { const L = cs.obras.filter(x => E.norm(x.tipo) === E.norm(r.label)); rows.push({ label: r.label, style: 'child', cells: cells(r.v), drill: { title: r.label, sls: this.sls(L) } }); });
-    if (T) rows.push({ spacer: true }, { label: 'TOTAL', style: 'total', cells: cells(T.v), drill: { title: 'Crecimiento Simplicity', sls: this.sls(cs.obras) } });
-    if (cs.curso != null || cs.sinap != null){
-      // apertura del PPTO 2027 por estado: solo la columna $ del PPTO 2027, con su participación y un cierre
-      const tot27 = T ? (T.v.p27 || [])[0] : (cs.curso || 0) + (cs.sinap || 0);
-      const est = (x, n) => { const c = {}; cols.forEach(k => { if (k.kind === 'gap') return; c[k.k] = { t: '', cls: 'blank' }; });
-        if (c.p27_m) c.p27_m = fAmt(x); if (c.p27_n) c.p27_n = { t: '', cls: '' };
-        if (c.p27_u) c.p27_u = tot27 ? { t: nf(0).format(x / tot27 * 100) + '%', cls: 'share' } : { t: '', cls: 'blank' };
-        if (c.var_p) c.var_p = { t: '', cls: 'blank' }; return c; };
-      rows.push({ spacer: true }, { label: 'PPTO 2027 por estado', sub: '$ y % del total', style: 'blockhead', cls: 'estrow', cells: {} });
-      const byC = cs.obras.some(x => x.c27), isPase = x => /pase de a.o/i.test(E.norm(x.c27 || '')), M = cs.obras.filter(x => Math.abs(x.tot) >= 1e-9);
-      if (cs.curso != null) rows.push({ label: 'En curso', sub: 'proyectos on going', style: 'child', cls: 'estrow', cells: est(cs.curso), drill: byC ? { title: 'En curso · pase de año a 2027', sls: this.sls(M.filter(isPase)) } : null });
-      if (cs.sinap != null) rows.push({ label: 'Sin aprobación', sub: 'proyectos futuros', style: 'child', cls: 'estrow', cells: est(cs.sinap), drill: byC ? { title: 'Sin aprobación · proyectos futuros', sls: this.sls(M.filter(x => !isPase(x))) } : null });
-      rows.push({ label: 'Total PPTO 2027', style: 'sub', cls: 'estrow estend', cells: est((cs.curso || 0) + (cs.sinap || 0)) });
-    }
-    const d = T && T.v.fc ? fVar(vr((T.v.p27 || [])[0], (T.v.fc || [])[0])) : null;
-    return Object.assign(base, { title: 'Crecimiento Simplicity', sub: `En ${unitLbl()} · PPTO 2026 y aterrizaje 9+3 vs PPTO 2027 por tipo de obra`,
-      note: 'Fuente: hoja Cuadro del libro de Crecimiento Simplicity, tal cual. ' + (cs.obras.some(x => x.c27) ? 'En curso = obras con CLASIFICACIÓN "PASE DE AÑO A 2027" en ANALISIS CRECIMIENTO; sin aprobación = el resto de las obras con monto 2027.' : 'En curso / sin aprobación: filas resumen de ANALISIS CRECIMIENTO.'), rows,
-      kpis: T ? [{ k: 'PPTO 2027', v: '$' + fAmt((T.v.p27 || [])[0]).t + unitShort(), d: (d && d.t ? d.t + ' vs 9+3 · ' : '') + nf(1).format((T.v.p27 || [])[1]) + ' obras', plain: true, hero: true, tone: 'ppto' },
-        { k: 'En curso · sin aprobación', tone: 'ater', plain: true, v: '$' + fAmt(cs.curso || 0).t + ' · $' + fAmt(cs.sinap || 0).t, d: (T.v.p27 || [])[0] ? nf(0).format((cs.curso || 0) / (T.v.p27 || [])[0] * 100) + '% ya aprobado' : '' }] : [] });
+    // si el Cuadro todavía no tiene los bloques de aprobadas / búsqueda, se arman desde las obras (CLASIFICACIÓN "PASE DE AÑO A 2027" = aprobadas)
+    const fromOb = !(T && T.v.apr), isPase = x => /pase de a.o/i.test(E.norm(x.c27 || '')), M = cs.obras.filter(x => Math.abs(x.tot) >= 1e-9);
+    const vOf = (r, L) => { const v = Object.assign({}, r.v); if (fromOb && cs.obras.some(x => x.c27)){ const a = L.filter(isPase).reduce((s, x) => s + x.tot, 0), b = L.filter(x => !isPase(x)).reduce((s, x) => s + x.tot, 0); v.apr = [a, null, null]; v.bus = [b, null, null]; } return v; };
+    const cellsFor = (C, v) => { const out = {}; C.forEach(c => { if (c.kind === 'gap') return; const [b, q] = c.k.split('_'); out[c.k] = v[b] ? CrecF.fmtTrip(v[b])[q] : { t: '', cls: 'na' }; }); return out; };
+    const part = C => {
+      const R = lines.map(r => { const L = M.filter(x => E.norm(x.tipo) === E.norm(r.label)); return { label: r.label, style: 'child', cells: cellsFor(C, vOf(r, L)), drill: { title: r.label, sls: this.sls(L) } }; });
+      if (T) R.push({ label: 'TOTAL', style: 'total', cells: cellsFor(C, vOf(T, M)), drill: { title: 'Crecimiento Simplicity', sls: this.sls(M) } });
+      return R;
+    };
+    const rowsA = colsA.length ? part(colsA) : [], rowsB = colsB.length ? part(colsB) : [];
+    const stack = [];
+    if (rowsA.length) stack.push({ cap: '2026', capSub: 'PPTO 2026 · aterrizaje 9+3', cols: colsA, rows: rowsA });
+    if (rowsB.length) stack.push({ cap: '2027', capSub: 'PPTO 2027 · obras aprobadas (on going) · obras en búsqueda (futuros)', cols: colsB, rows: rowsB });
+    rows.push(...rowsA); if (rowsA.length && rowsB.length) rows.push({ spacer: true }); rows.push(...rowsB);
+    base.stack = stack;
+    const VT = T ? vOf(T, M) : {}, t27 = (VT.p27 || [])[0], apr = (VT.apr || [])[0], fc = (VT.fc || [])[0], d = t27 != null && fc ? fVar(vr(t27, fc)) : null;
+    return Object.assign(base, { title: 'Crecimiento Simplicity · 2026 y 2027', sub: `En ${unitLbl()} · por tipo de obra · 2027 abierto en obras aprobadas y en búsqueda`,
+      note: 'Fuente: hoja Cuadro del libro de Crecimiento Simplicity, tal cual.' + (fromOb ? ' Aprobadas / en búsqueda desde ANALISIS CRECIMIENTO (CLASIFICACIÓN "PASE DE AÑO A 2027" = aprobadas).' : ' Obras aprobadas = proyectos on going; obras en búsqueda = proyectos futuros.'), rows,
+      kpis: T ? [{ k: 'Aterrizaje 9+3', tone: 'ater', plain: true, v: '$' + fAmt(fc || 0).t + unitShort(), d: 'PPTO 2026 $' + fAmt((VT.p26 || [])[0] || 0).t + unitShort() },
+        { k: 'PPTO 2027', v: '$' + fAmt(t27 || 0).t + unitShort(), d: (d && d.t ? d.t + ' vs 9+3 · ' : '') + (t27 ? nf(0).format((apr || 0) / t27 * 100) + '% ya aprobado' : ''), plain: true, hero: true, tone: 'ppto' }] : [] });
   },
   checks(){
     const cs = this.cs(), out = [], f2 = v => nf(2).format(v);
@@ -3875,7 +3889,9 @@ const CrecS = {
     const T = cs.c26.find(r => /^total/.test(E.norm(r.label))), lines = cs.c26.filter(r => !/^total/.test(E.norm(r.label)));
     if (T){ const L = []; ['p26', 'fc', 'p27'].forEach(k => { const s = lines.reduce((a, r) => a + (r.v[k] ? r.v[k][0] : 0), 0); if (T.v[k] && Math.abs(s - T.v[k][0]) > 0.01) L.push(`${k === 'p26' ? 'PPTO 2026' : k === 'fc' ? '9+3' : 'PPTO 2027'}: suma de tipos ${f2(s)} vs TOTAL ${f2(T.v[k][0])}`); });
       out.push({ label: 'Cuadro: tipos de obra = TOTAL', ok: !L.length, warn: true, count: L.length, detail: L, okTxt: 'cruza' }); }
-    if (T && cs.curso != null && cs.sinap != null){ const s = cs.curso + cs.sinap, ok = Math.abs(s - (T.v.p27 || [])[0]) <= 0.01;
+    if (T && T.v.apr && T.v.bus){ const L = cs.c26.filter(r => r.v.p27 && r.v.apr && r.v.bus && Math.abs(r.v.apr[0] + r.v.bus[0] - r.v.p27[0]) > 0.01).map(r => `${r.label}: aprobadas ${f2(r.v.apr[0])} + búsqueda ${f2(r.v.bus[0])} = ${f2(r.v.apr[0] + r.v.bus[0])} vs PPTO 2027 ${f2(r.v.p27[0])}`);
+      out.push({ label: 'Cuadro: aprobadas + en búsqueda = PPTO 2027', ok: !L.length, count: L.length, detail: L, okTxt: 'cruza en todos los tipos' }); }
+    else if (T && cs.curso != null && cs.sinap != null){ const s = cs.curso + cs.sinap, ok = Math.abs(s - (T.v.p27 || [])[0]) <= 0.01;
       out.push({ label: 'En curso + sin aprobación = PPTO 2027 del Cuadro', ok, count: ok ? 0 : 1, detail: [`En curso ${f2(cs.curso)} + sin aprobación ${f2(cs.sinap)} = ${f2(s)} vs PPTO 2027 ${f2((T.v.p27 || [])[0])} · dif. ${f2(s - (T.v.p27 || [])[0])}. Revisá la columna Clasificación de las obras en ANALISIS CRECIMIENTO.`], okTxt: 'cruza: ' + f2(s) }); }
     const tipos = new Set(lines.map(r => E.norm(r.label))), obT = cs.obras.filter(x => tipos.has(E.norm(x.tipo))), ob = obT.reduce((a, x) => a + x.tot, 0);
     const fuera = cs.obras.filter(x => !tipos.has(E.norm(x.tipo)) && Math.abs(x.tot) >= 0.005);
@@ -5457,7 +5473,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="10/11/2026 16:45";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="10/11/2026 16:49";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
