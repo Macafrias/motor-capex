@@ -739,7 +739,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 16:18</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 16:37</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -763,7 +763,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 16:18</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 16:37</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -1767,6 +1767,8 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
     if (ah >= 0){
       const AH = A[ah].map(norm), ix = h => AH.indexOf(h);
       const iT = ix('tipo'), iS = ix('subledger'), iN = AH.findIndex(h => h.startsWith('nombre')), iE = ix('estado'), iCl = ix('clasifica');
+      // CLASIFICACIÓN del bloque 2027 (la última de la hoja, junto a los meses 2027): PASE DE AÑO A 2027 / INICIO y FIN 2027 / ...
+      const iC27 = AH.lastIndexOf('clasificacion');
       let iTot = -1; for (let j = AH.length - 1; j >= 0; j--) if (AH[j] === 'total'){ iTot = j; break; }
       const dic = AH.lastIndexOf('diciembre'), months = dic >= 11 ? Array.from({ length: 12 }, (_, m) => dic - 11 + m) : [];
       for (let i = ah + 1; i < A.length; i++){
@@ -1775,10 +1777,18 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
         const hasSl = r[iS] != null && String(r[iS]).trim() !== '', hasT = r[iT] != null && String(r[iT]).trim() !== '';
         if (!hasSl && !hasT) continue;
         const tot = iTot >= 0 && r[iTot] != null ? num(r[iTot]) : months.reduce((a, m) => a + num(r[m]), 0);
-        obras.push({ fila: i + 1, tipo: r[iT] == null ? '' : String(r[iT]).trim(), sl: hasSl ? String(r[iS]).trim() : 'sin SL', nom: iN >= 0 && r[iN] != null ? String(r[iN]).trim() : '', est: iE >= 0 && r[iE] != null ? String(r[iE]).trim() : '', cla: iCl >= 0 && r[iCl] != null ? String(r[iCl]) : '', tot: tot / 1e6 });
+        obras.push({ fila: i + 1, tipo: r[iT] == null ? '' : String(r[iT]).trim(), sl: hasSl ? String(r[iS]).trim() : 'sin SL', nom: iN >= 0 && r[iN] != null ? String(r[iN]).trim() : '', est: iE >= 0 && r[iE] != null ? String(r[iE]).trim() : '', cla: iCl >= 0 && r[iCl] != null ? String(r[iCl]) : '', c27: iC27 >= 0 && r[iC27] != null ? String(r[iC27]).trim() : '', tot: tot / 1e6 });
       }
     }
-    return { c26, curso, sinap, obras, sheetC: nC, sheetA: nA };
+    /* en curso / sin aprobación desde las obras (no desde las filas 6-7, que suman rangos fijos y quedan viejas si se agregan o mueven obras):
+       en curso = CLASIFICACIÓN "PASE DE AÑO A 2027"; sin aprobación = el resto de las obras con monto 2027 */
+    const cursoXl = curso, sinapXl = sinap;
+    if (obras.some(x => x.c27)){
+      const M = obras.filter(x => Math.abs(x.tot) >= 1e-9);
+      curso = M.filter(x => /pase de a.o/i.test(norm(x.c27))).reduce((a, x) => a + x.tot, 0);
+      sinap = M.filter(x => !/pase de a.o/i.test(norm(x.c27))).reduce((a, x) => a + x.tot, 0);
+    }
+    return { c26, curso, sinap, cursoXl, sinapXl, obras, sheetC: nC, sheetA: nA };
   }
   async function readAnyAsync(XLSX, JSZip, data) {
     const out = readAny(XLSX, data);
@@ -3848,13 +3858,14 @@ const CrecS = {
         if (c.p27_u) c.p27_u = tot27 ? { t: nf(0).format(x / tot27 * 100) + '%', cls: 'share' } : { t: '', cls: 'blank' };
         if (c.var_p) c.var_p = { t: '', cls: 'blank' }; return c; };
       rows.push({ spacer: true }, { label: 'PPTO 2027 por estado', sub: '$ y % del total', style: 'blockhead', cls: 'estrow', cells: {} });
-      if (cs.curso != null) rows.push({ label: 'En curso', sub: 'proyectos on going', style: 'child', cls: 'estrow', cells: est(cs.curso) });
-      if (cs.sinap != null) rows.push({ label: 'Sin aprobación', sub: 'proyectos futuros', style: 'child', cls: 'estrow', cells: est(cs.sinap) });
+      const byC = cs.obras.some(x => x.c27), isPase = x => /pase de a.o/i.test(E.norm(x.c27 || '')), M = cs.obras.filter(x => Math.abs(x.tot) >= 1e-9);
+      if (cs.curso != null) rows.push({ label: 'En curso', sub: 'proyectos on going', style: 'child', cls: 'estrow', cells: est(cs.curso), drill: byC ? { title: 'En curso · pase de año a 2027', sls: this.sls(M.filter(isPase)) } : null });
+      if (cs.sinap != null) rows.push({ label: 'Sin aprobación', sub: 'proyectos futuros', style: 'child', cls: 'estrow', cells: est(cs.sinap), drill: byC ? { title: 'Sin aprobación · proyectos futuros', sls: this.sls(M.filter(x => !isPase(x))) } : null });
       rows.push({ label: 'Total PPTO 2027', style: 'sub', cls: 'estrow estend', cells: est((cs.curso || 0) + (cs.sinap || 0)) });
     }
     const d = T && T.v.fc ? fVar(vr(T.v.p27[0], T.v.fc[0])) : null;
     return Object.assign(base, { title: 'Crecimiento Simplicity', sub: `En ${unitLbl()} · PPTO 2026 y aterrizaje 9+3 vs PPTO 2027 por tipo de obra`,
-      note: 'Fuente: hoja Cuadro del libro de Crecimiento Simplicity, tal cual. En curso / sin aprobación: filas resumen de ANALISIS CRECIMIENTO.', rows,
+      note: 'Fuente: hoja Cuadro del libro de Crecimiento Simplicity, tal cual. ' + (cs.obras.some(x => x.c27) ? 'En curso = obras con CLASIFICACIÓN "PASE DE AÑO A 2027" en ANALISIS CRECIMIENTO; sin aprobación = el resto de las obras con monto 2027.' : 'En curso / sin aprobación: filas resumen de ANALISIS CRECIMIENTO.'), rows,
       kpis: T ? [{ k: 'PPTO 2027', v: '$' + fAmt(T.v.p27[0]).t + unitShort(), d: (d && d.t ? d.t + ' vs 9+3 · ' : '') + nf(1).format(T.v.p27[1]) + ' obras', plain: true, hero: true, tone: 'ppto' },
         { k: 'En curso · sin aprobación', tone: 'ater', plain: true, v: '$' + fAmt(cs.curso || 0).t + ' · $' + fAmt(cs.sinap || 0).t, d: T.v.p27[0] ? nf(0).format((cs.curso || 0) / T.v.p27[0] * 100) + '% ya aprobado' : '' }] : [] });
   },
@@ -3866,6 +3877,13 @@ const CrecS = {
       out.push({ label: 'Cuadro: tipos de obra = TOTAL', ok: !L.length, warn: true, count: L.length, detail: L, okTxt: 'cruza' }); }
     if (T && cs.curso != null && cs.sinap != null){ const s = cs.curso + cs.sinap, ok = Math.abs(s - T.v.p27[0]) <= 0.01;
       out.push({ label: 'En curso + sin aprobación = PPTO 2027 del Cuadro', ok, count: ok ? 0 : 1, detail: [`En curso ${f2(cs.curso)} + sin aprobación ${f2(cs.sinap)} = ${f2(s)} vs PPTO 2027 ${f2(T.v.p27[0])} · dif. ${f2(s - T.v.p27[0])}. Revisá los rangos que suman las filas EN CURSO y SIN APROBACION en ANALISIS CRECIMIENTO.`], okTxt: 'cruza: ' + f2(s) }); }
+    if (cs.obras.some(x => x.c27) && (cs.cursoXl != null || cs.sinapXl != null)){
+      const L = [];
+      if (cs.cursoXl != null && Math.abs(cs.cursoXl - cs.curso) > 0.01) L.push(`EN CURSO: fila del Excel ${f2(cs.cursoXl)} vs obras con PASE DE AÑO A 2027 ${f2(cs.curso)} · dif. ${f2(cs.cursoXl - cs.curso)}`);
+      if (cs.sinapXl != null && Math.abs(cs.sinapXl - cs.sinap) > 0.01) L.push(`SIN APROBACION: fila del Excel ${f2(cs.sinapXl)} vs resto de las obras ${f2(cs.sinap)} · dif. ${f2(cs.sinapXl - cs.sinap)}`);
+      if (L.length) L.push('Áurea usa la suma de las obras. Las filas EN CURSO / SIN APROBACION de ANALISIS CRECIMIENTO suman rangos fijos de filas (ej. =SUM(BK23:BK31)): si agregaste o moviste obras, ampliá esos rangos o pasalos a SUMAR.SI por la columna Clasificación.');
+      out.push({ label: 'Filas EN CURSO / SIN APROBACION del Excel vs obras', ok: !L.length, warn: true, count: L.length ? L.length - 1 : 0, detail: L, okTxt: 'coinciden con las obras' });
+    }
     const tipos = new Set(lines.map(r => E.norm(r.label))), obT = cs.obras.filter(x => tipos.has(E.norm(x.tipo))), ob = obT.reduce((a, x) => a + x.tot, 0);
     const fuera = cs.obras.filter(x => !tipos.has(E.norm(x.tipo)) && Math.abs(x.tot) >= 0.005);
     if (T) out.push({ label: 'Obras de ANALISIS = PPTO 2027 del Cuadro', ok: Math.abs(ob - T.v.p27[0]) <= 0.01, warn: true, count: 1,
@@ -5438,7 +5456,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="10/11/2026 16:18";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="10/11/2026 16:37";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
