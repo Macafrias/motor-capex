@@ -508,8 +508,6 @@ html.share .slide [contenteditable]{cursor:text}
 html.presenting .stage{position:fixed;inset:0;z-index:9000;width:100vw!important;height:100vh!important;border-radius:0;box-shadow:none;background:#0B1020}
 html.presenting .stage:fullscreen{background:#0B1020}
 html.presenting .pres-ui{display:block;position:absolute;inset:0;z-index:5;pointer-events:none}
-html.presenting .slide{transition:opacity .14s ease}
-html.presenting .slide.pres-fade{opacity:0}
 .pres-nav{pointer-events:auto;position:absolute;top:50%;transform:translateY(-50%);width:54px;height:54px;border-radius:50%;border:0;background:rgba(15,23,42,.55);color:#fff;display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .25s ease,background .15s ease;backdrop-filter:blur(6px)}
 .pres-nav svg{width:26px;height:26px}
 .pres-nav.prev{left:18px}.pres-nav.next{right:18px}
@@ -568,12 +566,101 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
 
 .ct .ge{border-right:2px solid #C9CFDD!important}
 .ct.cfx tbody tr:last-child td:not(.lbl):not(.cgap){border-bottom:2px solid #C9CFDD}
+/* ---------- presentación dinámica: entradas, salidas, portada, índice ---------- */
+html.presenting .stage{background:radial-gradient(120% 90% at 50% 40%,#151B33 0%,#0B1020 70%)}
+html.presenting .slide,html.presenting .pres-cover{box-shadow:0 30px 80px -20px rgba(0,0,0,.55)}
+.pres-prog{position:absolute;left:0;right:0;top:0;height:3px;background:rgba(255,255,255,.06)}
+.pres-prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#B9A6E3,#8FB6E8,#F2B47E);transition:width .6s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 12px rgba(185,166,227,.6)}
+.pres-x svg{width:13px;height:13px;vertical-align:-2px;margin-right:6px}
+.pres-x.ghost{background:transparent;padding-left:6px}
+.pres-x.ghost:hover{background:rgba(255,255,255,.12)}
+.pres-ui.ov-on .pres-bar,.pres-ui.ov-on .pres-nav{opacity:1}
+
+/* salida: la slide se corre y se desvanece hacia el lado contrario al avance */
+@keyframes pOut{to{opacity:0;transform:translateX(calc(var(--dir,1) * -70px)) scale(.965);filter:blur(2px)}}
+.p-out{animation:pOut .28s cubic-bezier(.4,0,1,1) forwards}
+/* entrada: el lienzo llega desde el lado del avance y su contenido aparece en cascada */
+@keyframes pIn{from{opacity:0;transform:translateX(calc(var(--dir,1) * 70px)) scale(.985)}to{opacity:1;transform:none}}
+@keyframes pUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes pFade{from{opacity:0}to{opacity:1}}
+@keyframes pPop{0%{opacity:0;transform:translateY(10px) scale(.92)}70%{opacity:1;transform:scale(1.025)}100%{opacity:1;transform:none}}
+@keyframes pRow{from{opacity:0;transform:translateX(calc(var(--dir,1) * 18px))}to{opacity:1;transform:none}}
+@keyframes pBar{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pLine{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.slide.p-in{animation:pIn .5s cubic-bezier(.2,.8,.2,1) both}
+.slide.p-in::before{transform-origin:top;animation:pBar .7s .05s cubic-bezier(.2,.8,.2,1) both}
+.slide.p-in .s-eyebrow{animation:pUp .45s .08s both}
+.slide.p-in .s-title{animation:pUp .5s .14s cubic-bezier(.2,.8,.2,1) both}
+.slide.p-in .s-sub{animation:pUp .5s .22s both}
+.slide.p-in .kpi{animation:pPop .55s calc(.26s + var(--i,0) * .09s) cubic-bezier(.2,.8,.2,1) both}
+.slide.p-in .ct thead tr{animation:pFade .4s .3s both}
+.slide.p-in .ct tbody tr{animation:pRow .42s calc(.36s + var(--i,0) * .03s) cubic-bezier(.2,.8,.2,1) both}
+.slide.p-in .s-foot{animation:pFade .5s .7s both}
+/* mientras se presenta, la fila bajo el mouse se destaca */
+html.presenting .ct tbody tr{transition:background .15s ease}
+html.presenting .ct tbody tr:hover td{background-image:linear-gradient(rgba(75,58,134,.07),rgba(75,58,134,.07))}
+
+/* portada y cierre */
+.pres-cover{position:absolute;inset:0;width:1280px;height:720px;background:#fff;overflow:hidden;font-family:var(--f-light);color:var(--slate)}
+.pres-cover[hidden]{display:none}
+.pc-bars{position:absolute;left:0;top:0;bottom:0;width:14px;display:flex;flex-direction:column}
+.pc-bars i{flex:1;transform-origin:top}
+.pc-bars i:nth-child(1){background:var(--ppto-h)} .pc-bars i:nth-child(2){background:var(--real-h)} .pc-bars i:nth-child(3){background:var(--ater-h)}
+.pc-main{position:absolute;left:96px;top:0;bottom:0;width:640px;display:flex;flex-direction:column;justify-content:center}
+.pc-main.end{width:900px}
+.pc-eye{font-family:var(--f-reg);font-weight:700;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--ppto-ht)}
+.pc-title{margin:16px 0 0;font-weight:400;font-size:60px;line-height:1.04;letter-spacing:-.02em;color:var(--slate)}
+.pc-main.end .pc-title{font-size:84px}
+.pc-sub{margin-top:14px;font-size:24px;color:var(--ink-2)}
+.pc-line{width:180px;height:3px;margin:28px 0 18px;border-radius:2px;background:linear-gradient(90deg,#B9A6E3,#8FB6E8,#F2B47E);transform-origin:left}
+.pc-meta{font-size:15px;color:var(--ink-2)}
+.pc-back{margin-top:34px;align-self:flex-start;border:1px solid var(--rule);background:#fff;border-radius:999px;padding:9px 18px;font:600 14px var(--f-reg);color:var(--ppto-ht);cursor:pointer;transition:background .15s,transform .15s}
+.pc-back:hover{background:var(--ppto-c);transform:translateY(-1px)}
+.pc-orb{position:absolute;right:-180px;top:-140px;width:620px;height:620px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(222,211,243,.9),rgba(201,221,245,.55) 45%,rgba(249,217,184,.35) 70%,transparent 72%);pointer-events:none}
+.pres-cover.end .pc-orb{right:auto;left:auto;right:-120px;top:auto;bottom:-260px;width:760px;height:760px}
+.pc-year{position:absolute;right:46px;bottom:22px;font:700 13px var(--f-reg);letter-spacing:.2em;color:#B7BCCB}
+.pc-agenda{position:absolute;right:70px;top:50%;transform:translateY(-50%);width:390px;margin:0;padding:22px 20px 18px;list-style:none;background:rgba(255,255,255,.82);backdrop-filter:blur(10px);border:1px solid var(--rule);border-radius:16px;box-shadow:0 18px 40px -18px rgba(43,52,82,.25);z-index:1}
+.pc-ah{font:700 11px var(--f-reg);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);padding:0 10px 10px}
+.pc-agenda button{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;width:100%;padding:8px 10px;border-radius:9px;cursor:pointer;font-family:var(--f-reg);font-size:15px;color:var(--slate);transition:background .15s,transform .15s}
+.pc-agenda button:hover{background:var(--ppto-c);transform:translateX(4px)}
+.pc-agenda .n{font:700 11px var(--f-reg);color:var(--ppto-ht);width:20px}
+.pc-agenda b{font-weight:600;flex:1}
+.pc-agenda em{font:600 11px var(--f-reg);font-style:normal;color:var(--ink-2);background:var(--tint);border-radius:999px;padding:2px 8px}
+.pres-cover.p-in .pc-bars i{animation:pBar .7s cubic-bezier(.2,.8,.2,1) both}
+.pres-cover.p-in .pc-bars i:nth-child(2){animation-delay:.1s} .pres-cover.p-in .pc-bars i:nth-child(3){animation-delay:.2s}
+.pres-cover.p-in .pc-orb{animation:pFade 1.4s .1s both}
+.pres-cover.p-in .pc-eye{animation:pUp .5s .25s both}
+.pres-cover.p-in .pc-title{animation:pUp .7s .35s cubic-bezier(.2,.8,.2,1) both}
+.pres-cover.p-in .pc-sub{animation:pUp .6s .5s both}
+.pres-cover.p-in .pc-line{animation:pLine .7s .62s cubic-bezier(.2,.8,.2,1) both}
+.pres-cover.p-in .pc-meta,.pres-cover.p-in .pc-year,.pres-cover.p-in .pc-back{animation:pFade .6s .8s both}
+.pres-cover.p-in .pc-agenda{animation:pFade .5s .55s both}
+.pres-cover.p-in .pc-agenda li{animation:pRow .45s calc(.7s + var(--i,0) * .06s) both}
+
+/* índice de slides */
+.pres-ov{position:absolute;inset:0;pointer-events:auto;background:rgba(9,13,28,.72);backdrop-filter:blur(14px);padding:64px 72px 90px;overflow:auto;opacity:0;transition:opacity .22s ease;color:#E7ECF7;font-family:var(--f-reg)}
+.pres-ov.open{opacity:1}
+.ov-head{display:flex;align-items:baseline;gap:16px;margin-bottom:26px}
+.ov-head b{font:400 30px var(--f-light);color:#fff}
+.ov-head span{font-size:13px;color:#8792AD}
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
+.ov-grid section{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 14px 12px}
+.ov-grid h4{margin:0 0 10px;font-size:14px;font-weight:700;color:#fff;display:flex;gap:10px;align-items:baseline}
+.ov-grid h4 span{font-size:11px;color:#B9A6E3}
+.ov-grid section div{display:flex;flex-direction:column;gap:4px}
+.ov-grid button{all:unset;box-sizing:border-box;display:flex;gap:10px;align-items:center;padding:7px 10px;border-radius:8px;font-size:13px;color:#C9D1E4;cursor:pointer;transition:background .15s,color .15s,transform .15s}
+.ov-grid button:hover{background:rgba(255,255,255,.1);color:#fff;transform:translateX(3px)}
+.ov-grid button.on{background:linear-gradient(90deg,rgba(185,166,227,.35),rgba(185,166,227,.08));color:#fff;box-shadow:inset 3px 0 0 #B9A6E3}
+.ov-grid button .n{font-size:11px;color:#8792AD;min-width:18px;font-variant-numeric:tabular-nums}
+.pres-ov.open .ov-grid section{animation:pUp .4s calc(var(--g,0) * .05s) cubic-bezier(.2,.8,.2,1) both}
+@media (prefers-reduced-motion: reduce){.p-in,.p-in *,.p-out,.pres-ov.open .ov-grid section{animation:none!important}}
+
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 20:57</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 21:01</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -597,7 +684,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 20:57</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 21:01</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -616,7 +703,9 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
       <div class="pres-ui" id="presUi" aria-hidden="true">
         <button class="pres-nav prev" id="presPrev" type="button" aria-label="Slide anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
         <button class="pres-nav next" id="presNext" type="button" aria-label="Slide siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
-        <div class="pres-bar"><span class="pres-name" id="presName"></span><span class="pres-count" id="presCount"></span><span class="pres-keys">← → para pasar · Esc para salir</span><button class="pres-x" id="presExit" type="button">Salir</button></div>
+        <div class="pres-prog"><i id="presProg"></i></div>
+        <div class="pres-ov" id="presOv" hidden></div>
+        <div class="pres-bar"><button class="pres-x ghost" id="presIdx" type="button" title="Índice de slides (G)"><svg viewBox="0 0 16 16" fill="currentColor"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2"/></svg>Índice</button><span class="pres-name" id="presName"></span><span class="pres-count" id="presCount"></span><span class="pres-keys">← → pasar · G índice · Esc salir</span><button class="pres-x" id="presExit" type="button">Salir</button></div>
       </div>
       <div class="stage-inner" id="stageInner">
         <div class="slide" id="slide">
@@ -634,6 +723,7 @@ html.presenting .s-title,html.presenting .s-sub,html.presenting [contenteditable
             <div class="brandline" id="sBrand">Farmacity · PCG</div>
           </div>
         </div>
+        <div class="pres-cover" id="presCover" hidden></div>
       </div>
       <div class="busy" id="busy" hidden><span><span class="spin"></span><span id="busyTxt">Leyendo el Excel…</span></span></div>
     </div>
@@ -4091,36 +4181,142 @@ function scaleStage(){
   $('#stageInner').style.transform = `scale(${s})`;
 }
 
-/* ============ modo presentación: la slide a pantalla completa, con flechas para recorrer todas ============ */
-const PRES = { on: false, t: null };
+/* ============ modo presentación: portada animada, transiciones de entrada/salida, índice y cierre ============ */
+const PRES = { on: false, t: null, busy: false, cover: null, ov: false };
+const RM = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const presPages = () => allPages().filter(p => p.cuadro !== Ctl);
+const presHasCover = () => state.ppt.cover !== false;
+/* posición en la secuencia: -1 = portada, 0..n-1 = slides, n = cierre */
+function presPos(){
+  const P = presPages();
+  if (PRES.cover === 'start') return -1;
+  if (PRES.cover === 'end') return P.length;
+  return Math.max(0, P.findIndex(p => p.key === state.page));
+}
 function presInfo(){
-  const P = presPages(), i = Math.max(0, P.findIndex(p => p.key === state.page)), p = P[i];
-  $('#presCount').textContent = (i + 1) + ' / ' + P.length;
-  $('#presName').textContent = p ? p.cuadro.name + (p.label ? ' · ' + p.label : '') : '';
-  $('#presPrev').disabled = i <= 0; $('#presNext').disabled = i >= P.length - 1;
+  const P = presPages(), i = presPos(), lo = presHasCover() ? -1 : 0;
+  const p = i >= 0 && i < P.length ? P[i] : null;
+  $('#presCount').textContent = p ? (i + 1) + ' / ' + P.length : '';
+  $('#presName').textContent = p ? p.cuadro.name + (p.label ? ' · ' + p.label : '') : i < 0 ? 'Portada' : 'Cierre';
+  $('#presPrev').disabled = i <= lo; $('#presNext').disabled = i >= P.length;
+  $('#presProg').style.width = (Math.min(P.length, Math.max(0, i + 1)) / Math.max(1, P.length) * 100) + '%';
+  if (PRES.ov) presOvRender();
+}
+/* agenda: un renglón por cuadro, en el orden de la presentación */
+function presAgenda(){
+  const seen = new Map();
+  presPages().forEach(p => { if (!seen.has(p.cuadro)) seen.set(p.cuadro, { key: p.key, n: 0 }); seen.get(p.cuadro).n++; });
+  return [...seen.entries()].map(([c, v]) => ({ name: c.name, blurb: c.blurb, key: v.key, n: v.n }));
+}
+function presCoverHtml(kind){
+  const anioP = (state.ds && state.ds.params && state.ds.params.anioPpto) || 2027;
+  const d = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const bars = '<div class="pc-bars"><i></i><i></i><i></i></div>';
+  if (kind === 'end') return `${bars}<div class="pc-main end">
+      <div class="pc-eye">Farmacity · Presupuesto, control y gestión</div>
+      <h1 class="pc-title">Muchas gracias</h1>
+      <div class="pc-sub">¿Preguntas o comentarios?</div><div class="pc-line"></div>
+      <div class="pc-meta">${esc(pptTitle())} · ${d}</div>
+      <button class="pc-back" type="button" data-pjump="start">↺ Volver al inicio</button></div>
+    <div class="pc-orb"></div>`;
+  const ag = presAgenda();
+  return `${bars}<div class="pc-main">
+      <div class="pc-eye">Farmacity · Presupuesto, control y gestión</div>
+      <h1 class="pc-title">${esc(pptTitle())}</h1>
+      ${(state.ppt.sub || '').trim() ? `<div class="pc-sub">${esc(state.ppt.sub.trim())}</div>` : ''}<div class="pc-line"></div>
+      <div class="pc-meta">En ${esc(unitLbl())} · Real acumulado a ${esc(mesTxt())} · ${d}</div></div>
+    <ol class="pc-agenda"><li class="pc-ah">Agenda</li>${ag.map((a, i) => `<li style="--i:${i}"><button type="button" data-pjump="${esc(a.key)}"><span class="n">${String(i + 1).padStart(2, '0')}</span><b>${esc(a.name)}</b>${a.n > 1 ? `<em>${a.n}</em>` : ''}</button></li>`).join('')}</ol>
+    <div class="pc-orb"></div><div class="pc-year">${anioP}</div>`;
+}
+/* coreografía de entrada: títulos, KPIs (con conteo), tabla fila a fila y pie */
+function presCount(el){
+  const m = el.textContent.match(/\d[\d.]*(,\d+)?/); if (!m) return;
+  const dec = m[1] ? m[1].length - 1 : 0, to = parseFloat(m[0].replace(/\./g, '').replace(',', '.'));
+  if (!isFinite(to) || to === 0) return;
+  const pre = el.textContent.slice(0, m.index), post = el.textContent.slice(m.index + m[0].length);
+  const fmt = new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const t0 = performance.now() + 260, dur = 900;
+  const step = now => { const k = Math.min(1, Math.max(0, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3); el.textContent = pre + fmt.format(to * e) + post; if (k < 1 && PRES.on) requestAnimationFrame(step); else el.textContent = pre + m[0] + post; };
+  requestAnimationFrame(step);
+}
+function presEnter(el, dir){
+  if (RM()) return;
+  el.style.setProperty('--dir', dir < 0 ? -1 : 1);
+  if (el.id === 'slide'){
+    const rows = el.querySelectorAll('.ct tbody tr');
+    rows.forEach((r, i) => r.style.setProperty('--i', Math.min(i, 22)));
+    el.querySelectorAll('.kpi').forEach((k, i) => { k.style.setProperty('--i', i); const v = k.querySelector('.v'); if (v) presCount(v); });
+  }
+  el.classList.remove('p-out'); void el.offsetWidth; el.classList.add('p-in');
+  clearTimeout(el._pin); el._pin = setTimeout(() => el.classList.remove('p-in'), 1800);
+}
+function presShow(target, dir){
+  const P = presPages(), slide = $('#slide'), cov = $('#presCover');
+  if (target === 'start' || target === 'end'){
+    PRES.cover = target; cov.innerHTML = presCoverHtml(target); cov.className = 'pres-cover ' + target; cov.hidden = false; slide.style.visibility = 'hidden';
+    presEnter(cov, dir);
+  } else {
+    PRES.cover = null; cov.hidden = true; slide.style.visibility = '';
+    state.page = P[target].key; state.drill = null; $('#drawer').hidden = true; rerender(); fitTable();
+    presEnter(slide, dir);
+  }
+  presInfo();
+}
+function presTo(target, dir){
+  if (PRES.busy) return;
+  const out = PRES.cover ? $('#presCover') : $('#slide');
+  if (RM()){ presShow(target, dir); return; }
+  PRES.busy = true;
+  out.style.setProperty('--dir', dir < 0 ? -1 : 1);
+  out.classList.remove('p-in'); out.classList.add('p-out');
+  setTimeout(() => { out.classList.remove('p-out'); presShow(target, dir); PRES.busy = false; }, 280);
 }
 function presGo(d){
-  const P = presPages(), i = P.findIndex(p => p.key === state.page), j = Math.min(P.length - 1, Math.max(0, (i < 0 ? 0 : i) + d));
+  const P = presPages(), i = presPos(), lo = presHasCover() ? -1 : 0;
+  const j = Math.min(P.length, Math.max(lo, i + d));
   if (j === i) return;
-  const sl = $('#slide'); sl.classList.add('pres-fade');
-  setTimeout(() => { state.page = P[j].key; state.drill = null; $('#drawer').hidden = true; rerender(); presInfo(); requestAnimationFrame(() => sl.classList.remove('pres-fade')); }, 140);
+  presTo(j < 0 ? 'start' : j >= P.length ? 'end' : j, j > i ? 1 : -1);
+}
+function presJump(key){
+  presOv(false);
+  if (key === 'start') return presTo(presHasCover() ? 'start' : 0, -1);
+  const P = presPages(), j = P.findIndex(p => p.key === key);
+  if (j >= 0 && !(j === presPos() && !PRES.cover)) presTo(j, j >= presPos() ? 1 : -1);
+}
+/* índice: todas las slides agrupadas por cuadro, clic para saltar */
+function presOvRender(){
+  const P = presPages(), cur = PRES.cover ? null : state.page; let k = 0;
+  const groups = presAgenda().map((a, gi) => {
+    const pages = P.filter(p => p.cuadro.name === a.name);
+    return `<section style="--g:${gi}"><h4><span>${String(gi + 1).padStart(2, '0')}</span>${esc(a.name)}</h4><div>${pages.map(p => `<button type="button" data-pjump="${esc(p.key)}" class="${p.key === cur ? 'on' : ''}" style="--i:${k++}"><span class="n">${P.indexOf(p) + 1}</span>${esc(p.label || 'Slide única')}</button>`).join('')}</div></section>`;
+  }).join('');
+  $('#presOv').innerHTML = `<div class="ov-head"><b>Índice de la presentación</b><span>${P.length} slides · clic para ir · G o Esc para cerrar</span></div><div class="ov-grid">${groups}</div>`;
+}
+function presOv(on){
+  PRES.ov = on == null ? !PRES.ov : on;
+  const ov = $('#presOv');
+  if (PRES.ov){ presOvRender(); ov.hidden = false; requestAnimationFrame(() => ov.classList.add('open')); $('#presUi').classList.add('ov-on'); }
+  else { ov.classList.remove('open'); $('#presUi').classList.remove('ov-on'); setTimeout(() => { if (!PRES.ov) ov.hidden = true; }, 220); }
 }
 function presWake(){
   const ui = $('#presUi'); ui.classList.add('awake'); clearTimeout(PRES.t);
-  PRES.t = setTimeout(() => ui.classList.remove('awake'), 2200);
+  PRES.t = setTimeout(() => ui.classList.remove('awake'), 2400);
 }
 async function presStart(){
+  if (!presPages().length) return;
   if (!presPages().some(p => p.key === state.page)) state.page = presPages()[0].key;
   if (document.activeElement) document.activeElement.blur();
-  PRES.on = true; document.documentElement.classList.add('presenting');
+  PRES.on = true; PRES.busy = false; document.documentElement.classList.add('presenting');
   const st = $('#stage');
   try { if (st.requestFullscreen) await st.requestFullscreen(); else if (st.webkitRequestFullscreen) st.webkitRequestFullscreen(); } catch (e) {}
-  rerender(); presInfo(); presWake(); scaleStage(); fitTable();
+  scaleStage();
+  const P = presPages(), i = P.findIndex(p => p.key === state.page);
+  presShow(presHasCover() && i === 0 ? 'start' : i, 1); presWake();
 }
 function presEnd(){
   if (!PRES.on) return;
-  PRES.on = false; document.documentElement.classList.remove('presenting');
+  PRES.on = false; PRES.cover = null; presOv(false); document.documentElement.classList.remove('presenting');
+  $('#presCover').hidden = true; $('#slide').style.visibility = ''; $('#slide').classList.remove('p-in', 'p-out');
   if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
   $('#stageInner').style.transform = ''; scaleStage(); renderSlide();
 }
@@ -4128,6 +4324,9 @@ $('#presGo').onclick = presStart;
 $('#presPrev').onclick = e => { e.stopPropagation(); presGo(-1); };
 $('#presNext').onclick = e => { e.stopPropagation(); presGo(1); };
 $('#presExit').onclick = e => { e.stopPropagation(); presEnd(); };
+$('#presIdx').onclick = e => { e.stopPropagation(); presOv(); };
+$('#stage').addEventListener('click', e => { const b = e.target.closest('[data-pjump]'); if (b && PRES.on){ e.stopPropagation(); presJump(b.dataset.pjump); } });
+$('#presOv').addEventListener('click', e => { if (e.target.id === 'presOv') presOv(false); });
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && PRES.on) presEnd(); else scaleStage(); });
 window.addEventListener('resize', () => { if (PRES.on) scaleStage(); });
 $('#stage').addEventListener('mousemove', () => { if (PRES.on) presWake(); });
@@ -4135,10 +4334,12 @@ document.addEventListener('keydown', e => {
   if (!PRES.on) return;
   const ed = document.activeElement && document.activeElement.isContentEditable;
   if (ed) { if (e.key === 'Escape') document.activeElement.blur(); return; }
-  if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); presGo(1); }
-  else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); presGo(-1); }
-  else if (e.key === 'Home') { e.preventDefault(); presGo(-999); }
-  else if (e.key === 'End') { e.preventDefault(); presGo(999); }
+  if (e.key === 'g' || e.key === 'G' || e.key === 'o' || e.key === 'O') { e.preventDefault(); presOv(); return; }
+  if (PRES.ov && e.key === 'Escape') { presOv(false); return; }
+  if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); presOv(false); presGo(1); }
+  else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); presOv(false); presGo(-1); }
+  else if (e.key === 'Home') { e.preventDefault(); presOv(false); presGo(-999); }
+  else if (e.key === 'End') { e.preventDefault(); presOv(false); presGo(999); }
   else if (e.key === 'Escape') presEnd();
 });
 
@@ -4938,7 +5139,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="09/11/2026 20:57";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="09/11/2026 21:01";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
