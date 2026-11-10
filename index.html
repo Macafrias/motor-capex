@@ -690,12 +690,49 @@ html.presenting .ct tbody tr:hover td{background-image:linear-gradient(rgba(75,5
 .pres-drill.settled,.pres-drill.settled *{animation:none!important}
 .pres-drill.closing{animation:pFade .22s reverse both}
 .pres-drill.closing .drawer-head,.pres-drill.closing .tscroll{animation:dDown .22s ease-in both}
+
+/* ---------- comentarios sobre la slide ---------- */
+.note-btn svg{width:15px;height:15px;margin-right:6px;vertical-align:-3px}
+.pres-x.ghost svg{width:14px;height:14px}
+.s-notes{position:absolute;inset:0;pointer-events:none;z-index:4}
+.snote{position:absolute;pointer-events:auto;box-sizing:border-box;padding:12px 16px 12px 16px;border-radius:10px;border:1px solid;font-family:var(--f-reg);line-height:1.38;box-shadow:0 6px 18px -8px rgba(43,52,82,.28);transition:box-shadow .15s}
+.snote.sn-s{font-size:13px} .snote.sn-m{font-size:15px} .snote.sn-l{font-size:18px}
+.snote b{font-weight:700}
+.sn-nota{background:#fff;border-color:#DDE1EA;color:#2B3452;box-shadow:inset 4px 0 0 #9C88D8,0 6px 18px -8px rgba(43,52,82,.28);padding-left:20px}
+.sn-clave{background:#EAE1F8;border-color:#D5C8F0;color:#3E2F73}
+.sn-alerta{background:#FEF0E1;border-color:#F4CFA6;color:#8A4B12;box-shadow:inset 4px 0 0 #E8A160,0 6px 18px -8px rgba(43,52,82,.28);padding-left:20px}
+.sn-ok{background:#E4F3E9;border-color:#B9DFC6;color:#1E5634;box-shadow:inset 4px 0 0 #5DB27E,0 6px 18px -8px rgba(43,52,82,.28);padding-left:20px}
+.sn-info{background:#F1F6FD;border-color:#C9DDF5;color:#1F4E86;box-shadow:inset 4px 0 0 #6E9FD8,0 6px 18px -8px rgba(43,52,82,.28);padding-left:20px}
+.sn-oscuro{background:#2B3452;border-color:#2B3452;color:#fff}
+.sn-txt{outline:none;min-height:1.38em;cursor:text;word-wrap:break-word}
+.sn-txt:focus,.sn-txt:focus-visible{outline:none!important;box-shadow:none!important;background:transparent!important}
+.sn-txt:empty::before{content:attr(data-ph);opacity:.5}
+.snote:hover,.snote.sel{outline:1.5px dashed rgba(110,86,201,.55);outline-offset:3px}
+.snote.drag{cursor:grabbing;box-shadow:0 18px 36px -12px rgba(43,52,82,.45);opacity:.96}
+.sn-tools{position:absolute;left:-1px;bottom:calc(100% + 8px);display:flex;align-items:center;gap:3px;padding:4px 6px;border-radius:10px;background:#1E2440;box-shadow:0 10px 24px -8px rgba(0,0,0,.45);opacity:0;transform:translateY(4px);pointer-events:none;transition:opacity .14s,transform .14s;white-space:nowrap;font-size:12px;line-height:1}
+.snote:hover .sn-tools,.snote.sel .sn-tools{opacity:1;transform:none;pointer-events:auto}
+.sn-tools button{all:unset;box-sizing:border-box;display:inline-grid;place-items:center;min-width:22px;height:22px;border-radius:6px;color:#C9D1E4;cursor:pointer;font:600 12px var(--f-reg)}
+.sn-tools button:hover{background:rgba(255,255,255,.12);color:#fff}
+.sn-tools button.on{background:rgba(255,255,255,.18);color:#fff}
+.sn-grip{display:inline-grid;place-items:center;width:16px;height:22px;color:#8792AD;cursor:grab}
+.sn-grip svg{width:8px;height:13px}
+.sn-dot{min-width:0!important;width:16px!important;height:16px!important;border-radius:50%!important;background:var(--d)!important;box-shadow:inset 0 0 0 2px var(--b);margin:0 1px}
+.sn-dot.on{outline:2px solid #fff;outline-offset:1px}
+.sn-sz[data-sz="s"]{font-size:10px!important} .sn-sz[data-sz="m"]{font-size:12.5px!important} .sn-sz[data-sz="l"]{font-size:15px!important}
+.sn-del svg{width:14px;height:14px}
+.sn-del:hover{color:#FF9C8F!important}
+.sn-sep{width:1px;height:16px;background:rgba(255,255,255,.14);margin:0 3px}
+.sn-rs{position:absolute;top:50%;right:-6px;width:10px;height:28px;margin-top:-14px;border-radius:5px;background:#fff;border:1.5px solid #9C88D8;cursor:ew-resize;opacity:0;transition:opacity .14s}
+.snote:hover .sn-rs,.snote.sel .sn-rs{opacity:1}
+.snote.fresh{animation:pPop .4s cubic-bezier(.2,.8,.2,1) both}
+.slide.p-in .snote{animation:pPop .55s .85s cubic-bezier(.2,.8,.2,1) both}
+html.presenting .snote:not(:hover):not(.sel){outline:none}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 09/11/2026 21:09</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 09:03</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -719,7 +756,7 @@ html.presenting .ct tbody tr:hover td{background-image:linear-gradient(rgba(75,5
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 09/11/2026 21:09</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 09:03</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -731,6 +768,7 @@ html.presenting .ct tbody tr:hover td{background-image:linear-gradient(rgba(75,5
     <div class="stagebar">
       <div class="seg" id="views" role="group" aria-label="Vista de columnas"></div>
       <span class="hint">Títulos y nota al pie se editan con un clic en la slide. Clic en una fila para ver sus SL.</span>
+      <button class="btn note-btn" id="noteAdd" type="button" title="Agregar un cuadro de comentario a esta slide (sale en la presentación, en el PNG y en el PowerPoint)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2.5 3.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1-1.5 1.5H7l-3 3v-3H4a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M5.5 5.5h5M5.5 7.8h3.2" stroke-linecap="round"/></svg>Comentario</button>
       <button class="btn pres-btn" id="presGo" type="button" title="Pantalla completa · flechas para pasar de slide · Esc para salir"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="9" rx="1.2"/><path d="M6.6 5.2v3.6L9.6 7z" fill="currentColor"/><path d="M5.5 14h5M8 11.5V14"/></svg>Presentar</button>
     </div>
     <div class="ctlbar" id="ctlbar" hidden></div>
@@ -741,7 +779,7 @@ html.presenting .ct tbody tr:hover td{background-image:linear-gradient(rgba(75,5
         <div class="pres-prog"><i id="presProg"></i></div>
         <div class="pres-ov" id="presOv" hidden></div>
         <button class="pres-reset" id="presReset" type="button" hidden><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8a5.5 5.5 0 1 0 1.7-4"/><path d="M2.5 2.5v3h3"/></svg>Volver al cuadro original</button>
-        <div class="pres-bar"><button class="pres-x ghost" id="presIdx" type="button" title="Índice de slides (G)"><svg viewBox="0 0 16 16" fill="currentColor"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2"/></svg>Índice</button><span class="pres-name" id="presName"></span><span class="pres-count" id="presCount"></span><span class="pres-keys">← → pasar · G índice · Esc salir</span><button class="pres-x" id="presExit" type="button">Salir</button></div>
+        <div class="pres-bar"><button class="pres-x ghost" id="presIdx" type="button" title="Índice de slides (G)"><svg viewBox="0 0 16 16" fill="currentColor"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2"/></svg>Índice</button><button class="pres-x ghost" id="presNote" type="button" title="Agregar comentario (C)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2.5 3.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1-1.5 1.5H7l-3 3v-3H4a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M5.5 5.5h5M5.5 7.8h3.2" stroke-linecap="round"/></svg>Comentario</button><span class="pres-name" id="presName"></span><span class="pres-count" id="presCount"></span><span class="pres-keys">← → pasar · G índice · Esc salir</span><button class="pres-x" id="presExit" type="button">Salir</button></div>
       </div>
       <div class="stage-inner" id="stageInner">
         <div class="slide" id="slide">
@@ -758,6 +796,7 @@ html.presenting .ct tbody tr:hover td{background-image:linear-gradient(rgba(75,5
             <div class="note" id="sNote" contenteditable="true" spellcheck="false"></div>
             <div class="brandline" id="sBrand">Farmacity · PCG</div>
           </div>
+          <div class="s-notes" id="sNotes"></div>
         </div>
         <div class="pres-cover" id="presCover" hidden></div>
         <div class="pres-drill" id="presDrill" hidden></div>
@@ -1817,7 +1856,7 @@ const state = {
   dir: null, dirName: null, dirPerm: null,
   page: saved.page || 'general',
   unit: saved.unit || 'M', pctDec: +(saved.pctDec || 0), dec: saved.dec == null ? 2 : +saved.dec, kpis: saved.kpis !== false, sem: saved.sem !== false,
-  texts: saved.texts || {}, opts: saved.opts || {}, drill: null, res: null, zoom: new Set(),
+  texts: saved.texts || {}, notes: saved.notes || {}, opts: saved.opts || {}, drill: null, res: null, zoom: new Set(),
   tipoSel: Array.isArray(saved.tipoSel) ? saved.tipoSel : null, tipoCol: !!saved.tipoCol, dsFull: null, _view: null, src26: saved.src26 === 'excel' ? 'excel' : 'sl',
   ver: Object.assign({ on: false, exp: false, note: false, sel: ['xl'] }, saved.ver || {}), _noVer: false,
   ppt: Object.assign({ title: '', sub: '', cover: true }, saved.ppt || {})
@@ -1830,7 +1869,7 @@ function persist(){
     if (o.byPage){ const bp = {}; for (const p in o.byPage){ const x = Object.assign({}, o.byPage[p]); if (x.cols instanceof Set) x.cols = [...x.cols]; bp[p] = x; } o.byPage = bp; }
     opts[k] = o;
   }
-  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, opts, tipoSel: state.tipoSel, tipoCol: state.tipoCol, ver: state.ver, ppt: state.ppt, src26: state.src26 });
+  ls.set(LS, { page: state.page, unit: state.unit, pctDec: state.pctDec, dec: state.dec, kpis: state.kpis, sem: state.sem, texts: state.texts, notes: state.notes, opts, tipoSel: state.tipoSel, tipoCol: state.tipoCol, ver: state.ver, ppt: state.ppt, src26: state.src26 });
 }
 
 /* ============ formato ============ */
@@ -4193,6 +4232,7 @@ function renderSlide(){
   $('#sKpis').innerHTML = kpiHtml(TM);
   $('#sFit').innerHTML = tableHtml(TM);
   fitTable();
+  renderNotes();
 }
 function fitTable(){
   const body = $('#sBody'), fit = $('#sFit'), tbl = fit.firstElementChild;
@@ -4217,6 +4257,134 @@ function scaleStage(){
   const s = st.clientWidth / 1280;
   st.style.height = (720 * s) + 'px';
   $('#stageInner').style.transform = `scale(${s})`;
+}
+
+/* ============ comentarios: cuadros de texto sobre la slide, con los estilos de la casa ============ */
+/* cada slide guarda sus comentarios (posición y ancho en px de la slide 1280×720); salen en la presentación, en el PNG y en el PowerPoint */
+const NOTE_ST = {
+  nota:    { label: 'Nota',      bg: 'FFFFFF', line: 'DDE1EA', fg: '2B3452', bar: '9C88D8' },
+  clave:   { label: 'Destacado', bg: 'EAE1F8', line: 'D5C8F0', fg: '3E2F73' },
+  alerta:  { label: 'Atención',  bg: 'FEF0E1', line: 'F4CFA6', fg: '8A4B12', bar: 'E8A160' },
+  ok:      { label: 'Positivo',  bg: 'E4F3E9', line: 'B9DFC6', fg: '1E5634', bar: '5DB27E' },
+  info:    { label: 'Dato',      bg: 'F1F6FD', line: 'C9DDF5', fg: '1F4E86', bar: '6E9FD8' },
+  oscuro:  { label: 'Oscuro',    bg: '2B3452', line: '2B3452', fg: 'FFFFFF' }
+};
+const NOTE_SZ = { s: 13, m: 15, l: 18 };
+const notesOf = key => state.notes[key] || (state.notes[key] = []);
+let _nSave;
+const noteSave = () => { clearTimeout(_nSave); _nSave = setTimeout(persist, 250); };
+/* el texto se guarda con un HTML mínimo: solo negrita, cursiva y saltos de línea */
+function noteClean(root){
+  let out = '';
+  const walk = (n, b, i) => n.childNodes.forEach(c => {
+    if (c.nodeType === 3){ let s = esc(c.nodeValue); if (b) s = '<b>' + s + '</b>'; if (i) s = '<i>' + s + '</i>'; out += s; return; }
+    if (c.nodeType !== 1) return;
+    const tg = c.tagName, fw = c.style && c.style.fontWeight;
+    if (tg === 'BR'){ out += '<br>'; return; }
+    const blk = tg === 'DIV' || tg === 'P' || tg === 'LI';
+    if (blk && out && !out.endsWith('<br>')) out += '<br>';
+    walk(c, b || tg === 'B' || tg === 'STRONG' || fw === 'bold' || +fw >= 600, i || tg === 'I' || tg === 'EM');
+  });
+  walk(root, false, false);
+  return out.replace(/<\/b><b>/g, '').replace(/<\/i><i>/g, '').replace(/(<br>)+$/, '');
+}
+function noteHtml(n, i){
+  const st = NOTE_ST[n.st] ? n.st : 'nota';
+  return `<div class="snote sn-${st} sn-${n.sz || 'm'}" data-n="${i}" style="left:${n.x}px;top:${n.y}px;width:${n.w}px">
+    <div class="sn-tools" contenteditable="false">
+      <span class="sn-grip" title="Arrastrar para mover"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/></svg></span>
+      ${Object.entries(NOTE_ST).map(([k, s]) => `<button type="button" class="sn-dot${k === st ? ' on' : ''}" data-st="${k}" title="${s.label}" style="--d:#${s.bg};--b:#${s.bar || s.line}"></button>`).join('')}
+      <i class="sn-sep"></i>
+      ${['s', 'm', 'l'].map(z => `<button type="button" class="sn-sz${(n.sz || 'm') === z ? ' on' : ''}" data-sz="${z}" title="Tamaño de letra">${{ s: 'A', m: 'A', l: 'A' }[z]}</button>`).join('')}
+      <button type="button" class="sn-b" data-cmd="bold" title="Negrita (Ctrl+B)"><b>B</b></button>
+      <i class="sn-sep"></i>
+      <button type="button" class="sn-del" title="Borrar comentario"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/></svg></button>
+    </div>
+    <div class="sn-txt" contenteditable="true" spellcheck="false" data-ph="Escribí tu comentario…">${n.html || ''}</div>
+    <i class="sn-rs" title="Arrastrar para cambiar el ancho"></i>
+  </div>`;
+}
+function renderNotes(){
+  const box = $('#sNotes'); if (!box) return;
+  const L = state.ds && state.page ? (state.notes[state.page] || []) : [];
+  box.innerHTML = L.map(noteHtml).join('');
+}
+function noteAdd(){
+  if (!state.ds) return;
+  const L = notesOf(state.page), k = L.length % 5;
+  L.push({ x: 820 - k * 24, y: 470 - k * 30, w: 380, st: 'nota', sz: 'm', html: '' });
+  noteSave(); renderNotes();
+  const el = $('#sNotes').lastElementChild; el.classList.add('sel', 'fresh');
+  setTimeout(() => { const tx = el.querySelector('.sn-txt'); tx.focus(); }, 30);
+}
+function noteFrom(el){ const L = state.notes[state.page] || []; return L[+el.dataset.n]; }
+const slideScale = () => $('#slide').getBoundingClientRect().width / 1280 || 1;
+(() => {
+  const box = $('#sNotes');
+  box.addEventListener('input', e => {
+    const el = e.target.closest('.snote'); if (!el) return;
+    const n = noteFrom(el); n.html = noteClean(e.target); n.h = el.offsetHeight; noteSave();
+  });
+  box.addEventListener('paste', e => {
+    if (!e.target.closest('.sn-txt')) return;
+    e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
+  });
+  box.addEventListener('focusin', e => { const el = e.target.closest('.snote'); box.querySelectorAll('.snote.sel').forEach(x => x !== el && x.classList.remove('sel')); if (el) el.classList.add('sel'); });
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('.snote')) box.querySelectorAll('.snote.sel').forEach(x => x.classList.remove('sel')); }, true);
+  box.addEventListener('mousedown', e => { if (e.target.closest('.sn-tools button')) e.preventDefault(); });
+  box.addEventListener('click', e => {
+    const el = e.target.closest('.snote'); if (!el) return;
+    const n = noteFrom(el), b = e.target.closest('button'); if (!b) return;
+    e.stopPropagation();
+    if (b.dataset.st){ n.st = b.dataset.st; }
+    else if (b.dataset.sz){ n.sz = b.dataset.sz; }
+    else if (b.dataset.cmd){ el.querySelector('.sn-txt').focus(); document.execCommand(b.dataset.cmd); n.html = noteClean(el.querySelector('.sn-txt')); noteSave(); return; }
+    else if (b.classList.contains('sn-del')){ const L = state.notes[state.page]; L.splice(+el.dataset.n, 1); if (!L.length) delete state.notes[state.page]; noteSave(); renderNotes(); return; }
+    noteSave(); renderNotes();
+    const nel = $('#sNotes').children[+el.dataset.n]; nel.classList.add('sel'); n.h = nel.offsetHeight;
+  });
+  /* mover (desde la manija o el borde) y cambiar el ancho */
+  box.addEventListener('pointerdown', e => {
+    const el = e.target.closest('.snote'); if (!el) return;
+    const rs = e.target.closest('.sn-rs'), grip = e.target.closest('.sn-grip') || e.target === el;
+    if (!rs && !grip) return;
+    e.preventDefault(); el.classList.add('sel', 'drag');
+    const n = noteFrom(el), s = slideScale(), x0 = e.clientX, y0 = e.clientY, ox = n.x, oy = n.y, ow = n.w;
+    const mv = ev => {
+      const dx = (ev.clientX - x0) / s, dy = (ev.clientY - y0) / s;
+      if (rs){ n.w = Math.round(Math.max(160, Math.min(1280 - n.x - 8, ow + dx))); el.style.width = n.w + 'px'; }
+      else {
+        n.x = Math.round(Math.max(4, Math.min(1280 - n.w - 4, ox + dx)));
+        n.y = Math.round(Math.max(4, Math.min(720 - el.offsetHeight - 4, oy + dy)));
+        el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
+      }
+    };
+    const up = () => { el.classList.remove('drag'); n.h = el.offsetHeight; noteSave(); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  });
+})();
+$('#noteAdd').onclick = noteAdd;
+/* PowerPoint: mismo cuadro, mismos colores, letra Calibri y negritas */
+function pptNotes(pptx, s, L){
+  if (!L || !L.length) return;
+  const k = 13.333 / 1280;
+  L.forEach(n => {
+    if (!n.html || !n.html.replace(/<[^>]+>/g, '').trim()) return;
+    const st = NOTE_ST[n.st] || NOTE_ST.nota, fs = (NOTE_SZ[n.sz] || 15) * 0.75;
+    const x = n.x * k, y = n.y * k, w = n.w * k, h = Math.max(0.35, (n.h || 60) * k);
+    const runs = [], d = document.createElement('div'); d.innerHTML = n.html;
+    let cur = null;
+    const push = (text, b, it) => runs.push({ text, options: { bold: !!b, italic: !!it, color: st.fg, fontFace: b ? 'Calibri' : 'Calibri', fontSize: fs } });
+    const walk = (nd, b, it) => nd.childNodes.forEach(c => {
+      if (c.nodeType === 3) return push(c.nodeValue, b, it);
+      if (c.tagName === 'BR'){ if (runs.length) runs[runs.length - 1].options.breakLine = true; else runs.push({ text: '', options: { breakLine: true } }); return; }
+      walk(c, b || c.tagName === 'B', it || c.tagName === 'I');
+    });
+    walk(d, false, false);
+    s.addText(runs, { x, y, w, h, shape: pptx.ShapeType.roundRect, rectRadius: 0.07, fill: { color: st.bg }, line: { color: st.line, width: 0.75 },
+      margin: [st.bar ? 12 : 9, 10, 7, 7], valign: 'top', lineSpacingMultiple: 1.12, fontFace: 'Calibri', fontSize: fs, color: st.fg, shadow: { type: 'outer', blur: 6, offset: 1.5, angle: 90, color: '2B3452', opacity: 0.12 } });
+    if (st.bar) s.addShape(pptx.ShapeType.rect, { x: x + 0.035, y: y + 0.09, w: 0.045, h: Math.max(0.1, h - 0.18), fill: { color: st.bar }, line: { color: st.bar, width: 0 } });
+  });
 }
 
 /* ============ modo presentación: portada animada, transiciones de entrada/salida, índice y cierre ============ */
@@ -4387,6 +4555,7 @@ $('#presPrev').onclick = e => { e.stopPropagation(); presGo(-1); };
 $('#presNext').onclick = e => { e.stopPropagation(); presGo(1); };
 $('#presExit').onclick = e => { e.stopPropagation(); presEnd(); };
 $('#presIdx').onclick = e => { e.stopPropagation(); presOv(); };
+$('#presNote').onclick = e => { e.stopPropagation(); if (!PRES.cover) noteAdd(); };
 $('#presReset').onclick = e => { e.stopPropagation(); presRestore(true); };
 $('#presDrill').addEventListener('click', e => { if (e.target.id === 'presDrill') presDrillClose(); });
 $('#stage').addEventListener('click', e => { const b = e.target.closest('[data-pjump]'); if (b && PRES.on){ e.stopPropagation(); presJump(b.dataset.pjump); } });
@@ -4399,6 +4568,7 @@ document.addEventListener('keydown', e => {
   const ed = document.activeElement && document.activeElement.isContentEditable;
   if (ed) { if (e.key === 'Escape') document.activeElement.blur(); return; }
   if (e.key === 'g' || e.key === 'G' || e.key === 'o' || e.key === 'O') { e.preventDefault(); presOv(); return; }
+  if ((e.key === 'c' || e.key === 'C') && !PRES.cover && !PRES.ov && $('#presDrill').hidden) { e.preventDefault(); noteAdd(); return; }
   if (PRES.ov && e.key === 'Escape') { presOv(false); return; }
   if (!$('#presDrill').hidden){ if (['Escape', 'ArrowLeft', 'Backspace'].includes(e.key)) { e.preventDefault(); presDrillClose(); } return; }
   if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); presOv(false); presGo(1); }
@@ -4846,7 +5016,7 @@ function addSlides(pptx, tm, tx){
     if (n >= PPT_MAXR || (r.style === 'blockhead' && n >= 12 && n + blockLen > PPT_MAXR)){ while (cur.length && cur[cur.length - 1].spacer) cur.pop(); chunks.push([]); n = 0; }
     chunks[chunks.length - 1].push(r); n++;
   });
-  chunks.forEach((rows, i) => addSlide(pptx, Object.assign({}, tm, { rows, kpis: i ? null : tm.kpis }), Object.assign({}, tx, { title: tx.title + '  (' + (i + 1) + '/' + chunks.length + ')' })));
+  chunks.forEach((rows, i) => addSlide(pptx, Object.assign({}, tm, { rows, kpis: i ? null : tm.kpis }), Object.assign({}, tx, { title: tx.title + '  (' + (i + 1) + '/' + chunks.length + ')', notes: i ? null : tx.notes })));
 }
 function addSlide(pptx, tm, tx){
   const s = pptx.addSlide(); s.background = { color: 'FFFFFF' };
@@ -4944,6 +5114,7 @@ function addSlide(pptx, tm, tx){
   s.addTable([head1, head2].concat(body), { x: 0.4 + pi * (partW + GAP) + xOff, y: 1.35, w: colW.reduce((a, b) => a + b, 0), colW, rowH: rh, fontSize: fs, fontFace: 'Calibri Light', valign: 'middle', margin: [0.01, 0.05, 0.01, 0.05], autoPage: false });
   });
   s.addText(tx.note, { x: 0.45, y: 7.02, w: 10.5, h: 0.32, fontSize: 8, color: PX.INK2, fontFace: 'Calibri Light' });
+  pptNotes(pptx, s, tx.notes);
   s.addText(SHARE ? 'FARMACITY · PCG · DATOS AL ' + SHARE.fecha : 'FARMACITY · PCG', { x: SHARE ? 9.9 : 11, y: 7.02, w: SHARE ? 3 : 1.9, h: 0.32, fontSize: 8, bold: true, color: PX.SLATE, align: 'right', fontFace: 'Calibri' });
 }
 /* carga diferida de librerías: primero la copia local (GitHub), después CDNs alternativos */
@@ -4978,7 +5149,7 @@ async function exportPptx(all){
   // los controles de integridad son de uso interno: no van en la presentación completa
   const pages = all ? exportPages() : [currentPage()];
   if (all && state.ppt.cover !== false) addCover(pptx);
-  pages.forEach(p => { const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p, true); addSlides(pptx, tm, textsFor(p.key, tm)); });
+  pages.forEach(p => { const tm = postTM(p.cuadro.build(p.key, optsOf(p.cuadro)), p, true); addSlides(pptx, tm, Object.assign({}, textsFor(p.key, tm), { notes: state.notes[p.key] })); });
   try{
     const blob = await pptx.write({ outputType: 'blob' });
     await saveFile(all ? `${slug(pptTitle())}_${stamp()}.pptx` : `${slug(textsFor(state.page, TM).title)}_${stamp()}.pptx`, blob);
@@ -4996,7 +5167,7 @@ $('#xPng').onclick = async () => {
   if (hideVer){ state._noVer = true; renderSlide(); }
   try{
     const cv = await html2canvas($('#slide'), { scale: 2, backgroundColor: '#FFFFFF', logging: false,
-      onclone: d => { const si = d.getElementById('stageInner'); if (si) si.style.transform = 'none'; d.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable')); } });
+      onclone: d => { const si = d.getElementById('stageInner'); if (si) si.style.transform = 'none'; d.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable')); d.querySelectorAll('.sn-tools,.sn-rs').forEach(x => x.remove()); d.querySelectorAll('.snote').forEach(x => x.classList.remove('sel')); } });
     const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
     await saveFile(`${slug(textsFor(state.page, TM).title)}_${stamp()}.png`, blob);
   }catch(e){ console.error(e); toast('No se pudo generar la imagen.'); }
@@ -5178,6 +5349,7 @@ async function buildShare(ids, fecha, para){
     const inSel = k => ids.includes(String(k).split('|')[0]);
     ui.texts = Object.fromEntries(Object.entries(ui.texts || {}).filter(([k]) => inSel(k)));
     ui.opts = Object.fromEntries(Object.entries(ui.opts || {}).filter(([k]) => ids.includes(k)));
+    ui.notes = Object.fromEntries(Object.entries(ui.notes || {}).filter(([k]) => inSel(k)));
     if (!ids.includes(ui.page && String(ui.page).split('|')[0])) ui.page = (CUADROS_ALL.find(c => c.id === ids[0]).pages(optsOf(CUADROS_ALL.find(c => c.id === ids[0])))[0] || {}).key;
     const d = shareData(ids);
     const payload = { id: Date.now().toString(36), fecha, para, cuadros: ids, ds: d.ds, mz: d.mz, cf: ids.includes('cfarma') ? state.cf : null, cs: ids.includes('csimpli') ? state.cs : null, ui };
@@ -5211,7 +5383,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="09/11/2026 21:09";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="10/11/2026 09:03";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
