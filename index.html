@@ -739,7 +739,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 16:41</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 16:45</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -763,7 +763,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 16:41</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 16:45</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -3677,7 +3677,7 @@ const CrecF = {
     const L = {}; cf.obras.forEach(x => { if (!x.line) return; const o = L[x.line] || (L[x.line] = { m: 0, n: 0 }); o.m += x.fc; o.n += x.x26; });
     const G = {}; E.CF_LINES.forEach(l => { const v = L[l.label] || { m: 0, n: 0 }; const g = G[l.grp] || (G[l.grp] = { m: 0, n: 0 }); g.m += v.m; g.n += v.n; });
     const tot = r => cf.c26.find(x => E.norm(x.label).startsWith(r));
-    const ok = CF_GRP.every(([g, lab]) => { const t = tot(E.norm(lab)); return t && t.v.fc && Math.abs(t.v.fc[0] - (G[g] || { m: 0 }).m) <= Math.max(0.5, Math.abs(t.v.fc[0]) * 0.002); });
+    const ok = CF_GRP.every(([g, lab]) => { const t = tot(E.norm(lab)); return t && t.v.fc && Math.abs((t.v.fc || [])[0] - (G[g] || { m: 0 }).m) <= Math.max(0.5, Math.abs((t.v.fc || [])[0]) * 0.002); });
     return ok ? L : null;
   },
   fmtTrip(v, k){ return { m: fAmt(v[0]), n: v[1] == null ? { t: '', cls: 'na' } : (Math.abs(v[1]) < 0.0005 ? { t: '–', cls: 'na' } : { t: nf(1).format(v[1]), cls: '' }), u: v[2] == null || !isFinite(v[2]) || Math.abs(v[2]) < 0.0005 ? { t: '–', cls: 'na' } : fAmt(v[2]) }; },
@@ -3728,11 +3728,11 @@ const CrecF = {
       if (rowsA.length) stack.push({ cap: '2026', capSub: 'PPTO 2026 · aprobados 2025 · búsquedas · aterrizaje 9+3', cols: colsA, rows: rowsA });
       if (rowsB.length) stack.push({ cap: '2027', capSub: 'PPTO 2027 · pase de año · búsquedas', cols: colsB, rows: rowsB });
       rows.push(...rowsA); if (rowsA.length && rowsB.length) rows.push({ spacer: true }); rows.push(...rowsB);
-      const A = agg(O), T = c26('TOTAL CRECIMIENTO'), fcT = T && T.v.fc ? T.v.fc[0] : null, d = fcT ? fVar(vr(A.tot[0], fcT)) : null;
+      const A = agg(O), T = c26('TOTAL CRECIMIENTO'), fcT = T && T.v.fc ? (T.v.fc || [])[0] : null, d = fcT ? fVar(vr(A.tot[0], fcT)) : null;
       base.tableCls = 'cfx'; base.stack = stack; base.cols = colsA.concat(colsB);
       return Object.assign(base, { title: 'Crecimiento Farmacity · 2026 y 2027', sub: `En ${unitLbl()} · orgánico, inorgánico y reopening (▸ abre los modelos)`,
         note: '2026 de la hoja CUADRO (9+3 por modelo desde ANALISIS). 2027 de ANALISIS: pase de año = EN CURSO, búsquedas = SL que empiezan con 2. # obras 2027 = Σ % 2027 PROY.',
-        rows, kpis: [T ? { k: 'Aterrizaje 9+3', tone: 'ater', plain: true, v: '$' + fAmt(fcT || 0).t + unitShort(), d: 'PPTO 2026 $' + fAmt(T.v.p26[0]).t + unitShort() } : null,
+        rows, kpis: [T ? { k: 'Aterrizaje 9+3', tone: 'ater', plain: true, v: '$' + fAmt(fcT || 0).t + unitShort(), d: 'PPTO 2026 $' + fAmt((T.v.p26 || [])[0]).t + unitShort() } : null,
           { k: 'PPTO 2027', v: '$' + fAmt(A.tot[0]).t + unitShort(), d: (d && d.t ? d.t + ' vs 9+3 · ' : '') + nf(1).format(A.tot[1]) + ' obras', plain: true, hero: true, tone: 'ppto' }].filter(Boolean) });
     }
     if (k === '26'){
@@ -3746,7 +3746,7 @@ const CrecF = {
       const t = cf.c26.find(r => /^total crecimiento/.test(E.norm(r.label)));
       return Object.assign(base, { title: 'Crecimiento Farmacity · 2026', sub: `En ${unitLbl()} · presupuesto 2026, aprobados que pasan de 2025 y obras en búsqueda · aterrizaje 9+3`,
         note: 'Fuente: hoja CUADRO del libro de Crecimiento Farma, tal cual.' + (FL ? ' 9+3 por modelo desde ANALISIS (col. 9+3 y % 2026 PROY).' : ' 9+3 solo en los totales (como en la hoja CUADRO).'),
-        rows, kpis: t ? [{ k: 'PPTO 2026', v: '$' + fAmt(t.v.p26[0]).t + unitShort(), d: nf(1).format(t.v.p26[1]) + ' obras', plain: true, hero: true, tone: 'ppto' }, t.v.fc ? { k: 'Aterrizaje 9+3', tone: 'ater', plain: true, v: '$' + fAmt(t.v.fc[0]).t + unitShort(), d: nf(1).format(t.v.fc[1] || 0) + ' obras' } : null].filter(Boolean) : [] });
+        rows, kpis: t ? [{ k: 'PPTO 2026', v: '$' + fAmt((t.v.p26 || [])[0]).t + unitShort(), d: nf(1).format((t.v.p26 || [])[1]) + ' obras', plain: true, hero: true, tone: 'ppto' }, t.v.fc ? { k: 'Aterrizaje 9+3', tone: 'ater', plain: true, v: '$' + fAmt((t.v.fc || [])[0]).t + unitShort(), d: nf(1).format((t.v.fc || [])[1] || 0) + ' obras' } : null].filter(Boolean) : [] });
     }
     // 2027
     const O = cf.obras;
@@ -3811,8 +3811,8 @@ const CrecF = {
       out.push({ label: 'Cruce con PPTO27 · Crecimiento Brick Farmacity', ok: !L.length, count: L.filter(x => /^(Pase de año|Búsquedas)/.test(x)).length, detail: L, okTxt: `cruza: en curso ${f2(cur)} · sin aprobación ${f2(fut)}` });
     }
     const t = cf.c26.find(r => /^total crecimiento/.test(E.norm(r.label)));
-    if (t){ const s = cf.c26.filter(r => !/^total/.test(E.norm(r.label))).reduce((a, r) => a + r.v.p26[0], 0);
-      out.push({ label: 'CUADRO 2026: modelos = TOTAL CRECIMIENTO', ok: Math.abs(s - t.v.p26[0]) <= 0.01, warn: true, count: 1, detail: [`Suma de modelos ${f2(s)} vs total ${f2(t.v.p26[0])}`], okTxt: 'cruza: ' + f2(s) }); }
+    if (t){ const s = cf.c26.filter(r => !/^total/.test(E.norm(r.label))).reduce((a, r) => a + (r.v.p26 || [])[0], 0);
+      out.push({ label: 'CUADRO 2026: modelos = TOTAL CRECIMIENTO', ok: Math.abs(s - (t.v.p26 || [])[0]) <= 0.01, warn: true, count: 1, detail: [`Suma de modelos ${f2(s)} vs total ${f2((t.v.p26 || [])[0])}`], okTxt: 'cruza: ' + f2(s) }); }
     const map = { pase: /pase de a.o a 2027/i, b27: /inicio y fin 2027/i, b28: /2028/ }, mm = O.filter(x => x.b && x.clas && !map[x.b].test(x.clas));
     out.push({ label: 'Bloque vs columna CLASIFICA de ANALISIS', ok: true, warn: true, info: true, count: mm.length, detail: mm.map(x => `${x.sl} ${x.nom}: ${CF_BLBL[x.b]} · CLASIFICA "${x.clas}"`), okTxt: mm.length ? mm.length + ' obras con CLASIFICA distinta (informativo)' : 'coinciden con CLASIFICA' });
     return out;
@@ -3852,7 +3852,7 @@ const CrecS = {
     if (T) rows.push({ spacer: true }, { label: 'TOTAL', style: 'total', cells: cells(T.v), drill: { title: 'Crecimiento Simplicity', sls: this.sls(cs.obras) } });
     if (cs.curso != null || cs.sinap != null){
       // apertura del PPTO 2027 por estado: solo la columna $ del PPTO 2027, con su participación y un cierre
-      const tot27 = T ? T.v.p27[0] : (cs.curso || 0) + (cs.sinap || 0);
+      const tot27 = T ? (T.v.p27 || [])[0] : (cs.curso || 0) + (cs.sinap || 0);
       const est = (x, n) => { const c = {}; cols.forEach(k => { if (k.kind === 'gap') return; c[k.k] = { t: '', cls: 'blank' }; });
         if (c.p27_m) c.p27_m = fAmt(x); if (c.p27_n) c.p27_n = { t: '', cls: '' };
         if (c.p27_u) c.p27_u = tot27 ? { t: nf(0).format(x / tot27 * 100) + '%', cls: 'share' } : { t: '', cls: 'blank' };
@@ -3863,11 +3863,11 @@ const CrecS = {
       if (cs.sinap != null) rows.push({ label: 'Sin aprobación', sub: 'proyectos futuros', style: 'child', cls: 'estrow', cells: est(cs.sinap), drill: byC ? { title: 'Sin aprobación · proyectos futuros', sls: this.sls(M.filter(x => !isPase(x))) } : null });
       rows.push({ label: 'Total PPTO 2027', style: 'sub', cls: 'estrow estend', cells: est((cs.curso || 0) + (cs.sinap || 0)) });
     }
-    const d = T && T.v.fc ? fVar(vr(T.v.p27[0], T.v.fc[0])) : null;
+    const d = T && T.v.fc ? fVar(vr((T.v.p27 || [])[0], (T.v.fc || [])[0])) : null;
     return Object.assign(base, { title: 'Crecimiento Simplicity', sub: `En ${unitLbl()} · PPTO 2026 y aterrizaje 9+3 vs PPTO 2027 por tipo de obra`,
       note: 'Fuente: hoja Cuadro del libro de Crecimiento Simplicity, tal cual. ' + (cs.obras.some(x => x.c27) ? 'En curso = obras con CLASIFICACIÓN "PASE DE AÑO A 2027" en ANALISIS CRECIMIENTO; sin aprobación = el resto de las obras con monto 2027.' : 'En curso / sin aprobación: filas resumen de ANALISIS CRECIMIENTO.'), rows,
-      kpis: T ? [{ k: 'PPTO 2027', v: '$' + fAmt(T.v.p27[0]).t + unitShort(), d: (d && d.t ? d.t + ' vs 9+3 · ' : '') + nf(1).format(T.v.p27[1]) + ' obras', plain: true, hero: true, tone: 'ppto' },
-        { k: 'En curso · sin aprobación', tone: 'ater', plain: true, v: '$' + fAmt(cs.curso || 0).t + ' · $' + fAmt(cs.sinap || 0).t, d: T.v.p27[0] ? nf(0).format((cs.curso || 0) / T.v.p27[0] * 100) + '% ya aprobado' : '' }] : [] });
+      kpis: T ? [{ k: 'PPTO 2027', v: '$' + fAmt((T.v.p27 || [])[0]).t + unitShort(), d: (d && d.t ? d.t + ' vs 9+3 · ' : '') + nf(1).format((T.v.p27 || [])[1]) + ' obras', plain: true, hero: true, tone: 'ppto' },
+        { k: 'En curso · sin aprobación', tone: 'ater', plain: true, v: '$' + fAmt(cs.curso || 0).t + ' · $' + fAmt(cs.sinap || 0).t, d: (T.v.p27 || [])[0] ? nf(0).format((cs.curso || 0) / (T.v.p27 || [])[0] * 100) + '% ya aprobado' : '' }] : [] });
   },
   checks(){
     const cs = this.cs(), out = [], f2 = v => nf(2).format(v);
@@ -3875,12 +3875,12 @@ const CrecS = {
     const T = cs.c26.find(r => /^total/.test(E.norm(r.label))), lines = cs.c26.filter(r => !/^total/.test(E.norm(r.label)));
     if (T){ const L = []; ['p26', 'fc', 'p27'].forEach(k => { const s = lines.reduce((a, r) => a + (r.v[k] ? r.v[k][0] : 0), 0); if (T.v[k] && Math.abs(s - T.v[k][0]) > 0.01) L.push(`${k === 'p26' ? 'PPTO 2026' : k === 'fc' ? '9+3' : 'PPTO 2027'}: suma de tipos ${f2(s)} vs TOTAL ${f2(T.v[k][0])}`); });
       out.push({ label: 'Cuadro: tipos de obra = TOTAL', ok: !L.length, warn: true, count: L.length, detail: L, okTxt: 'cruza' }); }
-    if (T && cs.curso != null && cs.sinap != null){ const s = cs.curso + cs.sinap, ok = Math.abs(s - T.v.p27[0]) <= 0.01;
-      out.push({ label: 'En curso + sin aprobación = PPTO 2027 del Cuadro', ok, count: ok ? 0 : 1, detail: [`En curso ${f2(cs.curso)} + sin aprobación ${f2(cs.sinap)} = ${f2(s)} vs PPTO 2027 ${f2(T.v.p27[0])} · dif. ${f2(s - T.v.p27[0])}. Revisá la columna Clasificación de las obras en ANALISIS CRECIMIENTO.`], okTxt: 'cruza: ' + f2(s) }); }
+    if (T && cs.curso != null && cs.sinap != null){ const s = cs.curso + cs.sinap, ok = Math.abs(s - (T.v.p27 || [])[0]) <= 0.01;
+      out.push({ label: 'En curso + sin aprobación = PPTO 2027 del Cuadro', ok, count: ok ? 0 : 1, detail: [`En curso ${f2(cs.curso)} + sin aprobación ${f2(cs.sinap)} = ${f2(s)} vs PPTO 2027 ${f2((T.v.p27 || [])[0])} · dif. ${f2(s - (T.v.p27 || [])[0])}. Revisá la columna Clasificación de las obras en ANALISIS CRECIMIENTO.`], okTxt: 'cruza: ' + f2(s) }); }
     const tipos = new Set(lines.map(r => E.norm(r.label))), obT = cs.obras.filter(x => tipos.has(E.norm(x.tipo))), ob = obT.reduce((a, x) => a + x.tot, 0);
     const fuera = cs.obras.filter(x => !tipos.has(E.norm(x.tipo)) && Math.abs(x.tot) >= 0.005);
-    if (T) out.push({ label: 'Obras de ANALISIS = PPTO 2027 del Cuadro', ok: Math.abs(ob - T.v.p27[0]) <= 0.01, warn: true, count: 1,
-      detail: [`Suma de obras por tipo ${f2(ob)} vs Cuadro ${f2(T.v.p27[0])} · dif. ${f2(ob - T.v.p27[0])}`].concat(fuera.map(x => `Fila ${x.fila} · ${x.sl} ${x.nom}: tipo "${x.tipo || 'vacío'}" no está en el Cuadro · ${f2(x.tot)}`)), okTxt: 'cruza: ' + f2(ob) });
+    if (T) out.push({ label: 'Obras de ANALISIS = PPTO 2027 del Cuadro', ok: Math.abs(ob - (T.v.p27 || [])[0]) <= 0.01, warn: true, count: 1,
+      detail: [`Suma de obras por tipo ${f2(ob)} vs Cuadro ${f2((T.v.p27 || [])[0])} · dif. ${f2(ob - (T.v.p27 || [])[0])}`].concat(fuera.map(x => `Fila ${x.fila} · ${x.sl} ${x.nom}: tipo "${x.tipo || 'vacío'}" no está en el Cuadro · ${f2(x.tot)}`)), okTxt: 'cruza: ' + f2(ob) });
     const all = state.ds ? (state.dsFull || state.ds).rows : [];
     const bySl = all.filter(r => /crecimiento\s*_?\s*simpli/i.test(String(r.sl || '') + ' ' + String(r.nom || '') + ' ' + String(r.cod || '')));
     const rows = bySl.length ? bySl : all.filter(r => /^crecimiento/.test(E.norm(r.gral)) && E.norm(r.part) === 'simplicity' && E.norm(r.tipo) === 'proyectos');
@@ -4277,13 +4277,19 @@ function renderEmptySlide(){
     <p>${fs ? 'Elegí una vez la carpeta donde guardás el <b>PPTO 2027 - CAPEX</b> y la <b>Matriz de Subledgers</b>. Cada vez que abras el motor, “Actualizar” lee la última versión de cada archivo.' : 'Arrastrá el <b>PPTO 2027 - CAPEX</b> y la <b>Matriz de Subledgers</b>, o usá “Cargar Excel”.'}</p>
     <div class="es-btns">${fs ? '<button class="btn primary" type="button" data-act="pick">Conectar carpeta</button>' : ''}<button class="btn" type="button" data-act="load">Cargar Excel</button></div></div>`;
 }
+/* dónde falló (función y línea), para poder ubicar el error sin consola */
+function errWhere(e){ const m = String((e && e.stack) || '').split('\n').slice(1).map(s => s.trim()).find(s => /at /.test(s)); return m ? m.replace(/\(?(https?|file):\/\/[^)]*?:(\d+):\d+\)?/, 'línea $2') : 's/d'; }
 function renderSlide(){
   if (!state.ds){ renderEmptySlide(); return; }
   const pg = currentPage();
   if (!pg){ $('#sFit').innerHTML = ''; return; }
   state.page = pg.key;
   const o = optsOf(pg.cuadro);
-  TM = postTM(pg.cuadro.build(pg.key, o), pg);
+  try{ TM = postTM(pg.cuadro.build(pg.key, o), pg); }
+  catch(e){
+    console.error(e);
+    TM = { eyebrow: 'Áurea', labelHead: '', cols: [], rows: [], kpis: [], title: pg.cuadro.name + ' · no se pudo armar', sub: (e.message || String(e)) + ' · ' + errWhere(e), note: 'Algo del Excel no tiene el formato esperado para este cuadro. Los demás cuadros siguen funcionando.' };
+  }
   const tx = textsFor(pg.key, TM);
   $('#sEyebrow').textContent = TM.eyebrow;
   $('#sTitle').textContent = tx.title; $('#sSub').textContent = tx.sub; $('#sNote').textContent = tx.note;
@@ -4726,7 +4732,9 @@ function checkLi(c){
 function renderChecks(){
   if (!state.ds){ $('#checks').innerHTML = '<li class="warn"><span class="ic">!</span><span>Sin datos<small>Conectá la carpeta o cargá el Excel</small></span></li>'; return; }
   const pg = currentPage();
-  const own = pg.cuadro.checks(pg.key, optsOf(pg.cuadro));
+  let own;
+  try{ own = pg.cuadro.checks(pg.key, optsOf(pg.cuadro)); }
+  catch(e){ console.error(e); own = [{ label: 'No se pudo armar ' + pg.cuadro.name, ok: false, count: 1, detail: [(e.message || String(e)) + ' · ' + errWhere(e) + '. Pasale esta línea a Claude para revisarlo.'] }]; }
   const base = state.res.checks;
   $('#checks').innerHTML = (own.length ? `<li style="display:block"><span class="ph" style="margin:0">Este cuadro</span></li>` + own.map(checkLi).join('') + `<li style="display:block;margin-top:6px"><span class="ph" style="margin:0">Archivo</span></li>` : '') + base.map(checkLi).join('');
   renderCtlBar(own, base);
@@ -5338,7 +5346,7 @@ async function syncFolder(ask){
     state.lastSync = [ppto && `PPTO: ${ppto.name} (${when(ppto)})`, mz && `Matriz: ${mz.name} (${when(mz)})`, cfFile && `Crecimiento Farma: ${cfFile.name} (${when(cfFile)})`, csFile && `Crecimiento Simplicity: ${csFile.name} (${when(csFile)})`].filter(Boolean).join(' · ');
     await readSharedVers(dir); renderVer();
     await loadFiles([cfFile, csFile, mz, ppto].filter(Boolean), true);
-  }catch(e){ console.error(e); state.lastErr = 'No pude leer la carpeta: ' + (e.message || e); toast(state.lastErr, 12000); renderFolder(); }
+  }catch(e){ console.error(e); state.lastErr = 'No pude leer la carpeta: ' + (e.message || e) + ' (' + errWhere(e) + ')'; toast(state.lastErr, 15000); busy(false); renderFolder(); }
 }
 (async () => {
   if (!FS_OK || SHARE) return;
@@ -5449,7 +5457,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="10/11/2026 16:41";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="10/11/2026 16:45";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
