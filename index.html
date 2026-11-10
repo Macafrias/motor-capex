@@ -739,7 +739,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 18:53</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 20:01</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -763,7 +763,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 18:53</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 20:01</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -4353,9 +4353,12 @@ function renderEmptySlide(){
   const fs = 'showDirectoryPicker' in window;
   $('#sFit').style.transform = '';
   $('#sFit').innerHTML = `<div class="emptyslide"><div class="es-ic" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M6 14a4 4 0 0 1 4-4h9l4 5h15a4 4 0 0 1 4 4v17a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V14Z" stroke="#14234B" stroke-width="2.4"/><path d="M17 29h14M24 22v14" stroke="#0F8A8A" stroke-width="2.4" stroke-linecap="round"/></svg></div>
+    ${fs && state.dir ? `<h3>Volver a abrir «${esc(state.dirName || state.dir.name)}»</h3>
+    <p>La carpeta ya está guardada. Por seguridad, el navegador pide confirmar el permiso cada vez que se abre. Tocá el botón y, en el aviso, elegí <b>“Permitir en cada visita”</b> para que la próxima vez cargue solo.</p>
+    <div class="es-btns"><button class="btn primary" type="button" data-act="regrant">Abrir carpeta</button><button class="btn" type="button" data-act="pick">Elegir otra</button></div></div>` : `
     <h3>${fs ? 'Conectá la carpeta del presupuesto' : 'Cargá el Excel del presupuesto'}</h3>
     <p>${fs ? 'Elegí una vez la carpeta donde guardás el <b>PPTO 2027 - CAPEX</b> y la <b>Matriz de Subledgers</b>. Cada vez que abras el motor, “Actualizar” lee la última versión de cada archivo.' : 'Arrastrá el <b>PPTO 2027 - CAPEX</b> y la <b>Matriz de Subledgers</b>, o usá “Cargar Excel”.'}</p>
-    <div class="es-btns">${fs ? '<button class="btn primary" type="button" data-act="pick">Conectar carpeta</button>' : ''}<button class="btn" type="button" data-act="load">Cargar Excel</button></div></div>`;
+    <div class="es-btns">${fs ? '<button class="btn primary" type="button" data-act="pick">Conectar carpeta</button>' : ''}<button class="btn" type="button" data-act="load">Cargar Excel</button></div></div>`}`;
 }
 /* dónde falló (función y línea), para poder ubicar el error sin consola */
 function errWhere(e){ const m = String((e && e.stack) || '').split('\n').slice(1).map(s => s.trim()).find(s => /at /.test(s)); return m ? m.replace(/\(?(https?|file):\/\/[^)]*?:(\d+):\d+\)?/, 'línea $2') : 's/d'; }
@@ -5100,7 +5103,7 @@ $('#sFit').onclick = e => {
 /* ============ exportación ============ */
 let dl = null;
 (async () => { try{ dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null; }catch(e){ dl = null; } })();
-$('#sFit').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); if (b.dataset.act === 'pick') pickFolder(); else $('#file').click(); });
+$('#sFit').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); if (b.dataset.act === 'pick') pickFolder(); else if (b.dataset.act === 'regrant') syncFolder(true); else $('#file').click(); });
 async function saveFile(name, data){
   if (!dl && !(window.claude && window.claude.use)){
     // fuera de claude.ai (GitHub Pages, archivo local): descarga normal del navegador
@@ -5432,7 +5435,7 @@ async function syncFolder(ask){
   if (!FS_OK || SHARE) return;
   const dir = await idb.get('dir');
   if (!dir) return;
-  state.dir = dir; state.dirName = dir.name; renderFolder();
+  state.dir = dir; state.dirName = dir.name; renderFolder(); if (!state.ds) renderEmptySlide();
   try{ if (await dir.queryPermission({ mode: 'read' }) === 'granted') syncFolder(false); }catch(e){}
 })();
 
@@ -5537,7 +5540,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="10/11/2026 18:53";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="10/11/2026 20:01";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
