@@ -739,7 +739,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 16:49</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 18:48</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -763,7 +763,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 16:49</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 18:48</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -1706,11 +1706,15 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
     const BL = [['p26', /^ppto 2026$/], ['ap25', /aprobados 2025/], ['b2626', /2026 fin 2026/], ['b2627', /2026 fin 2027/], ['real', /^real 2026$/], ['fc', /^9\+3$/]];
     BL.forEach(([k, re]) => { const c = H.findIndex(h => re.test(h)); if (c >= 0) blk.push({ k, c, single: k === 'real' }); });
     const lc = (() => { for (let i = hr + 1; i < C.length; i++){ const r = C[i] || []; const j = r.findIndex(x => typeof x === 'string' && /apertura|total crecimiento/i.test(x)); if (j >= 0) return j; } return 1; })();
+    // CANTIDADES (cantidad de locales, no equivalencias): bloque aparte a la derecha, con los mismos encabezados en la fila de abajo
+    const cq = H.findIndex(h => /^cantidades/.test(h)), QC = [];
+    if (cq >= 0){ const H2 = (C[hr + 1] || []).map(norm); for (let j = cq; j < H2.length; j++){ const m = BL.find(([k, re]) => re.test(H2[j] || '')); if (m && !QC.some(q => q.k === m[0])) QC.push({ k: m[0], c: j }); } }
     const c26 = [];
     for (let i = hr + 2; i < C.length; i++){
       const r = C[i] || [], lab = r[lc]; if (lab == null || String(lab).trim() === '') continue;
       const o = { label: String(lab).trim(), v: {} };
       blk.forEach(b => { o.v[b.k] = b.single ? [num(r[b.c]), null, null] : [num(r[b.c]), num(r[b.c + 1]), num(r[b.c + 2])]; o.v[b.k + '_has'] = r[b.c] != null; });
+      if (QC.length){ o.q = {}; QC.forEach(q => { o.q[q.k] = num(r[q.c]); }); }
       c26.push(o);
       if (/^total crecimiento/i.test(norm(lab))) break;
     }
@@ -3661,6 +3665,7 @@ const CrecF = {
   kind(page){ return page.split('|')[1] || 'res'; },
   views(page){
     const a = k => [k + '_m', k + '_n', k + '_u'];
+    if (this.kind(page) === 'cant'){ const q = ['p26', 'ap25', 'b2626', 'b2627', 'real', 'fc', 'tot', 'pase', 'b27', 'b28'].map(k => k + '_q'); return { completo: { label: 'Completo', cols: q.concat(['dq']) }, corto: { label: 'Solo PPTO y 9+3', cols: ['p26_q', 'fc_q', 'tot_q', 'dq'] } }; }
     if (this.kind(page) === 'res') return { completo: { label: 'Completo', cols: [].concat(a('p26'), a('ap25'), a('b2626'), a('b2627'), a('fc'), a('tot'), a('pase'), a('b27'), a('b28'), ['var_p']) }, montos: { label: 'Solo montos', cols: ['p26_m', 'ap25_m', 'b2626_m', 'b2627_m', 'fc_m', 'tot_m', 'pase_m', 'b27_m', 'b28_m', 'var_p'] }, obras: { label: 'Solo # obras', cols: ['p26_n', 'ap25_n', 'b2626_n', 'b2627_n', 'fc_n', 'tot_n', 'pase_n', 'b27_n', 'b28_n'] } };
     return this.kind(page) === '26'
       ? { completo: { label: 'Completo', cols: [].concat(a('p26'), a('ap25'), a('b2626'), a('b2627'), a('fc')) }, corto: { label: 'PPTO 2026 vs 9+3', cols: [].concat(a('p26'), a('fc')) }, montos: { label: 'Solo montos', cols: ['p26_m', 'ap25_m', 'b2626_m', 'b2627_m', 'real_m', 'fc_m'] } }
@@ -3668,6 +3673,11 @@ const CrecF = {
   },
   colDefs(page){
     const k0 = this.kind(page), out = [];
+    if (k0 === 'cant'){
+      CF_B26.concat(CF_B27).forEach(([k, lab, tone]) => out.push({ k: k + '_q', label: '# locales', grp: lab, kind: 'amt', tone, gtone: tone, strong: k === 'p26' || k === 'tot' || k === 'fc', hero: k === 'tot', sepl: true }));
+      out.push({ k: 'dq', label: 'locales', grp: 'Δ PPTO 27 vs 9+3', kind: 'amt', tone: 'var', sepl: true });
+      return out;
+    }
     const B = k0 === '26' ? CF_B26 : k0 === '27' ? CF_B27 : CF_B26.filter(b => b[0] !== 'real').concat(CF_B27);
     B.forEach(([k, lab, tone]) => {
       const big = k === 'p26' || k === 'tot';
@@ -3679,7 +3689,7 @@ const CrecF = {
   },
   defaults(){ return { byPage: {} }; },
   colState(page, o){ return ItPr.colState.call(this, page, o); },
-  pages(){ return [{ key: 'cfarma|res', label: 'Resumen · 2026 y 2027' }, { key: 'cfarma|26', label: '2026 · PPTO y 9+3' }, { key: 'cfarma|27', label: '2027 · pase de año y búsquedas' }]; },
+  pages(){ return [{ key: 'cfarma|res', label: 'Resumen · 2026 y 2027' }, { key: 'cfarma|cant', label: 'Cantidad de locales · 2026 y 2027' }, { key: 'cfarma|26', label: '2026 · PPTO y 9+3' }, { key: 'cfarma|27', label: '2027 · pase de año y búsquedas' }]; },
   optsHtml(){
     return `<p class="empty" style="font-size:11.5px;padding:0">Fuente: libro <b>PPTO 2027 - CAPEX - Crecimiento Farma</b> de la carpeta. 2026 tal cual la hoja CUADRO. 2027 desde ANALISIS: $ = TOTAL (col. BB), # obras = Σ % 2027 PROY, $/obra = $ ÷ # obras.<br>Pase de año = estado EN CURSO · Búsqueda 2027 = SL que empieza con 2, estado N/A y 100% en 2027 · Búsqueda 2027→2028 = ídem con % 2028 PROY mayor a 1%. Reopening se abre por tipología (▾ para cerrar). Clic en una fila para ver las obras.</p>`;
   },
@@ -3709,6 +3719,46 @@ const CrecF = {
     const cells = (vals) => { const out = {}; cols.forEach(c => { if (c.kind === 'gap') return; if (c.k === 'var_p'){ out[c.k] = vals.tot && vals.fc ? fVar(vr(vals.tot[0], vals.fc[0])) : { t: '–', cls: 'na' }; return; } const [b, q] = c.k.split('_'), v = vals[b]; out[c.k] = v ? this.fmtTrip(v)[q] : { t: '', cls: 'na' }; }); return out; };
     base.blockSep = true; base.tableCls = 'cfx';
     const agg = L => { const v = {}; ['tot', 'pase', 'b27', 'b28'].forEach(b => { const S = b === 'tot' ? L.filter(x => x.b) : L.filter(x => x.b === b); const m = S.reduce((a, x) => a + x.tot, 0), n = S.reduce((a, x) => a + x.p27, 0); v[b] = [m, n, n ? m / n : 0]; }); return v; };
+    if (k === 'cant'){
+      // cantidad de locales (no equivalencias): 2026 de CUADRO › CANTIDADES; 2027 = SL distintos con PPTO 2027 (suman al PPTO 2027)
+      const O = cf.obras, c26 = lab => cf.c26.find(r => E.norm(r.label) === E.norm(lab)) || null;
+      const c26L = l => cf.c26.find(r => !/^total/.test(E.norm(r.label)) && (E.cfLineOf(r.label) || {}).label === l.label) || null;
+      const hasQ = cf.c26.some(r => r.q);
+      const K26 = ['p26', 'ap25', 'b2626', 'b2627', 'real', 'fc'], K27 = ['tot', 'pase', 'b27', 'b28', 'dq'];
+      const qAvail = new Set(hasQ ? Object.keys((cf.c26.find(r => r.q) || {}).q || {}) : []);
+      const sel = this.colDefs(page).filter(c => st.cols.has(c.k) && (!K26.includes(c.k.split('_')[0]) || qAvail.has(c.k.split('_')[0])) && (c.k !== 'dq' || qAvail.has('fc')));
+      const colsA = gapped(sel.filter(c => K26.includes(c.k.split('_')[0])), 'a'), colsB = gapped(sel.filter(c => K27.includes(c.k.split('_')[0])), 'b');
+      const nInt = v => v == null || !isFinite(v) ? { t: '', cls: 'na' } : Math.abs(v) < 0.5 ? { t: '–', cls: 'na' } : { t: nf(0).format(v), cls: '' };
+      const nDif = v => v == null || !isFinite(v) ? { t: '–', cls: 'na' } : Math.abs(v) < 0.5 ? { t: '0', cls: 'na' } : { t: (v > 0 ? '+' : '−') + nf(0).format(Math.abs(v)), cls: v > 0 ? 'pos' : 'neg' };
+      // locales 2027: SL distintos con PPTO 2027 distinto de cero (sin SL: cada obra cuenta como un local)
+      const locs = L => { const m = new Map(); L.forEach((x, i) => { const key = String(x.sl || '').trim() || '#' + (x.fila || i); m.set(key, (m.get(key) || 0) + (x.tot || 0)); }); return [...m.values()].filter(v => Math.abs(v) >= 1e-9).length; };
+      const q27 = L => ({ tot: locs(L), pase: locs(L.filter(x => x.b === 'pase')), b27: locs(L.filter(x => x.b === 'b27')), b28: locs(L.filter(x => x.b === 'b28')) });
+      const cellsFor = (C, q) => { const out = {}; C.forEach(c => { if (c.kind === 'gap') return; if (c.k === 'dq'){ out.dq = q.fc != null && q.tot != null ? nDif(q.tot - q.fc) : { t: '–', cls: 'na' }; return; } out[c.k] = nInt(q[c.k.split('_')[0]]); }); return out; };
+      const part = (tag, C, qG, qL, qT) => {
+        const R = [];
+        CF_GRP.forEach(([g, lab]) => {
+          const zk = page + '|' + tag + '|' + g, open = state.zoom.has(zk), LG = O.filter(x => x.grp === g);
+          if (open) E.CF_LINES.filter(l => l.grp === g).forEach(l => { const L = O.filter(x => x.line === l.label); R.push({ label: l.label, style: 'child', cells: cellsFor(C, qL(l, L)), drill: { title: l.label, sls: this.sls(L) } }); });
+          R.push({ label: lab, style: 'sub', zoom: zk, open, cells: cellsFor(C, qG(lab, LG)), drill: { title: lab, sls: this.sls(LG) } });
+        });
+        R.push({ label: 'TOTAL CRECIMIENTO', style: 'total', cells: cellsFor(C, qT()), drill: { title: 'Crecimiento Farmacity', sls: this.sls(O.filter(x => x.tot)) } });
+        return R;
+      };
+      const qOf = r => (r && r.q) || {};
+      const fcG = lab => qOf(c26(lab)).fc, fcL = l => qOf(c26L(l)).fc;
+      const rowsA = hasQ && colsA.length ? part('26', colsA, lab => qOf(c26(lab)), l => qOf(c26L(l)), () => qOf(c26('TOTAL CRECIMIENTO'))) : [];
+      const rowsB = colsB.length ? part('27', colsB, (lab, LG) => Object.assign({ fc: fcG(lab) }, q27(LG)), (l, L) => Object.assign({ fc: fcL(l) }, q27(L)), () => Object.assign({ fc: fcG('TOTAL CRECIMIENTO') }, q27(O))) : [];
+      const stack = [];
+      if (rowsA.length) stack.push({ cap: '2026', capSub: 'cantidad de locales · hoja CUADRO › CANTIDADES', cols: colsA, rows: rowsA });
+      if (rowsB.length) stack.push({ cap: '2027', capSub: 'cantidad de locales · SL con PPTO 2027', cols: colsB, rows: rowsB });
+      rows.push(...rowsA); if (rowsA.length && rowsB.length) rows.push({ spacer: true }); rows.push(...rowsB);
+      base.tableCls = 'cfx'; base.stack = stack; base.cols = colsA.concat(colsB);
+      const QT = q27(O), F = fcG('TOTAL CRECIMIENTO'), P26 = qOf(c26('TOTAL CRECIMIENTO')).p26;
+      return Object.assign(base, { title: 'Crecimiento Farmacity · cantidad de locales', sub: `Locales (no equivalencias) · orgánico, inorgánico y reopening (▸ abre los modelos)`,
+        note: (hasQ ? '2026: hoja CUADRO, bloque CANTIDADES. ' : 'La hoja CUADRO no tiene el bloque CANTIDADES: falta 2026. ') + '2027: SL distintos de ANALISIS con PPTO 2027 (los que suman al PPTO 2027); pase de año = EN CURSO, búsquedas = SL que empiezan con 2.',
+        rows, kpis: [F != null ? { k: 'Locales 9+3', tone: 'ater', plain: true, v: nf(0).format(F), d: P26 != null ? 'PPTO 2026: ' + nf(0).format(P26) + ' locales' : '' } : null,
+          { k: 'Locales PPTO 2027', v: nf(0).format(QT.tot), d: `${nf(0).format(QT.pase)} pase de año · ${nf(0).format(QT.b27 + QT.b28)} búsqueda`, plain: true, hero: true, tone: 'ppto' }].filter(Boolean) });
+    }
     if (k === 'res'){
       // resumen: los dos cuadros (2026 y 2027) en la misma slide, por total orgánico / inorgánico / reopening; ▸ abre los modelos
       const FL = this.fcLines(cf), O = cf.obras, c26 = lab => cf.c26.find(r => E.norm(r.label) === E.norm(lab)) || null;
@@ -5473,7 +5523,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="10/11/2026 16:49";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="10/11/2026 18:48";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
