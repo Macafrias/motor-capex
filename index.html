@@ -732,7 +732,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 09:03</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 16:13</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -756,7 +756,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 09:03</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 16:13</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -977,6 +977,11 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
     c.m27 = MES_L.map((m, i) => idx(m.toUpperCase(), enero27 >= 0 ? enero27 : 0));
     const miss = ['gral','part','tipo','estado','real26','p27'].filter(k => c[k] < 0);
     if (miss.length) throw new Error('PPTO27: faltan columnas → ' + miss.join(', '));
+    /* celdas del PPTO 2027 que traen el valor de OTRO libro (vínculo externo): SheetJS lee lo último que Excel guardó,
+       así que si el otro libro cambió y este no se volvió a abrir/guardar con los vínculos actualizados, el valor queda viejo */
+    const extRow = new Set(), WS = wb.Sheets[pptoName], r0 = WS && WS['!ref'] ? XLSX.utils.decode_range(WS['!ref']).s.r : 0;
+    const extCols = new Set([c.p27, ...c.m27].filter(j => j >= 0));
+    if (WS) for (const k in WS){ if (k[0] === '!') continue; const cl = WS[k]; if (cl && cl.f && /\[[^\]]+\]/.test(cl.f)){ const a = XLSX.utils.decode_cell(k); if (extCols.has(a.c)) extRow.add(a.r - r0); } }
     const rows = [];
     for (let i = h + 1; i < P.length; i++) {
       const r = P[i]; if (!r) continue;
@@ -987,7 +992,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
         sl: r[c.sl], nom: r[c.nom], jer: c.jer >= 0 && r[c.jer] != null ? String(r[c.jer]).replace(/\s+/g, ' ').trim() : '', resp: c.resp >= 0 && r[c.resp] != null ? String(r[c.resp]).trim() : '', gral: r[c.gral], part, tipo, estado: r[c.estado], cid: c.cid >= 0 && r[c.cid] != null ? String(r[c.cid]).replace(/\s+/g, ' ').trim() : '',
         real: c.real.map(j => j >= 0 ? num(r[j]) : 0), real26: num(r[c.real26]),
         p26b: c.p26 >= 0 ? num(r[c.p26]) : 0, fc26b: c.fc26 >= 0 ? num(r[c.fc26]) : 0,
-        oc: c.oc >= 0 ? num(r[c.oc]) : 0, p27m: c.m27.map(j => j >= 0 ? num(r[j]) : 0), p27: num(r[c.p27])
+        oc: c.oc >= 0 ? num(r[c.oc]) : 0, p27m: c.m27.map(j => j >= 0 ? num(r[j]) : 0), p27: num(r[c.p27]), ext: extRow.has(i), fila: i + 1 + r0
       });
     }
 
@@ -3750,9 +3755,27 @@ const CrecF = {
     else {
       const p27 = f => rows.filter(f).reduce((a, r) => a + (r.p27 || 0), 0) / 1e6, L = [];
       const cur = p27(r => E.estProy(r.estado) === 'curso'), fut = p27(r => E.estProy(r.estado) === 'nuevo');
-      if (Math.abs(cur - sumB('pase')) > 0.01) L.push(`Pase de año ${f2(sumB('pase'))} vs PPTO27 en curso ${f2(cur)} · dif. ${f2(sumB('pase') - cur)}`);
+      if (Math.abs(cur - sumB('pase')) > 0.01){
+        L.push(`Pase de año ${f2(sumB('pase'))} vs PPTO27 en curso ${f2(cur)} · dif. ${f2(sumB('pase') - cur)}`);
+        // por SL: dónde está la diferencia
+        const kS = s => String(s == null ? '' : s).trim().toUpperCase();
+        const bk = new Map(), pk = new Map(), nm = new Map();
+        O.filter(x => x.b === 'pase').forEach(x => { const k = kS(x.sl); bk.set(k, (bk.get(k) || 0) + x.tot); if (!nm.has(k)) nm.set(k, x.nom); });
+        const pr = rows.filter(r => E.estProy(r.estado) === 'curso');
+        pr.forEach(r => { const k = kS(r.sl); pk.set(k, (pk.get(k) || 0) + (r.p27 || 0) / 1e6); if (!nm.has(k)) nm.set(k, r.nom); });
+        const difs = [...new Set([...bk.keys(), ...pk.keys()])].map(k => ({ k, b: bk.get(k) || 0, p: pk.get(k) || 0 })).filter(d => Math.abs(d.b - d.p) > 0.01).sort((a, b) => Math.abs(b.b - b.p) - Math.abs(a.b - a.p));
+        const extN = pr.filter(r => r.ext).length;
+        if (extN) L.push(`⚠ ${extN} SL en curso del PPTO27 toman el PPTO 2027 de otro libro (vínculo). La herramienta lee lo último que se guardó en el PPTO: abrilo con el libro de Crecimiento Farma abierto (o Datos › Editar vínculos › Actualizar valores), guardá y volvé a cargar.`);
+        const agg = pr.length && pr.every(r => !bk.has(kS(r.sl)));
+        if (agg) (pr.filter(r => Math.abs(r.p27 || 0) >= 1).length ? pr.filter(r => Math.abs(r.p27 || 0) >= 1) : pr.slice(0, 1)).forEach(r => L.push(`En el PPTO27 el en curso es una línea agregada: ${r.sl || ''} ${r.nom || ''} (fila ${r.fila}) = ${f2((r.p27 || 0) / 1e6)}${r.ext ? ' · toma el valor de otro libro (vínculo)' : ''}. El libro de Crecimiento da ${f2(sumB('pase'))}: actualizá ese importe en el PPTO27${r.ext ? ' (abrí el PPTO, actualizá vínculos y guardá)' : ''}, porque es el que usa el Cuadro General.`));
+        else difs.slice(0, 25).forEach(d => {
+          const r = pr.find(x => kS(x.sl) === d.k), est = !bk.has(d.k) ? ' · no está en pase de año del libro' : !pk.has(d.k) ? ' · en PPTO27 no está EN CURSO (revisar ESTADO DEL SL)' : '';
+          L.push(`${d.k || 'sin SL'} ${nm.get(d.k) || ''} · libro ${f2(d.b)} vs PPTO27 ${f2(d.p)} · dif. ${f2(d.b - d.p)}${est}${r && r.ext ? ' · vínculo externo' : ''}${r && r.fila ? ' · fila ' + r.fila : ''}`);
+        });
+        if (!agg && difs.length > 25) L.push(`… y ${difs.length - 25} SL más`);
+      }
       if (Math.abs(fut - sumB('b27') - sumB('b28')) > 0.01) L.push(`Búsquedas ${f2(sumB('b27') + sumB('b28'))} vs PPTO27 sin aprobación ${f2(fut)} · dif. ${f2(sumB('b27') + sumB('b28') - fut)}`);
-      out.push({ label: 'Cruce con PPTO27 · Crecimiento Brick Farmacity', ok: !L.length, count: L.length, detail: L, okTxt: `cruza: en curso ${f2(cur)} · sin aprobación ${f2(fut)}` });
+      out.push({ label: 'Cruce con PPTO27 · Crecimiento Brick Farmacity', ok: !L.length, count: L.filter(x => /^(Pase de año|Búsquedas)/.test(x)).length, detail: L, okTxt: `cruza: en curso ${f2(cur)} · sin aprobación ${f2(fut)}` });
     }
     const t = cf.c26.find(r => /^total crecimiento/.test(E.norm(r.label)));
     if (t){ const s = cf.c26.filter(r => !/^total/.test(E.norm(r.label))).reduce((a, r) => a + r.v.p26[0], 0);
@@ -5383,7 +5406,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="10/11/2026 09:03";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="10/11/2026 16:13";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
