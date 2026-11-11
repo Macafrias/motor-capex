@@ -786,7 +786,7 @@ html.presenting .tc-add{display:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 11/11/2026 10:20</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 11/11/2026 10:23</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -810,7 +810,7 @@ html.presenting .tc-add{display:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 11/11/2026 10:20</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 11/11/2026 10:23</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -4151,10 +4151,10 @@ async function writeSharedVers(gesture){
 }
 /* textos compartidos: comentarios, títulos editados y slides de texto viajan en "Aurea - textos.json" de la carpeta conectada,
    así quien conecte la misma carpeta (tu jefa) los ve. Por slide gana el cambio más nuevo. */
-const TFILE = 'Aurea - textos.json', LST = 'capex-motor-textos-ts';
+const TFILE = 'Aurea - textos.json', LST = 'capex-motor-textos-ts', TXT_OLD = '2000-01-01T00:00:00.000Z', TSH = { st: 'local', when: null, pend: false };
 let TXT_TS = ls.get(LST) || {}, TXT_T = null;
 // lo escrito antes de que existiera el archivo compartido también se comparte
-setTimeout(() => { let ch = false; new Set(Object.keys(state.texts || {}).concat(Object.keys(state.notes || {}))).forEach(k => { const has = (state.notes[k] || []).length || Object.keys(state.texts[k] || {}).length; if (has && !TXT_TS[k]){ TXT_TS[k] = '2026-11-11T00:00:00.000Z'; ch = true; } }); if (ch) ls.set(LST, TXT_TS); }, 0);
+setTimeout(() => { let ch = false; new Set(Object.keys(state.texts || {}).concat(Object.keys(state.notes || {}))).forEach(k => { const has = (state.notes[k] || []).length || Object.keys(state.texts[k] || {}).length; if (has && !TXT_TS[k]){ TXT_TS[k] = TXT_OLD; ch = true; } }); if (ch) ls.set(LST, TXT_TS); }, 0);
 function txtTouch(key){ if (!key) return; TXT_TS[key] = new Date().toISOString(); ls.set(LST, TXT_TS); clearTimeout(TXT_T); TXT_T = setTimeout(() => writeSharedTexts(false), 1500); }
 function mergeTexts(j){
   if (!j || j.app !== 'motor-capex' || !j.paginas) return false;
@@ -4174,18 +4174,35 @@ function textsPayload(){
   return { app: 'motor-capex', actualizado: new Date().toISOString(), paginas: pg };
 }
 async function readSharedTexts(dir){
-  try{ const h = await dir.getFileHandle(TFILE); const ch = mergeTexts(JSON.parse(await (await h.getFile()).text())); if (ch && state.ds) renderSlide(); }catch(e){}
+  try{ const h = await dir.getFileHandle(TFILE); const ch = mergeTexts(JSON.parse(await (await h.getFile()).text())); if (ch && state.ds) renderSlide(); TSH.st = 'shared'; TSH.when = new Date(); }
+  catch(e){ TSH.st = e && e.name === 'NotFoundError' ? 'none' : 'local'; }
+  // si hay comentarios propios que la carpeta no tiene, quedan pendientes de compartir
+  if (Object.values(TXT_TS).some(v => v === TXT_OLD)) TSH.pend = true;
+  renderTxtShare();
+}
+function renderTxtShare(){
+  const el = $('#txtShare'); if (!el) return;
+  if (SHARE || !state.dir){ el.innerHTML = ''; return; }
+  const hh = d => d ? d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '';
+  el.innerHTML = TSH.pend ? `<span class="vs-dot warn"></span><span>Comentarios y textos sin compartir. <button type="button" class="linkbtn" id="tsGo">Compartir en la carpeta</button></span>`
+    : TSH.st === 'shared' ? `<span class="vs-dot on"></span><span>Comentarios y textos compartidos · ${esc(TFILE)}${TSH.when ? ' · ' + hh(TSH.when) : ''}</span>`
+    : `<span class="vs-dot off"></span><span>Todavía no hay comentarios en la carpeta.${Object.keys(TXT_TS).length ? ' <button type="button" class="linkbtn" id="tsGo">Compartir los míos</button>' : ''}</span>`;
+  const b = $('#tsGo'); if (b) b.onclick = () => writeSharedTexts(true);
 }
 async function writeSharedTexts(gesture){
   const dir = state.dir; if (!dir || SHARE) return;
   try{
     let perm = await dir.queryPermission({ mode: 'readwrite' });
     if (perm !== 'granted' && gesture) perm = await dir.requestPermission({ mode: 'readwrite' });
-    if (perm !== 'granted'){ if (!TXT_T_WARN){ TXT_T_WARN = true; toast('Para que otros vean tus comentarios, Áurea necesita permiso para guardar en la carpeta: tocá "Actualizar" y aceptá "Editar".', 9000); } return; }
-    try{ const h0 = await dir.getFileHandle(TFILE); mergeTexts(JSON.parse(await (await h0.getFile()).text())); }catch(e){}
+    if (perm !== 'granted'){ TSH.pend = true; renderTxtShare(); return; }
+    try{ const h0 = await dir.getFileHandle(TFILE); if (mergeTexts(JSON.parse(await (await h0.getFile()).text())) && state.ds) renderSlide(); }catch(e){}
+    // lo que había antes del archivo compartido toma la fecha de hoy al compartirse (después de leer lo de la carpeta)
+    const now = new Date().toISOString(); Object.keys(TXT_TS).forEach(k => { if (TXT_TS[k] === TXT_OLD) TXT_TS[k] = now; }); ls.set(LST, TXT_TS);
     const h = await dir.getFileHandle(TFILE, { create: true }), w = await h.createWritable();
     await w.write(JSON.stringify(textsPayload(), null, 1)); await w.close();
-  }catch(e){ console.error(e); }
+    TSH.st = 'shared'; TSH.when = new Date(); TSH.pend = false;
+  }catch(e){ console.error(e); TSH.pend = true; }
+  renderTxtShare();
 }
 let TXT_T_WARN = false;
 let VSH_T = null;
@@ -5589,10 +5606,11 @@ function renderFolder(){
   else el.innerHTML = `<div class="fbox"><span class="tag">Carpeta conectada</span><b>${esc(state.dirName)}</b>
       <div class="fbtns"><button class="btn primary" type="button" id="fSync">Actualizar</button><button class="btn" type="button" id="fPick">Cambiar</button></div>
       ${state.lastSync ? `<span class="st">${esc(state.lastSync)}</span>` : ''}
-      ${state.lastErr ? `<span class="st" style="color:#C9584A;font-weight:600">⚠ ${esc(state.lastErr)}</span>` : ''}</div>`;
+      ${state.lastErr ? `<span class="st" style="color:#C9584A;font-weight:600">⚠ ${esc(state.lastErr)}</span>` : ''}<div class="ver-share" id="txtShare"></div></div>`;
   const p = $('#fPick'), s = $('#fSync');
-  if (p) p.onclick = pickFolder; if (s) s.onclick = async () => { await syncFolder(true); if (Object.keys(TXT_TS).length) writeSharedTexts(true); };
-  renderVerShare();
+  // el permiso de escritura se pide primero, mientras el clic todavía cuenta (después de leer los Excel el navegador ya no deja pedirlo)
+  if (p) p.onclick = pickFolder; if (s) s.onclick = async () => { const mine = Object.keys(TXT_TS).length; if (mine){ try{ await state.dir.requestPermission({ mode: 'readwrite' }); }catch(e){} } await syncFolder(true); if (mine) writeSharedTexts(false); };
+  renderVerShare(); renderTxtShare();
 }
 async function pickFolder(){
   try{
@@ -5751,7 +5769,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="11/11/2026 10:20";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="11/11/2026 10:23";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
