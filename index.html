@@ -734,12 +734,39 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
 .ct-part .ct-cap b{font:700 15px var(--f-reg);color:var(--slate);letter-spacing:.02em;padding:2px 10px;border-radius:6px;background:#EEF0F5}
 .ct-part .ct-cap span{font-size:12px;color:var(--ink-2)}
 .ct-stack .ct td.lbl,.ct-stack .ct tr:not(.g)>th:first-child{width:230px;min-width:230px}
+
+/* ---------- slide de texto (bloques editables) ---------- */
+.tslide{width:1180px;display:grid;grid-template-columns:repeat(var(--cols),1fr);gap:18px;position:relative;padding-bottom:4px}
+.tcard{position:relative;background:#fff;border:1px solid var(--tc-b);border-radius:14px;padding:22px 22px 18px;min-height:250px;box-shadow:0 8px 24px -14px rgba(43,52,82,.25);overflow:visible}
+.tcard::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;border-radius:14px 14px 0 0;background:var(--tc-b)}
+.t-ppto{--tc-b:#DED3F3;--tc-t:#4B3A86} .t-real{--tc-b:#C9DDF5;--tc-t:#1F4E86} .t-fut{--tc-b:#BFE3CB;--tc-t:#1E5634} .t-ater{--tc-b:#F9D9B8;--tc-t:#8A4B12} .t-aux{--tc-b:#DDE1EA;--tc-t:#2B3452}
+.tc-h{margin:4px 0 12px;font:700 19px/1.25 var(--f-reg);color:var(--tc-t);outline:none}
+.tc-h:empty::before{content:attr(data-ph);opacity:.45}
+.tc-ul{margin:0;padding:0 0 0 20px;font:400 16px/1.45 var(--f-reg);color:var(--slate);outline:none;min-height:1.5em}
+.tc-ul li{margin:0 0 8px;padding-left:4px}
+.tc-ul li::marker{color:var(--tc-b);font-size:1.1em}
+.tc-ul b{font-weight:700;color:var(--tc-t)}
+.tcard:focus-within{box-shadow:0 0 0 2px var(--tc-b),0 12px 30px -14px rgba(43,52,82,.35)}
+.tcard .tc-h:focus,.tcard .tc-ul:focus{outline:none!important;box-shadow:none!important}
+.tc-tools{position:absolute;right:10px;top:-16px;display:flex;align-items:center;gap:3px;padding:4px 6px;border-radius:10px;background:#1E2440;box-shadow:0 10px 24px -8px rgba(0,0,0,.45);opacity:0;transform:translateY(4px);pointer-events:none;transition:opacity .14s,transform .14s;z-index:2}
+.tcard:hover .tc-tools,.tcard:focus-within .tc-tools{opacity:1;transform:none;pointer-events:auto}
+.tc-tools button{all:unset;box-sizing:border-box;display:inline-grid;place-items:center;min-width:22px;height:22px;border-radius:6px;color:#C9D1E4;cursor:pointer;font:700 15px var(--f-reg)}
+.tc-tools button:hover:not([disabled]){background:rgba(255,255,255,.12);color:#fff}
+.tc-tools button[disabled]{opacity:.3;cursor:default}
+.tc-dot{min-width:0!important;width:16px!important;height:16px!important;border-radius:50%!important;background:var(--d)!important;box-shadow:inset 0 0 0 2px var(--b);margin:0 1px}
+.tc-dot.on{outline:2px solid #fff;outline-offset:1px}
+.tc-tools .sn-del svg{width:14px;height:14px}
+.tc-add{position:absolute;right:0;bottom:-34px;border:1px dashed #C9CFDD;background:#fff;border-radius:999px;padding:5px 14px;font:600 12px var(--f-reg);color:#6B7390;cursor:pointer;opacity:0;transition:opacity .15s}
+.slide:hover .tc-add{opacity:1}
+.tc-add:hover{color:#4B3A86;border-color:#9C88D8}
+html.presenting .tc-add{display:none}
+.slide.p-in .tcard{animation:pPop .55s calc(.3s + var(--i,0) * .12s) cubic-bezier(.2,.8,.2,1) both}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 10/11/2026 20:01</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 11/11/2026 09:05</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -763,7 +790,7 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 10/11/2026 20:01</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 11/11/2026 09:05</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -3665,6 +3692,7 @@ const CrecF = {
   kind(page){ return page.split('|')[1] || 'res'; },
   views(page){
     const a = k => [k + '_m', k + '_n', k + '_u'];
+    if (this.kind(page) === 'evo') return { completo: { label: 'Texto', cols: [] } };
     if (this.kind(page) === 'cant'){
       const KS = ['p26', 'ap25', 'b2626', 'b2627', 'fc', 'tot', 'pase', 'b27', 'b28'], f = s => KS.flatMap(k => s.map(x => k + x));
       return { completo: { label: 'Solo locales', cols: f(['_q']).concat(['dq']) }, todo: { label: 'Locales + $ + equivalencias', cols: f(['_m', '_n', '_q']).concat(['dq']) }, montos: { label: 'Locales + $', cols: f(['_m', '_q']).concat(['dq']) }, equiv: { label: 'Locales + equivalencias', cols: f(['_n', '_q']).concat(['dq']) }, corto: { label: 'Solo PPTO y 9+3', cols: ['p26_m', 'p26_n', 'p26_q', 'fc_m', 'fc_n', 'fc_q', 'tot_m', 'tot_n', 'tot_q', 'dq'] } };
@@ -3676,6 +3704,7 @@ const CrecF = {
   },
   colDefs(page){
     const k0 = this.kind(page), out = [];
+    if (k0 === 'evo') return out;
     if (k0 === 'cant'){
       CF_B26.concat(CF_B27).forEach(([k, lab, tone]) => {
         const big = k === 'p26' || k === 'tot' || k === 'fc';
@@ -3697,7 +3726,7 @@ const CrecF = {
   },
   defaults(){ return { byPage: {} }; },
   colState(page, o){ return ItPr.colState.call(this, page, o); },
-  pages(){ return [{ key: 'cfarma|res', label: 'Resumen · 2026 y 2027' }, { key: 'cfarma|cant', label: 'Cantidad de locales · 2026 y 2027' }, { key: 'cfarma|26', label: '2026 · PPTO y 9+3' }, { key: 'cfarma|27', label: '2027 · pase de año y búsquedas' }]; },
+  pages(){ return [{ key: 'cfarma|res', label: 'Resumen · 2026 y 2027' }, { key: 'cfarma|cant', label: 'Cantidad de locales · 2026 y 2027' }, { key: 'cfarma|evo', label: 'Evolución de las obras · texto' }, { key: 'cfarma|26', label: '2026 · PPTO y 9+3' }, { key: 'cfarma|27', label: '2027 · pase de año y búsquedas' }]; },
   optsHtml(){
     return `<p class="empty" style="font-size:11.5px;padding:0">Fuente: libro <b>PPTO 2027 - CAPEX - Crecimiento Farma</b> de la carpeta. 2026 tal cual la hoja CUADRO. 2027 desde ANALISIS: $ = TOTAL (col. BB), # obras = Σ % 2027 PROY, $/obra = $ ÷ # obras.<br>Pase de año = estado EN CURSO · Búsqueda 2027 = SL que empieza con 2, estado N/A y 100% en 2027 · Búsqueda 2027→2028 = ídem con % 2028 PROY mayor a 1%. Reopening se abre por tipología (▾ para cerrar). Clic en una fila para ver las obras.</p>`;
   },
@@ -3727,6 +3756,15 @@ const CrecF = {
     const cells = (vals) => { const out = {}; cols.forEach(c => { if (c.kind === 'gap') return; if (c.k === 'var_p'){ out[c.k] = vals.tot && vals.fc ? fVar(vr(vals.tot[0], vals.fc[0])) : { t: '–', cls: 'na' }; return; } const [b, q] = c.k.split('_'), v = vals[b]; out[c.k] = v ? this.fmtTrip(v)[q] : { t: '', cls: 'na' }; }); return out; };
     base.blockSep = true; base.tableCls = 'cfx';
     const agg = L => { const v = {}; ['tot', 'pase', 'b27', 'b28'].forEach(b => { const S = b === 'tot' ? L.filter(x => x.b) : L.filter(x => x.b === b); const m = S.reduce((a, x) => a + x.tot, 0), n = S.reduce((a, x) => a + x.p27, 0); v[b] = [m, n, n ? m / n : 0]; }); return v; };
+    if (k === 'evo'){
+      // slide de texto: bloques editables para contar cómo evolucionaron las obras presupuestadas
+      const c26 = lab => cf.c26.find(r => E.norm(r.label) === E.norm(lab)) || null, T = c26('TOTAL CRECIMIENTO'), O = cf.obras;
+      const n26 = T && T.v.p26 ? T.v.p26[1] : null, nfc = T && T.v.fc ? T.v.fc[1] : null, n27 = O.filter(x => x.b).reduce((a, x) => a + x.p27, 0);
+      return Object.assign(base, { title: 'Crecimiento Farmacity · evolución de las obras', sub: 'Cómo evolucionaron las obras del PPTO 2026 y cómo llegan al PPTO 2027',
+        note: 'Texto editable: clic en cualquier bloque para escribir. # obras = equivalencias.', rows: [], cols: [], textSlide: { key: page },
+        kpis: [n26 != null ? { k: 'Obras PPTO 2026 → 9+3', tone: 'ater', plain: true, v: nf(1).format(n26) + ' → ' + nf(1).format(nfc || 0), d: 'equivalencias' } : null,
+          { k: 'Obras PPTO 2027', tone: 'ppto', hero: true, plain: true, v: nf(1).format(n27), d: 'equivalencias' }].filter(Boolean) });
+    }
     if (k === 'cant'){
       // cantidad de locales (no equivalencias): 2026 de CUADRO › CANTIDADES; 2027 = SL distintos con PPTO 2027 (suman al PPTO 2027)
       const O = cf.obras, c26 = lab => cf.c26.find(r => E.norm(r.label) === E.norm(lab)) || null;
@@ -4006,6 +4044,7 @@ function splitRows(tm){
   return [rows.slice(0, mid), rows.slice(mid)];
 }
 function tableHtml(tm){
+  if (tm.textSlide) return textSlideHtml(tm.textSlide.key);
   if (tm.stack && tm.stack.length) return `<div class="ct-stack">${tm.stack.map(p => `<div class="ct-part"><div class="ct-cap"><b>${esc(p.cap)}</b>${p.capSub ? `<span>${esc(p.capSub)}</span>` : ''}</div>${oneTable(Object.assign({}, tm, { cols: p.cols }), p.rows)}</div>`).join('')}</div>`;
   const parts = splitRows(tm);
   if (!parts) return oneTable(tm, tm.rows);
@@ -4404,6 +4443,92 @@ function scaleStage(){
   const s = st.clientWidth / 1280;
   st.style.height = (720 * s) + 'px';
   $('#stageInner').style.transform = `scale(${s})`;
+}
+
+/* ============ slide de texto: bloques editables (título + viñetas) ============ */
+const TC_TONES = ['ppto', 'real', 'fut', 'ater', 'aux'];
+const TC_DEF = {
+  'cfarma|evo': [
+    { h: 'PPTO 2026 · lo presupuestado', tone: 'ppto', items: ['Obras presupuestadas: …', 'Monto total: …'] },
+    { h: 'Durante 2026 · cómo evolucionaron', tone: 'real', items: ['Se abrieron: …', 'Se postergaron a 2027: …', 'Se cayeron o se reemplazaron: …'] },
+    { h: 'PPTO 2027 · cómo llegan', tone: 'fut', items: ['Pase de año (en curso): …', 'Nuevas búsquedas: …'] }
+  ]
+};
+function cardsOf(key){
+  const t = state.texts[key] || (state.texts[key] = {});
+  if (!t.cards) t.cards = JSON.parse(JSON.stringify(TC_DEF[key] || [{ h: 'Título del bloque', tone: 'ppto', items: ['…'] }]));
+  return t.cards;
+}
+function textSlideHtml(key){
+  const C = cardsOf(key), n = C.length, cols = n <= 4 ? n : 3;
+  return `<div class="tslide" data-key="${esc(key)}" style="--cols:${cols}">${C.map((c, i) => `
+    <div class="tcard t-${TC_TONES.includes(c.tone) ? c.tone : 'ppto'}" data-c="${i}" style="--i:${i}">
+      <div class="tc-tools" contenteditable="false">
+        ${TC_TONES.map(tn => `<button type="button" class="tc-dot${tn === c.tone ? ' on' : ''}" data-tone="${tn}" style="--d:#${TN[tn].c};--b:#${TN[tn].h}" title="Color"></button>`).join('')}
+        <i class="sn-sep"></i>
+        <button type="button" data-mv="-1" title="Mover a la izquierda"${i ? '' : ' disabled'}>‹</button><button type="button" data-mv="1" title="Mover a la derecha"${i < n - 1 ? '' : ' disabled'}>›</button>
+        <i class="sn-sep"></i>
+        <button type="button" class="sn-del" data-del="1" title="Borrar bloque"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/></svg></button>
+      </div>
+      <h4 class="tc-h" contenteditable="true" spellcheck="false" data-ph="Título del bloque">${esc(c.h || '')}</h4>
+      <ul class="tc-ul" contenteditable="true" spellcheck="false">${(c.items && c.items.length ? c.items : ['']).map(x => `<li>${x}</li>`).join('')}</ul>
+    </div>`).join('')}
+    <button type="button" class="tc-add" title="Agregar bloque">＋ Bloque</button></div>`;
+}
+(() => {
+  const fit = $('#sFit');
+  let tm0;
+  const save = () => { clearTimeout(tm0); tm0 = setTimeout(persist, 300); };
+  fit.addEventListener('input', e => {
+    const card = e.target.closest('.tcard'); if (!card) return;
+    const key = card.parentElement.dataset.key, c = cardsOf(key)[+card.dataset.c];
+    if (e.target.classList.contains('tc-h')) c.h = e.target.textContent.trim();
+    else if (e.target.classList.contains('tc-ul')){
+      const ul = e.target; if (!ul.querySelector('li')){ ul.innerHTML = '<li><br></li>'; }
+      c.items = [...ul.children].map(li => noteClean(li)).filter((x, i, A) => x !== '' || A.length === 1);
+    }
+    save();
+  });
+  fit.addEventListener('keydown', e => { if (e.target.classList && e.target.classList.contains('tc-h') && e.key === 'Enter'){ e.preventDefault(); const ul = e.target.nextElementSibling; ul.focus(); } });
+  fit.addEventListener('paste', e => { if (!e.target.closest('.tcard')) return; e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain')); });
+  fit.addEventListener('mousedown', e => { if (e.target.closest('.tc-tools button')) e.preventDefault(); });
+  fit.addEventListener('click', e => {
+    const ts = e.target.closest('.tslide'); if (!ts) return;
+    const key = ts.dataset.key, C = cardsOf(key), b = e.target.closest('button'); if (!b) return;
+    e.stopPropagation();
+    if (b.classList.contains('tc-add')){ if (C.length >= 6) return toast('Hasta 6 bloques por slide.'); C.push({ h: '', tone: TC_TONES[C.length % TC_TONES.length], items: [''] }); persist(); renderSlide(); const h = $('#sFit').querySelectorAll('.tc-h'); h[h.length - 1].focus(); return; }
+    const card = b.closest('.tcard'), i = +card.dataset.c;
+    if (b.dataset.tone) C[i].tone = b.dataset.tone;
+    else if (b.dataset.mv){ const j = i + +b.dataset.mv; if (j < 0 || j >= C.length) return; [C[i], C[j]] = [C[j], C[i]]; }
+    else if (b.dataset.del){ if (C.length <= 1) return toast('La slide necesita al menos un bloque.'); C.splice(i, 1); }
+    persist(); renderSlide();
+  });
+})();
+function pptCards(pptx, s, key){
+  const C = cardsOf(key), n = C.length, cols = n <= 4 ? n : 3, rowsN = Math.ceil(n / cols);
+  const X0 = 0.45, W = 12.43, Y0 = 1.5, H = 5.3, G = 0.22, cw = (W - G * (cols - 1)) / cols; let ch = (H - G * (rowsN - 1)) / rowsN;
+  const fs = n <= 3 ? 12 : n <= 4 ? 11 : 10.5;
+  // alto de las tarjetas según el texto más largo (como en pantalla), sin pasar el espacio disponible
+  const cpl = Math.max(12, (cw - 0.55) * 72 / (fs * 0.5)), lines = c => (c.items || []).reduce((a, it) => a + Math.max(1, Math.ceil(it.replace(/<[^>]+>/g, '').length / cpl)), 0) + Math.ceil((c.h || '').length / (cpl * 0.85));
+  ch = Math.min(ch, Math.max(2.7, 1.05 + Math.max(...C.map(lines)) * fs * 1.45 / 72));
+  C.forEach((c, i) => {
+    const tn = TN[TC_TONES.includes(c.tone) ? c.tone : 'ppto'], x = X0 + (i % cols) * (cw + G), y = Y0 + Math.floor(i / cols) * (ch + G);
+    s.addShape(pptx.ShapeType.roundRect, { x, y, w: cw, h: ch, rectRadius: 0.08, fill: { color: 'FFFFFF' }, line: { color: tn.h, width: 0.75 }, shadow: { type: 'outer', blur: 6, offset: 1.5, angle: 90, color: '2B3452', opacity: 0.08 } });
+    s.addShape(pptx.ShapeType.rect, { x: x + 0.01, y: y + 0.01, w: cw - 0.02, h: 0.07, fill: { color: tn.h }, line: { color: tn.h, width: 0 } });
+    s.addText(c.h || '', { x: x + 0.2, y: y + 0.2, w: cw - 0.4, h: 0.5, fontSize: fs + 2, bold: true, color: tn.ht, fontFace: 'Calibri', valign: 'top', margin: 0 });
+    // cada viñeta es su propio cuadro de texto (punto + texto con sangría colgante), así se mantienen las negritas
+    let yy = y + 0.74; const lh = fs * 1.32 / 72, tw = cw - 0.62;
+    (c.items || []).forEach(it => {
+      const d = document.createElement('div'); d.innerHTML = it; const runs = [];
+      const walk = (nd, b, ii) => nd.childNodes.forEach(cn => { if (cn.nodeType === 3) runs.push({ text: cn.nodeValue, options: { bold: b, italic: ii, color: b ? tn.ht : PX.SLATE } }); else if (cn.tagName === 'BR') runs.push({ text: '', options: { breakLine: true } }); else walk(cn, b || cn.tagName === 'B', ii || cn.tagName === 'I'); });
+      walk(d, false, false); const plain = d.textContent.trim(); if (!plain) return;
+      const nL = Math.max(1, Math.ceil(plain.length / (tw * 72 / (fs * 0.5)))), h = nL * lh + 0.04;
+      if (yy + h > y + ch - 0.1) return;
+      s.addText('•', { x: x + 0.22, y: yy, w: 0.2, h: lh, fontSize: fs + 2, color: tn.h === 'F1F2F6' ? '8A91A6' : tn.ht, fontFace: 'Calibri', valign: 'top', margin: 0 });
+      s.addText(runs, { x: x + 0.44, y: yy, w: tw, h, fontSize: fs, fontFace: 'Calibri', color: PX.SLATE, valign: 'top', margin: 0, lineSpacingMultiple: 1.1 });
+      yy += h + fs * 0.55 / 72;
+    });
+  });
 }
 
 /* ============ comentarios: cuadros de texto sobre la slide, con los estilos de la casa ============ */
@@ -5181,7 +5306,7 @@ function addSlide(pptx, tm, tx){
     });
   }
   const STK = tm.stack && tm.stack.length ? tm.stack : null;
-  const parts = STK ? STK.map(p => p.rows.filter(r => !r.spacer)) : splitRows(tm) || [tm.rows.filter(r => !r.spacer)];
+  const parts = tm.textSlide ? [] : STK ? STK.map(p => p.rows.filter(r => !r.spacer)) : splitRows(tm) || [tm.rows.filter(r => !r.spacer)];
   const GAP = 0.3, partW = STK ? 12.45 : (12.45 - GAP * (parts.length - 1)) / parts.length, maxLenAll = Math.max(...parts.map(p => p.length));
   // cuadros apilados: cada uno con su título y una parte del alto proporcional a sus filas
   const STKF = {}, CAPH = 0.3, SGAP = 0.22, AV0 = 7.5 - 1.35 - 0.5, SY = [], SA = [];
@@ -5270,6 +5395,7 @@ function addSlide(pptx, tm, tx){
   const colW = [labW].concat(cols.map(c => c.kind === 'sl' ? slW : c.kind === 'note' ? noteW : c.kind === 'text' ? txtW[c.k] : cw));
   s.addTable([head1, head2].concat(body), { x: STK ? 0.4 : 0.4 + pi * (partW + GAP) + xOff, y: STK ? SY[pi] : 1.35, w: colW.reduce((a, b) => a + b, 0), colW, rowH: rh, fontSize: fs, fontFace: 'Calibri Light', valign: 'middle', margin: [0.01, 0.05, 0.01, 0.05], autoPage: false });
   });
+  if (tm.textSlide) pptCards(pptx, s, tm.textSlide.key);
   s.addText(tx.note, { x: 0.45, y: 7.02, w: 10.5, h: 0.32, fontSize: 8, color: PX.INK2, fontFace: 'Calibri Light' });
   pptNotes(pptx, s, tx.notes);
   s.addText(SHARE ? 'FARMACITY · PCG · DATOS AL ' + SHARE.fecha : 'FARMACITY · PCG', { x: SHARE ? 9.9 : 11, y: 7.02, w: SHARE ? 3 : 1.9, h: 0.32, fontSize: 8, bold: true, color: PX.SLATE, align: 'right', fontFace: 'Calibri' });
@@ -5324,7 +5450,7 @@ $('#xPng').onclick = async () => {
   if (hideVer){ state._noVer = true; renderSlide(); }
   try{
     const cv = await html2canvas($('#slide'), { scale: 2, backgroundColor: '#FFFFFF', logging: false,
-      onclone: d => { const si = d.getElementById('stageInner'); if (si) si.style.transform = 'none'; d.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable')); d.querySelectorAll('.sn-tools,.sn-rs').forEach(x => x.remove()); d.querySelectorAll('.snote').forEach(x => x.classList.remove('sel')); } });
+      onclone: d => { const si = d.getElementById('stageInner'); if (si) si.style.transform = 'none'; d.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable')); d.querySelectorAll('.sn-tools,.sn-rs,.tc-tools,.tc-add').forEach(x => x.remove()); d.querySelectorAll('.snote').forEach(x => x.classList.remove('sel')); } });
     const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
     await saveFile(`${slug(textsFor(state.page, TM).title)}_${stamp()}.png`, blob);
   }catch(e){ console.error(e); toast('No se pudo generar la imagen.'); }
@@ -5540,7 +5666,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="10/11/2026 20:01";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="11/11/2026 09:05";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
