@@ -786,7 +786,7 @@ html.presenting .tc-add{display:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 11/11/2026 09:58</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 11/11/2026 10:20</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -810,7 +810,7 @@ html.presenting .tc-add{display:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 11/11/2026 09:58</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 11/11/2026 10:20</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -4149,8 +4149,47 @@ async function writeSharedVers(gesture){
   }catch(e){ console.error(e); VSH.pend = true; }
   renderVerShare();
 }
+/* textos compartidos: comentarios, títulos editados y slides de texto viajan en "Aurea - textos.json" de la carpeta conectada,
+   así quien conecte la misma carpeta (tu jefa) los ve. Por slide gana el cambio más nuevo. */
+const TFILE = 'Aurea - textos.json', LST = 'capex-motor-textos-ts';
+let TXT_TS = ls.get(LST) || {}, TXT_T = null;
+// lo escrito antes de que existiera el archivo compartido también se comparte
+setTimeout(() => { let ch = false; new Set(Object.keys(state.texts || {}).concat(Object.keys(state.notes || {}))).forEach(k => { const has = (state.notes[k] || []).length || Object.keys(state.texts[k] || {}).length; if (has && !TXT_TS[k]){ TXT_TS[k] = '2026-11-11T00:00:00.000Z'; ch = true; } }); if (ch) ls.set(LST, TXT_TS); }, 0);
+function txtTouch(key){ if (!key) return; TXT_TS[key] = new Date().toISOString(); ls.set(LST, TXT_TS); clearTimeout(TXT_T); TXT_T = setTimeout(() => writeSharedTexts(false), 1500); }
+function mergeTexts(j){
+  if (!j || j.app !== 'motor-capex' || !j.paginas) return false;
+  let ch = false;
+  Object.entries(j.paginas).forEach(([k, v]) => {
+    if (!v || !v.ts || (TXT_TS[k] && TXT_TS[k] >= v.ts)) return;
+    if (v.texts && Object.keys(v.texts).length) state.texts[k] = v.texts; else delete state.texts[k];
+    if (v.notes && v.notes.length) state.notes[k] = v.notes; else delete state.notes[k];
+    TXT_TS[k] = v.ts; ch = true;
+  });
+  if (ch){ ls.set(LST, TXT_TS); persist(); }
+  return ch;
+}
+function textsPayload(){
+  const keys = new Set(Object.keys(TXT_TS)), pg = {};
+  keys.forEach(k => { pg[k] = { ts: TXT_TS[k], texts: state.texts[k] || null, notes: state.notes[k] || null }; });
+  return { app: 'motor-capex', actualizado: new Date().toISOString(), paginas: pg };
+}
+async function readSharedTexts(dir){
+  try{ const h = await dir.getFileHandle(TFILE); const ch = mergeTexts(JSON.parse(await (await h.getFile()).text())); if (ch && state.ds) renderSlide(); }catch(e){}
+}
+async function writeSharedTexts(gesture){
+  const dir = state.dir; if (!dir || SHARE) return;
+  try{
+    let perm = await dir.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted' && gesture) perm = await dir.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted'){ if (!TXT_T_WARN){ TXT_T_WARN = true; toast('Para que otros vean tus comentarios, Áurea necesita permiso para guardar en la carpeta: tocá "Actualizar" y aceptá "Editar".', 9000); } return; }
+    try{ const h0 = await dir.getFileHandle(TFILE); mergeTexts(JSON.parse(await (await h0.getFile()).text())); }catch(e){}
+    const h = await dir.getFileHandle(TFILE, { create: true }), w = await h.createWritable();
+    await w.write(JSON.stringify(textsPayload(), null, 1)); await w.close();
+  }catch(e){ console.error(e); }
+}
+let TXT_T_WARN = false;
 let VSH_T = null;
-window.__aureaTest = () => ({ state, readSharedVers, saveVersion, renderVer });
+window.__aureaTest = () => ({ state, readSharedVers, saveVersion, renderVer, textsPayload, mergeTexts, renderSlide });
 const shareVersSoon = () => { clearTimeout(VSH_T); VSH_T = setTimeout(() => writeSharedVers(false), 1500); };
 function renderVerShare(){
   const el = $('#verShare'); if (!el) return;
@@ -4500,7 +4539,7 @@ function textSlideHtml(key){
 (() => {
   const fit = $('#sFit');
   let tm0;
-  const save = () => { clearTimeout(tm0); tm0 = setTimeout(persist, 300); };
+  const save = () => { clearTimeout(tm0); tm0 = setTimeout(persist, 300); txtTouch(state.page); };
   fit.addEventListener('input', e => {
     const card = e.target.closest('.tcard'); if (!card) return;
     const key = card.parentElement.dataset.key, c = cardsOf(key)[+card.dataset.c];
@@ -4518,12 +4557,12 @@ function textSlideHtml(key){
     const ts = e.target.closest('.tslide'); if (!ts) return;
     const key = ts.dataset.key, C = cardsOf(key), b = e.target.closest('button'); if (!b) return;
     e.stopPropagation();
-    if (b.classList.contains('tc-add')){ if (C.length >= 6) return toast('Hasta 6 bloques por slide.'); C.push({ h: '', tone: TC_TONES[C.length % TC_TONES.length], items: [''] }); persist(); renderSlide(); const h = $('#sFit').querySelectorAll('.tc-h'); h[h.length - 1].focus(); return; }
+    if (b.classList.contains('tc-add')){ if (C.length >= 6) return toast('Hasta 6 bloques por slide.'); C.push({ h: '', tone: TC_TONES[C.length % TC_TONES.length], items: [''] }); persist(); txtTouch(key); renderSlide(); const h = $('#sFit').querySelectorAll('.tc-h'); h[h.length - 1].focus(); return; }
     const card = b.closest('.tcard'), i = +card.dataset.c;
     if (b.dataset.tone) C[i].tone = b.dataset.tone;
     else if (b.dataset.mv){ const j = i + +b.dataset.mv; if (j < 0 || j >= C.length) return; [C[i], C[j]] = [C[j], C[i]]; }
     else if (b.dataset.del){ if (C.length <= 1) return toast('La slide necesita al menos un bloque.'); C.splice(i, 1); }
-    persist(); renderSlide();
+    persist(); txtTouch(key); renderSlide();
   });
 })();
 function pptCards(pptx, s, key){
@@ -4566,7 +4605,7 @@ const NOTE_ST = {
 const NOTE_SZ = { s: 13, m: 15, l: 18 };
 const notesOf = key => state.notes[key] || (state.notes[key] = []);
 let _nSave;
-const noteSave = () => { clearTimeout(_nSave); _nSave = setTimeout(persist, 250); };
+const noteSave = () => { clearTimeout(_nSave); _nSave = setTimeout(persist, 250); txtTouch(state.page); };
 /* el texto se guarda con un HTML mínimo: solo negrita, cursiva y saltos de línea */
 function noteClean(root){
   let out = '';
@@ -5255,7 +5294,7 @@ $('#optDec').onchange = e => { state.dec = +e.target.value; persist(); renderSli
     const key = state.page, t = el.textContent.trim(), def = TM ? TM[k] : '';
     const o = state.texts[key] || (state.texts[key] = {});
     if (!t || t === def) delete o[k]; else o[k] = t;
-    persist(); renderSlide();
+    persist(); txtTouch(key); renderSlide();
   });
 });
 $('#sFit').onclick = e => {
@@ -5552,7 +5591,7 @@ function renderFolder(){
       ${state.lastSync ? `<span class="st">${esc(state.lastSync)}</span>` : ''}
       ${state.lastErr ? `<span class="st" style="color:#C9584A;font-weight:600">⚠ ${esc(state.lastErr)}</span>` : ''}</div>`;
   const p = $('#fPick'), s = $('#fSync');
-  if (p) p.onclick = pickFolder; if (s) s.onclick = () => syncFolder(true);
+  if (p) p.onclick = pickFolder; if (s) s.onclick = async () => { await syncFolder(true); if (Object.keys(TXT_TS).length) writeSharedTexts(true); };
   renderVerShare();
 }
 async function pickFolder(){
@@ -5599,7 +5638,7 @@ async function syncFolder(ask){
     else state.lastErr = null;
     const when = f => new Date(f.lastModified).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     state.lastSync = [ppto && `PPTO: ${ppto.name} (${when(ppto)})`, mz && `Matriz: ${mz.name} (${when(mz)})`, cfFile && `Crecimiento Farma: ${cfFile.name} (${when(cfFile)})`, csFile && `Crecimiento Simplicity: ${csFile.name} (${when(csFile)})`].filter(Boolean).join(' · ');
-    await readSharedVers(dir); renderVer();
+    await readSharedVers(dir); renderVer(); await readSharedTexts(dir);
     await loadFiles([cfFile, csFile, mz, ppto].filter(Boolean), true);
   }catch(e){ console.error(e); state.lastErr = 'No pude leer la carpeta: ' + (e.message || e) + ' (' + errWhere(e) + ')'; toast(state.lastErr, 15000); busy(false); renderFolder(); }
 }
@@ -5712,7 +5751,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="11/11/2026 09:58";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="11/11/2026 10:20";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
