@@ -761,12 +761,32 @@ html.presenting .snote:not(:hover):not(.sel){outline:none}
 .tc-add:hover{color:#4B3A86;border-color:#9C88D8}
 html.presenting .tc-add{display:none}
 .slide.p-in .tcard{animation:pPop .55s calc(.3s + var(--i,0) * .12s) cubic-bezier(.2,.8,.2,1) both}
+
+/* ---------- paneles plegables ---------- */
+.pane-tog{width:38px;min-width:38px;padding:0!important;display:inline-grid;place-items:center}
+.pane-tog svg{width:18px;height:18px}
+.pane-tog .pt-fill{opacity:.55;transition:opacity .15s}
+.pane-tog.off .pt-fill{opacity:0}
+.pane-tog.off{opacity:.75}
+#togSide{order:99}
+@media (min-width:1181px){
+  .app{transition:grid-template-columns .22s ease}
+  html.no-rail .app{grid-template-columns:0 minmax(0,1fr) 270px}
+  html.no-side .app{grid-template-columns:230px minmax(0,1fr) 0}
+  html.no-rail.no-side .app{grid-template-columns:0 minmax(0,1fr) 0}
+  html.no-rail .rail,html.no-side .side{visibility:hidden;overflow:hidden;opacity:0;pointer-events:none}
+  html.no-rail .app,html.no-side .app{column-gap:0}
+  html.no-rail .stagewrap{margin-left:0} 
+  html.no-rail:not(.no-side) .stagewrap{margin-right:14px}
+  html.no-side:not(.no-rail) .stagewrap{margin-left:14px}
+}
+@media (max-width:1180px){.pane-tog{display:none}}
 </style>
 
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 11/11/2026 09:05</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 11/11/2026 09:58</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -790,7 +810,7 @@ html.presenting .tc-add{display:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 11/11/2026 09:05</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 11/11/2026 09:58</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -800,10 +820,12 @@ html.presenting .tc-add{display:none}
 
   <main class="stagewrap">
     <div class="stagebar">
+      <button class="btn pane-tog" id="togRail" type="button" title="Mostrar / ocultar el panel de cuadros ( [ )"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="2.5" width="13" height="11" rx="1.6"/><path d="M6 2.5v11"/><path class="pt-fill" d="M2.3 3.3h3v9.4h-3z" fill="currentColor" stroke="none"/></svg></button>
       <div class="seg" id="views" role="group" aria-label="Vista de columnas"></div>
       <span class="hint">Títulos y nota al pie se editan con un clic en la slide. Clic en una fila para ver sus SL.</span>
       <button class="btn note-btn" id="noteAdd" type="button" title="Agregar un cuadro de comentario a esta slide (sale en la presentación, en el PNG y en el PowerPoint)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2.5 3.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1-1.5 1.5H7l-3 3v-3H4a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M5.5 5.5h5M5.5 7.8h3.2" stroke-linecap="round"/></svg>Comentario</button>
       <button class="btn pres-btn" id="presGo" type="button" title="Pantalla completa · flechas para pasar de slide · Esc para salir"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="9" rx="1.2"/><path d="M6.6 5.2v3.6L9.6 7z" fill="currentColor"/><path d="M5.5 14h5M8 11.5V14"/></svg>Presentar</button>
+      <button class="btn pane-tog" id="togSide" type="button" title="Mostrar / ocultar el panel de opciones ( ] )"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="2.5" width="13" height="11" rx="1.6"/><path d="M10 2.5v11"/><path class="pt-fill" d="M10.7 3.3h3v9.4h-3z" fill="currentColor" stroke="none"/></svg></button>
     </div>
     <div class="ctlbar" id="ctlbar" hidden></div>
     <div class="stage" id="stage">
@@ -4850,6 +4872,30 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'Escape') presEnd();
 });
 
+/* ============ paneles laterales plegables (más lugar para la slide) ============ */
+const PANES_KEY = 'aurea-paneles';
+function panesApply(){
+  let p = {}; try{ p = JSON.parse(localStorage.getItem(PANES_KEY) || '{}'); }catch(e){}
+  const h = document.documentElement;
+  h.classList.toggle('no-rail', !!p.rail); h.classList.toggle('no-side', !!p.side);
+  $('#togRail').classList.toggle('off', !!p.rail); $('#togSide').classList.toggle('off', !!p.side);
+  $('#togRail').setAttribute('aria-pressed', String(!p.rail)); $('#togSide').setAttribute('aria-pressed', String(!p.side));
+}
+function panesToggle(k){
+  let p = {}; try{ p = JSON.parse(localStorage.getItem(PANES_KEY) || '{}'); }catch(e){}
+  p[k] = !p[k]; try{ localStorage.setItem(PANES_KEY, JSON.stringify(p)); }catch(e){}
+  panesApply(); requestAnimationFrame(() => { if (typeof fitTable === 'function' && state.ds) fitTable(); });
+  setTimeout(() => { if (state.ds) fitTable(); }, 260);
+}
+$('#togRail').onclick = () => panesToggle('rail');
+$('#togSide').onclick = () => panesToggle('side');
+document.addEventListener('keydown', e => {
+  if (PRES.on || e.ctrlKey || e.metaKey || e.altKey) return;
+  const a = document.activeElement; if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+  if (e.key === '[') { e.preventDefault(); panesToggle('rail'); } else if (e.key === ']') { e.preventDefault(); panesToggle('side'); }
+});
+panesApply();
+
 /* ============ paneles ============ */
 function renderSlidesList(){
   const cur = currentPage();
@@ -5666,7 +5712,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="11/11/2026 09:05";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="11/11/2026 09:58";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
