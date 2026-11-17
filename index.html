@@ -786,7 +786,7 @@ html.presenting .tc-add{display:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 11/11/2026 10:27</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 17/11/2026 12:30</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -810,7 +810,7 @@ html.presenting .tc-add{display:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 11/11/2026 10:27</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 17/11/2026 12:30</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -2180,6 +2180,7 @@ const ItResp = {
     const b = (v, l) => `<button type="button" data-v="${v}">${l}</button>`;
     return `<div class="field"><span class="lab">Apertura</span><div class="seg" data-opt="respOpen">${b('cerrado','Solo responsables')}${b('jer','Con jerarquías')}${b('todo','Todo abierto')}</div></div>
       <div class="field"><label class="tg"><input type="checkbox" data-opt="dd"${o.dd !== false ? ' checked' : ''}>Sumar los SL "DD" de otras líneas</label></div>
+      <div class="field"><label class="tg"><input type="checkbox" data-opt="ddRec"${o.ddRec !== false ? ' checked' : ''}>Conciliación con el filtro "DD" de la columna RESPONSABLE</label></div>
       <p class="empty" style="font-size:11.5px;padding:0">Responsable = columna RESPONSABLE de PPTO27. Clic en ▸ para abrir o cerrar. Montos 2026 y 2027 de las columnas de PPTO27, igual que IT Resumen.</p>`;
   },
   cat(r){ return ItRes.cat(r); },
@@ -2236,6 +2237,14 @@ const ItResp = {
       const tDD = this.vals(dd), tAll = this.vals(it.concat(dd));
       rows.push({ label: 'Total DD en otras líneas', sub: dd.length + ' SL', style: 'sub', cells: cells(tDD, ''), drill: { title: 'Dominio Digital en otras líneas', sls: dd } });
       rows.push({ spacer: true }, { label: 'Total IT Hard + Soft + Dominio Digital', sub: 'lo que informa el área', style: 'grand', cells: cells(tAll, ''), drill: { title: 'IT + Dominio Digital', sls: it.concat(dd) } });
+    }
+    // conciliación: lo mismo que filtrar RESPONSABLE = "DD…" en PPTO27, abierto según dónde lo expone el cuadro
+    if (o.ddRec !== false){
+      const all = state.ds.rows.filter(r => this.isDD(r)), inIt = all.filter(r => it.includes(r)), inEcom = all.filter(r => E.norm(r.gral) === 'it' && E.norm(r.part) === 'ecom'), otras = all.filter(r => E.norm(r.gral) !== 'it'), noDD = it.filter(r => !this.isDD(r));
+      rows.push({ spacer: true }, { label: 'Conciliación con el filtro "DD" (columna RESPONSABLE)', sub: 'mismo total que filtrar la columna H de PPTO27', style: 'blockhead', cells: {} });
+      [['Responsable DD en IT Hard + Soft', inIt], ['Responsable DD en ECOM (no entra en este cuadro)', inEcom], ['Responsable DD en otras líneas', otras]].forEach(([l, L]) => { if (L.length) rows.push({ label: l, sub: L.length + ' SL', style: 'rjer', cells: cells(this.vals(L), ''), drill: { title: l, sls: L } }); });
+      rows.push({ label: 'Total responsable DD', sub: all.length + ' SL · = filtro DD en PPTO27', style: 'sub', cells: cells(this.vals(all), ''), drill: { title: 'Responsable DD (todas las líneas)', sls: all } });
+      if (noDD.length) rows.push({ label: 'Otros responsables dentro de IT Hard + Soft', sub: [...new Set(noDD.map(r => this.resp(r)))].slice(0, 4).join(' · ') + ' · ' + noDD.length + ' SL', style: 'rjer', cells: cells(this.vals(noDD), ''), drill: { title: 'IT Hard + Soft con otro responsable', sls: noDD } });
     }
     const tk = withDD ? this.vals(it.concat(dd)) : tIt, d = fVar(vr(tk.P27, tk.A93));
     return {
@@ -5769,7 +5778,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="11/11/2026 10:27";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="17/11/2026 12:30";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
