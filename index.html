@@ -786,7 +786,7 @@ html.presenting .tc-add{display:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 20/11/2026 12:35</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 20/11/2026 12:48</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -810,7 +810,7 @@ html.presenting .tc-add{display:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 20/11/2026 12:35</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 20/11/2026 12:48</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -4448,7 +4448,9 @@ function addUniCols(tm, pg){
    (no en Crecimiento, que trae su 9+3 de su propio libro, ni en cantidades / horas, que salen de otras hojas) */
 const ATR_SKIP = new Set(['cfarma', 'csimpli']);
 const atrOn = pg => state.aterr === '102' && state.ds && state.ds.aterr === '102' && !(pg && ATR_SKIP.has(pg.cuadro.id));
-const atr = s => typeof s === 'string' ? s.replace(/9\+3/g, '10+2') : s;
+// el FCTS mensual (CA:CL) se nombra según el último mes con real: octubre = 10+2, noviembre = 11+1…
+const atrLbl = () => { const m = state.ds && state.ds.lastReal >= 0 ? state.ds.lastReal + 1 : 10; return m + '+' + (12 - m); };
+const atr = s => typeof s === 'string' ? s.replace(/9\+3/g, atrLbl()) : s;
 function relabelAter(tm){
   ['title', 'sub', 'note', 'eyebrow'].forEach(k => { tm[k] = atr(tm[k]); });
   (tm.kpis || []).forEach(k => { if (k){ k.k = atr(k.k); k.d = atr(k.d); } });
@@ -5028,7 +5030,7 @@ document.addEventListener('click', async e => {
   if (state.dir) await syncFolder(false);
   else if (state._pptoFile) await loadFiles([state._pptoFile]);
   else { toast('Volvé a cargar el Excel del PPTO para aplicar el cambio.'); renderFiles(); return; }
-  toast(state.aterr === '102' ? 'Aterrizaje 10+2: FCTS columnas CA a CL (octubre real).' : 'Aterrizaje 9+3: FCTS columna BY.');
+  toast(state.aterr === '102' ? 'Aterrizaje ' + atrLbl() + ': FCTS columnas CA a CL (real hasta ' + mesTxt() + ').' : 'Aterrizaje 9+3: FCTS columna BY.');
 });
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-src26]'); if (!b) return;
@@ -5047,7 +5049,7 @@ function renderFiles(){
     <div class="fileline"><span class="tag">Presupuesto</span><b>${esc(state.dsName)}</b><span class="st ${state.dsSrc === 'file' ? 'live' : 'demo'}">${state.dsSrc === 'file' ? 'Cargado' : 'Ejemplo · datos ficticios'}</span></div>
     ${state.ds.fcCol ? `<div class="fileline"><span class="tag">Aterrizaje 9+3 por SL</span><b>${esc(state.ds.fcName || '06_FCTS26')} · columna ${esc(state.ds.fcCol)}</b><span class="st live">${(state.ds.fcCands || []).length > 1 ? 'Elegida entre ' + state.ds.fcCands.map(c => c.col).join(', ') + ': la que cruza con el 9+3 del cuadro' : 'Se usa en los cuadros particulares'}</span></div>` : ''}
     <div class="fileline"><span class="tag">2026 del Cuadro General</span><b>${state.ds.sl26 && state.src26 === 'sl' ? 'Por SL · ' + esc(state.ds.sl26Src) : 'Valores del cuadro del Excel · ' + esc(state.ds.snapName || 'Cuadro_Capex')}</b>
-      ${state.ds.fcName ? `<span class="seg mini src26" role="group" title="Aterrizaje 2026 que se usa en todos los cuadros: 9+3 = FCTS columna BY · 10+2 = FCTS columnas CA a CL (octubre real)"><button type="button" data-aterr="93" aria-pressed="${state.aterr !== '102'}">9+3</button><button type="button" data-aterr="102" aria-pressed="${state.aterr === '102'}">10+2</button></span>` : ''}
+      ${state.ds.fcName ? `<span class="seg mini src26" role="group" title="Aterrizaje 2026 que se usa en todos los cuadros: 9+3 = FCTS columna BY · ${atrLbl()} = FCTS columnas CA a CL (meses con real hasta ${mesTxt()})"><button type="button" data-aterr="93" aria-pressed="${state.aterr !== '102'}">9+3</button><button type="button" data-aterr="102" aria-pressed="${state.aterr === '102'}">${atrLbl()}</button></span>` : ''}
       ${state.ds.sl26 ? `<span class="seg mini src26" role="group"><button type="button" data-src26="sl" aria-pressed="${state.src26 === 'sl'}">Por SL (03_SL)</button><button type="button" data-src26="excel" aria-pressed="${state.src26 !== 'sl'}">Cuadro del Excel</button></span>` : `<span class="st demo">Falta 03_SL o 05_Consolidado_REAL para armarlo por SL</span>`}</div>
     ${state.ds.jerCol ? `<div class="fileline"><span class="tag">Jerarquización</span><b>PPTO27 · columna ${esc(state.ds.jerCol)}</b><span class="st live">Se usa primero; la Matriz completa los vacíos</span></div>` : ''}
     <div class="fileline"><span class="tag">Matriz de Subledgers</span><b>${esc(state.mzName)}</b><span class="st ${state.mzSrc === 'live' || (!state.mz && curMz()) ? 'live' : 'demo'}"${curMz() ? '' : ' style="color:var(--bad)"'}>${state.mzSrc === 'live' ? 'Cargada · ' + state.mz.count + ' SL' : state.mz ? 'Ejemplo · ' + state.mz.count + ' SL' : curMz() ? 'Tomada del archivo de presupuesto · ' + curMz().count + ' SL' : 'Sin cargar: las jerarquías salen vacías'}</span></div>
@@ -5213,7 +5215,7 @@ async function loadFiles(list, from){
         ls.set('capex-motor-cf', { cf: state.cf, name: f.name }); msgs.push('crecimiento Farma (' + state.cf.obras.length + ' obras)'); continue;
       }
       const out = await E.readAnyAsync(XLSX, window.JSZip, new Uint8Array(await f.arrayBuffer()));
-      if (out.kind === 'ppto'){ state.ds = out.ds; state.dsSrc = 'file'; state.dsName = f.name; state._pptoFile = f; msgs.push('presupuesto' + (out.ds.aterr === '102' ? ' · aterrizaje 10+2' : '')); }
+      if (out.kind === 'ppto'){ state.ds = out.ds; state.dsSrc = 'file'; state.dsName = f.name; state._pptoFile = f; msgs.push('presupuesto' + (out.ds.aterr === '102' ? ' · aterrizaje FCTS mensual' : '')); }
       else { state.mz = out.mz; state.mzSrc = 'live'; state.mzName = f.name; ls.set(LSMZ, { mz: out.mz, name: f.name }); msgs.push('matriz (' + out.mz.count + ' SL)'); }
     }catch(e){
       console.error(e);
@@ -5808,7 +5810,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="20/11/2026 12:35";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="20/11/2026 12:48";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
