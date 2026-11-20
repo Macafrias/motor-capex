@@ -786,7 +786,7 @@ html.presenting .tc-add{display:none}
 <header class="top">
   <div class="brand">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="11" width="3.2" height="6" rx=".6" fill="#3DB8B3"/><rect x="8.4" y="7" width="3.2" height="10" rx=".6" fill="#FFFFFF"/><rect x="14.3" y="3" width="3.2" height="14" rx=".6" fill="#D99A17"/></svg></div>
-    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 20/11/2026 12:48</b></small></div>
+    <div><h1>Áurea <span class="h1tag">CAPEX</span></h1><small id="hSub">Cuadros de presentación que se recalculan con el Excel del presupuesto · <b style="font-weight:600">versión 20/11/2026 12:53</b></small></div>
   </div>
   <div class="src">
     <span class="chip" id="srcChip"><span class="dot"></span><span id="srcTxt">Ejemplo · datos ficticios</span></span>
@@ -810,7 +810,7 @@ html.presenting .tc-add{display:none}
       <div class="folder" id="folder"></div>
       <div class="files" id="files"></div>
       <dl class="meta" id="meta"></dl>
-      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 20/11/2026 12:48</p>
+      <p class="empty" id="ver" style="font-size:11px;margin:10px 0 0;padding:0">Versión del motor: 20/11/2026 12:53</p>
     </section>
     <section class="panel" id="pChecks">
       <h2 class="ph">Controles</h2>
@@ -1640,7 +1640,8 @@ html.presenting .tc-add{display:none}
   }
 
   /* ---------- 08_PROYECTOS en streaming: la hoja puede traer ~1M filas vacías con formato ---------- */
-  function parsePr(Q) {
+  let LAST_FCR_M = null;
+  function parsePr(Q, lastReal) {
     const pr = {};
             const qh = Q.findIndex(r => r && r.some(x => norm(x) === 'sl') && r.some(x => norm(x).startsWith('estado')));
       if (qh >= 0) {
@@ -1650,7 +1651,13 @@ html.presenting .tc-add{display:none}
           mpr: f('monto a proyectar') };
         // consumido = solo real (≤2025 + 2026); los FCTS de los meses que faltan quedan aparte (fcr) para el saldo proyectado
         const iR25 = QH.findIndex(x => x.startsWith('real consumido') && /2025/.test(x)), iR26 = QH.findIndex(x => x.startsWith('real consumido') && /2026/.test(x));
-        const iFcr = QH.map((x, i) => /^fcts\s/.test(x) ? i : -1).filter(i => i >= 0);
+        // FCTS de los meses que faltan: solo los meses posteriores al último real (si octubre ya es real, no se suma su FCTS)
+        const MN = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+        const fMes = x => { const m = x.replace(/^fcts\s*/, ''); const j = MN.findIndex(n => m.startsWith(n)); return j; };
+        const iFcrAll = QH.map((x, i) => /^fcts\s/.test(x) ? i : -1).filter(i => i >= 0);
+        const lr = lastReal == null ? -1 : lastReal;
+        const iFcr = iFcrAll.filter(i => { const j = fMes(QH[i]); return j < 0 || j > lr; });
+        LAST_FCR_M = iFcr.map(i => fMes(QH[i])).filter(j => j >= 0).sort((a, b) => a - b);
         const realOk = iR25 >= 0 || iR26 >= 0;
         const MI = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'].map(m => QH.indexOf('importe ' + m));
         for (let i = qh + 1; i < Q.length; i++) {
@@ -1730,9 +1737,9 @@ html.presenting .tc-add{display:none}
       }).on('end', finish).on('error', reject).resume();
     });
   }
-  async function readProyectos(JSZip, data, sheetName) {
+  async function readProyectos(JSZip, data, sheetName, lastReal) {
     const Q = await readSheetStream(JSZip, data, sheetName, 8000);
-    return Q ? parsePr(Q) : {};
+    return Q ? parsePr(Q, lastReal) : {};
   }
   /* ============ Crecimiento Farmacity (libro "PPTO 2027 - CAPEX - Crecimiento Farma") ============
      CUADRO: 2026 tal cual (PPTO 2026, aprobados 2025 → 2026, búsquedas, 9+3) · ANALISIS: obra por obra para armar 2027 */
@@ -1862,7 +1869,7 @@ html.presenting .tc-add{display:none}
   }
   async function readAnyAsync(XLSX, JSZip, data) {
     const out = readAny(XLSX, data);
-    if (out.kind === 'ppto' && out.ds.prName && JSZip) out.ds.pr = await readProyectos(JSZip, data, out.ds.prName);
+    if (out.kind === 'ppto' && out.ds.prName && JSZip){ LAST_FCR_M = null; out.ds.pr = await readProyectos(JSZip, data, out.ds.prName, out.ds.lastReal); out.ds.prFcrM = LAST_FCR_M; }
     return out;
   }
 
@@ -2592,6 +2599,10 @@ const PR_PAGES = [
 /* ============ CUADRO · IT Proyectos (por PROYECTO = jerarquización de exposición presupuestaria) ============
    estado del proyecto en PPTO27 (ESTADO DEL SL): en curso · mandatorio · nuevo · finalizado
    en curso: aprobado vs consumido (≤2025 + 2026) + FCTS oct–dic + PPTO 2027 → alcanza o requiere aprobación extra */
+/* etiqueta de los FCTS que faltan en 08_PROYECTOS (meses posteriores al último real): "FCTS nov–dic 26" */
+const fcrLbl = (yr) => { const M = (state.ds && state.ds.prFcrM) || [], S = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'], y = yr === false ? '' : ' 26';
+  if (!M.length) return 'FCTS meses restantes';
+  return 'FCTS ' + (M.length === 1 ? S[M[0]] : S[M[0]] + '–' + S[M[M.length - 1]]) + y; };
 const ItPr = {
   id: 'itpr', name: 'IT Proyectos', blurb: 'Por proyecto · en curso (alcanza / extra) · mandatorios · nuevos · finalizados',
   kind(page){ return page.split('|')[1] || 'resumen'; },
@@ -2619,7 +2630,7 @@ const ItPr = {
       { k: 'C25', label: 'Consumido ≤2025', grp: 'Aprobación', kind: 'amt', tone: 'real' },
       { k: 'C26', label: 'Consumido 2026', grp: 'Aprobación', kind: 'amt', tone: 'real' },
       { k: 'CONS', label: 'Consumido real', grp: 'Aprobación', kind: 'amt', tone: 'real' },
-      { k: 'FCR', label: 'FCTS oct–dic 26', grp: 'Aprobación', kind: 'amt', tone: 'ater' },
+      { k: 'FCR', label: fcrLbl(), grp: 'Aprobación', kind: 'amt', tone: 'ater' },
       { k: 'SALD0', label: 'Saldo aprobado', grp: 'Aprobación', kind: 'delta', tone: 'var' },
       { k: 'SALD', label: 'Saldo disponible', grp: 'Aprobación', kind: 'delta', tone: 'var', strong: true },
       { k: 'P27', label: 'PPTO 2027', grp: '2027', kind: 'amt', tone: 'ppto', hero: true },
@@ -2644,7 +2655,7 @@ const ItPr = {
       <div class="field"><span class="lab">SL de cada proyecto</span><div class="seg" data-opt="zoomAll"><button type="button" data-v="0" aria-pressed="${!o.zoomAll}">Cerrados (▸ para abrir)</button><button type="button" data-v="1" aria-pressed="${!!o.zoomAll}">Abrir todos</button></div></div>
       <div class="field"><label class="tg"><input type="checkbox" data-opt="splitRes" ${o.splitRes ? 'checked' : ''}>Resumen abierto por subcategoría</label>
         <label class="tg" for="prEmpty"><input type="checkbox" id="prEmpty" data-opt="hideEmpty" ${o.hideEmpty ? 'checked' : ''}>Ocultar proyectos sin montos</label></div>
-      <p class="empty" style="font-size:11.5px;padding:0">Proyecto = Jerarquización de exposición presupuestaria. Estado del proyecto = ESTADO DEL SL de PPTO27. Aprobado y consumido desde 08_PROYECTOS. Saldo disponible = aprobado − consumido real − FCTS oct–dic; si el PPTO 2027 lo supera, la diferencia es el extra a aprobar.</p>`;
+      <p class="empty" style="font-size:11.5px;padding:0">Proyecto = Jerarquización de exposición presupuestaria. Estado del proyecto = ESTADO DEL SL de PPTO27. Aprobado y consumido desde 08_PROYECTOS. Saldo disponible = aprobado − consumido real − ${fcrLbl(false)}; si el PPTO 2027 lo supera, la diferencia es el extra a aprobar.</p>`;
   },
   data(o){
     const D = E.computeITProyectos(state.ds, o.parts);
@@ -2728,7 +2739,7 @@ const ItPr = {
       title = 'IT Proyectos · PPTO 2027'; sub = 'Por proyecto · on going (en curso, mandatorios y finalizados) y futuros';
       kpis = [{ k: 'PPTO 2027 · proyectos on going', v: '$' + fAmt(ogv.P27).t + unitShort(), d: 'nuevos $' + fAmt(nuv.P27).t + unitShort(), plain: true, hero: true, tone: 'ppto' },
               { k: 'Aprobación extra a pedir', tone: 'ater', plain: true, v: '$' + fAmt(ex.reduce((a, g) => a + g.v.EXC, 0)).t + unitShort(), d: nP(ex) + ' en curso exceden lo aprobado' }];
-      note = 'Proyecto = Jerarquización de exposición presupuestaria; estado del proyecto según PPTO27. En curso: si aprobado − consumido real (≤2025 + 2026) − FCTS oct–dic no alcanza para el PPTO 2027, la diferencia es el extra a aprobar.';
+      note = 'Proyecto = Jerarquización de exposición presupuestaria; estado del proyecto según PPTO27. En curso: si aprobado − consumido real (≤2025 + 2026) − ' + fcrLbl(false) + ' no alcanza para el PPTO 2027, la diferencia es el extra a aprobar.';
     } else {
       const want = k === 'ok' ? 'ok' : k === 'extra' ? 'extra' : k;
       const L = G.filter(g => g.res === want && !(o.hideEmpty && (k === 'nuevo' ? Math.abs(g.v.P27) < 0.005 : g.empty)))
@@ -2753,8 +2764,8 @@ const ItPr = {
         nuevo: [{ k: 'PPTO 2027 a aprobar', v: '$' + fAmt(tot.P27).t + unitShort(), d: nP(L) + ' nuevos', plain: true, hero: true, tone: 'ppto' }],
         fin: [{ k: 'Aprobado total', v: '$' + fAmt(tot.APR).t + unitShort(), d: 'consumido ' + (tot.APR ? nf(0).format(tot.CONS / tot.APR * 100) + '%' : '–'), plain: true, hero: true, tone: 'var' }]
       }[want];
-      note = { ok: 'Saldo disponible = aprobado total − consumido real (≤2025 + 2026) − FCTS oct–dic 2026, todo desde 08_PROYECTOS y sumado por proyecto. Saldo luego de 2027 = saldo disponible − PPTO 2027.',
-        extra: 'Extra a aprobar = PPTO 2027 − saldo disponible del proyecto (aprobado − consumido real − FCTS oct–dic). Se calcula por proyecto: todos sus SL suman.',
+      note = { ok: 'Saldo disponible = aprobado total − consumido real (≤2025 + 2026) − ' + fcrLbl() + ', todo desde 08_PROYECTOS y sumado por proyecto. Saldo luego de 2027 = saldo disponible − PPTO 2027.',
+        extra: 'Extra a aprobar = PPTO 2027 − saldo disponible del proyecto (aprobado − consumido real − ' + fcrLbl(false) + '). Se calcula por proyecto: todos sus SL suman.',
         mand: 'Proyectos con estado MANDATORIO en PPTO27: forman parte de los proyectos on going pero no requieren aprobación.',
         nuevo: 'Proyectos con estado NUEVO en PPTO27 (proyectos futuros). Ventana 2027 según 08_PROYECTOS.',
         fin: 'Proyectos con estado FINALIZADO en PPTO27. No deberían tener PPTO 2027.' }[want];
@@ -5810,7 +5821,7 @@ new MutationObserver(updAllTxt).observe($('#slides'), { childList: true });
 
 <!--UPD--><div id="updbar" hidden style="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#1d2a4a;color:#fff;border:1px solid #7c8cff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px system-ui,sans-serif;display:flex;gap:12px;align-items:center">
 <span>Hay una versión nueva del motor</span><button type="button" id="updbtn" style="background:#7c8cff;color:#0b1020;border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui,sans-serif;cursor:pointer">Actualizar</button></div>
-<script>(function(){var CUR="20/11/2026 12:48";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
+<script>(function(){var CUR="20/11/2026 12:53";function chk(){fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){if(j&&j.v&&j.v!==CUR){var b=document.getElementById('updbar');b.hidden=false;b.style.display='flex';}}).catch(function(){});}
 document.getElementById('updbtn').onclick=function(){location.replace(location.pathname+'?v='+Date.now());};
 chk();setInterval(chk,5*60*1000);document.addEventListener('visibilitychange',function(){if(!document.hidden)chk();});})();</script><!--/UPD-->
 </body></html>
